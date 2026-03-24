@@ -919,7 +919,7 @@ function ExportModal({intern,groups,onClose,T}) {
 }
 
 // ── Intern Card ────────────────────────────────────────────────────────────
-const InternCard = ({intern,lists,groups,onClick,T}) => {
+const InternCard = ({intern,lists,groups,onClick,onGroupClick,T}) => {
   const t=T||THEMES.sage; const rs=retSt(intern); const af=activeFlags(intern);
   const memberLists  = lists.filter(l=>intern.listIds.includes(l.id));
   const memberGroups = groups.filter(g=>intern.groupIds.includes(g.id));
@@ -948,7 +948,9 @@ const InternCard = ({intern,lists,groups,onClick,T}) => {
       {(memberLists.length>0||memberGroups.length>0||intern.sharedWith?.length>0)&&
         <div style={{display:"flex",gap:5,flexWrap:"wrap",marginTop:8,alignItems:"center"}}>
           {memberLists.map(l=><Badge key={l.id} color={l.color} bg={l.colorLight}>{l.name}</Badge>)}
-          {memberGroups.map(g=><Badge key={g.id} color={g.color} bg={g.colorLight}>{g.name}</Badge>)}
+          {memberGroups.map(g=><span key={g.id} onClick={e=>{e.stopPropagation();onGroupClick&&onGroupClick(g.id);}} style={{cursor:onGroupClick?"pointer":"default"}}>
+            <Badge color={g.color} bg={g.colorLight}>{g.name}</Badge>
+          </span>)}
           {intern.sharedWith?.length>0&&<SharedAvatars sharedWith={intern.sharedWith}/>}
         </div>}
     </div>
@@ -1339,12 +1341,12 @@ function HoursBreakdown({intern,onUpdateIntern,T}) {
   const cell = (val,disc) => <div style={{fontSize:14,color:t.text,fontFamily:"'DM Mono',monospace",fontWeight:disc?600:400}}>{val}{disc?" ⚠":""}</div>;
 
   const downloadCSV=()=>{
-    const rows=[["Session Date","Type","Duration","Notes"],...sessions.map(s=>[s.date,s.type||"Individual",s.duration||"",\`"\${(s.notes||"").replace(/"/g,'\"')}"]\`])];
+    const rows=[["Session Date","Type","Duration","Notes"],...sessions.map(s=>[s.date,s.type||"Individual",s.duration||"",`"\${(s.notes||"").replace(/"/g,'\"')}"]`])];
     const csv=rows.map(r=>r.join(",")).join("\n");
     const blob=new Blob([csv],{type:"text/csv"});
     const url=URL.createObjectURL(blob);
     const a=document.createElement("a");
-    a.href=url;a.download=\`\${intern.name.replace(/\s+/g,"_")}_sessions.csv\`;a.click();
+    a.href=url;a.download=`\${intern.name.replace(/\s+/g,"_")}_sessions.csv`;a.click();
     URL.revokeObjectURL(url);
   };
 
@@ -1360,10 +1362,10 @@ function HoursBreakdown({intern,onUpdateIntern,T}) {
     </div>
 
     {/* Sub-tabs */}
-    <div style={{display:"flex",gap:0,borderBottom:\`1px solid \${t.border}\`}}>
+    <div style={{display:"flex",gap:0,borderBottom:`1px solid \${t.border}`}}>
       {TABS.map(([id,label])=>(
         <button key={id} onClick={()=>setTab(id)}
-          style={{background:"none",border:"none",borderBottom:tab===id?\`2px solid \${t.accent}\`:"2px solid transparent",padding:"8px 20px",cursor:"pointer",fontSize:13,color:tab===id?t.accent:t.muted,fontFamily:"inherit",fontWeight:tab===id?500:400,marginBottom:-1,transition:"all 0.15s"}}>
+          style={{background:"none",border:"none",borderBottom:tab===id?`2px solid \${t.accent}`:"2px solid transparent",padding:"8px 20px",cursor:"pointer",fontSize:13,color:tab===id?t.accent:t.muted,fontFamily:"inherit",fontWeight:tab===id?500:400,marginBottom:-1,transition:"all 0.15s"}}>
           {label}
         </button>
       ))}
@@ -1374,35 +1376,35 @@ function HoursBreakdown({intern,onUpdateIntern,T}) {
       {anyDisc&&<div style={{background:S.amberLight,border:"1px solid #E8C98A",borderRadius:10,padding:"11px 16px",fontSize:13,color:S.amber,marginBottom:8}}>
         ⚠ Some hours don't match — rows marked below. Resolve before the reporting period closes.
       </div>}
-      <div style={{background:t.surface,border:\`1px solid \${t.border}\`,borderRadius:14,overflow:"hidden",boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
+      <div style={{background:t.surface,border:`1px solid \${t.border}`,borderRadius:14,overflow:"hidden",boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
         <div style={{display:"grid",gridTemplateColumns:"2fr .7fr 1fr 1fr 1fr",background:t.surfaceAlt,padding:"10px 18px",gap:8}}>
           {["Category","Type","My log","Intern reported","Difference"].map(h=><div key={h} style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em"}}>{h}</div>)}
         </div>
         {allCats.map(cat=>{
           const s=supBycat[cat.id]||0;const i=intBycat[cat.id]||0;
           const disc=s!==i;const diff=i-s;
-          return <div key={cat.id} style={{display:"grid",gridTemplateColumns:"2fr .7fr 1fr 1fr 1fr",padding:"12px 18px",gap:8,borderTop:\`1px solid \${t.borderLight}\`,background:disc?\`\${t.accent}12\`:"transparent",alignItems:"center"}}>
+          return <div key={cat.id} style={{display:"grid",gridTemplateColumns:"2fr .7fr 1fr 1fr 1fr",padding:"12px 18px",gap:8,borderTop:`1px solid \${t.borderLight}`,background:disc?`\${t.accent}12`:"transparent",alignItems:"center"}}>
             <div style={{fontSize:14,color:t.text}}>{cat.label}</div>
             <div><Badge color={cat.type==="direct"?t.accentText:t.muted} bg={cat.type==="direct"?t.accentLight:t.surfaceAlt}>{cat.type}</Badge></div>
             {cell(s,false)}{cell(i,disc)}
-            <div style={{fontSize:13,color:disc?t.accent:t.faint,fontFamily:"'DM Mono',monospace"}}>{disc?(diff>0?\`+\${diff}\`:diff):"—"}</div>
+            <div style={{fontSize:13,color:disc?t.accent:t.faint,fontFamily:"'DM Mono',monospace"}}>{disc?(diff>0?`+\${diff}`:diff):"—"}</div>
           </div>;
         })}
-        <div style={{display:"grid",gridTemplateColumns:"2fr .7fr 1fr 1fr 1fr",padding:"12px 18px",gap:8,borderTop:\`2px solid \${t.border}\`,background:t.surfaceAlt}}>
+        <div style={{display:"grid",gridTemplateColumns:"2fr .7fr 1fr 1fr 1fr",padding:"12px 18px",gap:8,borderTop:`2px solid \${t.border}`,background:t.surfaceAlt}}>
           <div style={{fontSize:13,color:t.text,fontWeight:600}}>Direct</div><div/>
           <div style={{fontSize:13,color:t.accent,fontFamily:"'DM Mono',monospace",fontWeight:600}}>{supDirect}</div>
           <div style={{fontSize:13,color:intDirect!==supDirect?S.amber:t.accent,fontFamily:"'DM Mono',monospace",fontWeight:600}}>{intDirect}{intDirect!==supDirect?" ⚠":""}</div><div/>
         </div>
-        <div style={{display:"grid",gridTemplateColumns:"2fr .7fr 1fr 1fr 1fr",padding:"12px 18px",gap:8,borderTop:\`1px solid \${t.borderLight}\`,background:t.surfaceAlt}}>
+        <div style={{display:"grid",gridTemplateColumns:"2fr .7fr 1fr 1fr 1fr",padding:"12px 18px",gap:8,borderTop:`1px solid \${t.borderLight}`,background:t.surfaceAlt}}>
           <div style={{fontSize:13,color:t.text,fontWeight:600}}>Indirect</div><div/>
           <div style={{fontSize:13,color:t.muted,fontFamily:"'DM Mono',monospace",fontWeight:600}}>{supIndirect}</div>
           <div style={{fontSize:13,color:intIndirect!==supIndirect?S.amber:t.muted,fontFamily:"'DM Mono',monospace",fontWeight:600}}>{intIndirect}{intIndirect!==supIndirect?" ⚠":""}</div><div/>
         </div>
-        <div style={{display:"grid",gridTemplateColumns:"2fr .7fr 1fr 1fr 1fr",padding:"13px 18px",gap:8,borderTop:\`2px solid \${t.border}\`}}>
+        <div style={{display:"grid",gridTemplateColumns:"2fr .7fr 1fr 1fr 1fr",padding:"13px 18px",gap:8,borderTop:`2px solid \${t.border}`}}>
           <div style={{fontSize:14,color:t.text,fontWeight:700}}>Grand total</div><div/>
           <div style={{fontSize:14,color:t.accent,fontFamily:"'DM Mono',monospace",fontWeight:700}}>{supTotal}</div>
           <div style={{fontSize:14,color:intTotal!==supTotal?S.amber:t.accent,fontFamily:"'DM Mono',monospace",fontWeight:700}}>{intTotal}{intTotal!==supTotal?" ⚠":""}</div>
-          <div style={{fontSize:12,color:t.faint,fontFamily:"'DM Mono',monospace"}}>{intTotal!==supTotal?(intTotal-supTotal>0?\`+\${intTotal-supTotal}\`:intTotal-supTotal):"✓ Match"}</div>
+          <div style={{fontSize:12,color:t.faint,fontFamily:"'DM Mono',monospace"}}>{intTotal!==supTotal?(intTotal-supTotal>0?`+\${intTotal-supTotal}`:intTotal-supTotal):"✓ Match"}</div>
         </div>
       </div>
     </div>}
@@ -1412,14 +1414,14 @@ function HoursBreakdown({intern,onUpdateIntern,T}) {
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
         <div style={{fontSize:13,color:t.muted}}>{sessions.length} session{sessions.length!==1?"s":""} logged by supervisor</div>
         {sessions.length>0&&<button onClick={downloadCSV}
-          style={{background:"none",border:\`1px solid \${t.border}\`,borderRadius:7,padding:"5px 12px",cursor:"pointer",fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace"}}>
+          style={{background:"none",border:`1px solid \${t.border}`,borderRadius:7,padding:"5px 12px",cursor:"pointer",fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace"}}>
           ⬇ Download (.csv)
         </button>}
       </div>
       {sessions.length===0
         ? <div style={{fontSize:13,color:t.faint,padding:"24px 0",textAlign:"center"}}>No individual sessions logged yet for {dn(intern)}.</div>
         : sessions.map((s,i)=>(
-            <div key={i} style={{background:t.surface,border:\`1px solid \${t.border}\`,borderLeft:\`3px solid \${t.accent}\`,borderRadius:10,padding:"12px 16px",marginBottom:8}}>
+            <div key={i} style={{background:t.surface,border:`1px solid \${t.border}`,borderLeft:`3px solid \${t.accent}`,borderRadius:10,padding:"12px 16px",marginBottom:8}}>
               <div style={{display:"flex",gap:8,marginBottom:s.notes?6:0,alignItems:"center",flexWrap:"wrap"}}>
                 <Badge color={t.muted} bg={t.surfaceAlt}>{s.date}</Badge>
                 <Badge color={t.accentText} bg={t.accentLight}>{s.type||"Individual"}</Badge>
@@ -1435,7 +1437,7 @@ function HoursBreakdown({intern,onUpdateIntern,T}) {
       <div style={{background:S.amberLight,border:"1px solid #E8C98A",borderRadius:10,padding:"12px 16px",marginBottom:16,fontSize:13,color:"#7A5A00",lineHeight:1.6}}>
         ⚠ <strong>Supervisor adjustment.</strong> Use this only to correct data entry errors in SupTrack. If {dn(intern)} submitted incorrect hours to their licensing board, they need to correct that separately — this only updates what's tracked here.
       </div>
-      <InternHoursEditor key={\`sup-adj-\${intern.id}\`} T={t} intern={intern} onUpdate={onUpdateIntern} supervisorMode={true}/>
+      <InternHoursEditor key={`sup-adj-\${intern.id}`} T={t} intern={intern} onUpdate={onUpdateIntern} supervisorMode={true}/>
     </div>}
   </div>;
 }
@@ -1978,7 +1980,7 @@ function InternActionsMenu({T,intern,onConsult,onFlagOpen,onLinkOpen,onExportOpe
   </div>;
 }
 
-function InternProfile({intern,groups,lists,onBack,onUpdateIntern,onConsult,onOpenLab,T}) {
+function InternProfile({intern,groups,lists,onBack,onUpdateIntern,onConsult,onOpenLab,onGroupClick,T}) {
   const t=T||THEMES.sage;
   const [tab,setTab]=useState("overview");
   const [shareOpen,setShareOpen]=useState(false);
@@ -8100,23 +8102,17 @@ export default function SupTrack() {
             </button>;
           })}</nav>}
 
-      {/* Controls: HC + dark mode only — themes are in Settings */}
+      {/* Controls: HC + dark mode — themes in Settings */}
       <div style={{padding:"12px 24px",borderTop:`1px solid ${t.borderLight}`}}>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-          <button onClick={()=>setPage("settings")}
-            style={{background:"none",border:"none",cursor:"pointer",fontSize:11,color:t.faint,fontFamily:"'DM Mono',monospace",padding:0,letterSpacing:"0.04em"}}>
-            🎨 {THEMES[theme]?.name||"Theme"}
+        <div style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:6}}>
+          <button onClick={()=>setHighContrast(h=>!h)} title={highContrast?"High contrast on":"High contrast off"}
+            style={{background:highContrast?t.accent:t.surfaceAlt,border:`1px solid ${t.border}`,borderRadius:6,padding:"2px 7px",cursor:"pointer",fontSize:10,color:highContrast?"#fff":t.faint,fontFamily:"'DM Mono',monospace",transition:"all 0.2s"}}>
+            HC
           </button>
-          <div style={{display:"flex",gap:6,alignItems:"center"}}>
-            <button onClick={()=>setHighContrast(h=>!h)} title={highContrast?"High contrast on":"High contrast off"}
-              style={{background:highContrast?t.accent:t.surfaceAlt,border:`1px solid ${t.border}`,borderRadius:6,padding:"2px 7px",cursor:"pointer",fontSize:10,color:highContrast?"#fff":t.faint,fontFamily:"'DM Mono',monospace",transition:"all 0.2s"}}>
-              HC
-            </button>
-            <button onClick={()=>setDarkMode(d=>!d)} title={darkMode?"Light mode":"Dark mode"}
-              style={{background:darkMode?t.accent:t.surfaceAlt,border:`1px solid ${t.border}`,borderRadius:20,width:44,height:24,cursor:"pointer",position:"relative",transition:"background 0.2s",flexShrink:0}}>
-              <span style={{position:"absolute",top:3,left:darkMode?22:2,width:18,height:18,borderRadius:"50%",background:darkMode?"#fff":t.muted,transition:"left 0.2s",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10}}>{darkMode?"🌙":"☀️"}</span>
-            </button>
-          </div>
+          <button onClick={()=>setDarkMode(d=>!d)} title={darkMode?"Light mode":"Dark mode"}
+            style={{background:darkMode?t.accent:t.surfaceAlt,border:`1px solid ${t.border}`,borderRadius:20,width:44,height:24,cursor:"pointer",position:"relative",transition:"background 0.2s",flexShrink:0}}>
+            <span style={{position:"absolute",top:3,left:darkMode?22:2,width:18,height:18,borderRadius:"50%",background:darkMode?"#fff":t.muted,transition:"left 0.2s",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10}}>{darkMode?"🌙":"☀️"}</span>
+          </button>
         </div>
       </div>
 
