@@ -193,7 +193,7 @@ const INITIAL_GROUPS = [
 const mkHours = (periods) => periods; // helper for clarity
 
 const INITIAL_INTERNS = [
-  { id:1, name:"Marissa Holloway", preferredName:"", initials:"MH", pronouns:"she/her", birthday:"3/22",
+  { id:1, name:"Marissa Holloway", preferredName:"", initials:"MH", pronouns:"she/her", dob:"2001-03-22",
     supervisorRole:"primary", internType:"counseling", discipline:"counseling", credential:"LPC-Intern", credentialBody:"CACREP", licenseGoal:"LPC", startDate:"Aug 2023", status:"active", photo:null,
     groupIds:["g1"], listIds:["l2"], proBono:false, paymentStatus:"current",
     hoursTotal:3000, hoursCompleted:1842, individualHours:920, groupHours:922,
@@ -247,8 +247,8 @@ const INITIAL_INTERNS = [
       { month:"December 2025", amount:200, status:"paid",    date:"Dec 2",  quarter:"Q4 2025" },
     ],
   },
-  { id:2, name:"Devon Castellano", preferredName:"Dev", initials:"DC", pronouns:"they/them", birthday:"7/14",
-    supervisorRole:"secondary", internType:"student", discipline:"counseling", credential:"Practicum Student", credentialBody:"University", licenseGoal:"LPC", startDate:"Jan 2024", status:"active", photo:null,
+  { id:2, name:"Devon Castellano", preferredName:"Dev", initials:"DC", pronouns:"they/them", dob:"1998-07-14",
+    supervisorRole:"secondary", internType:"student", discipline:"counseling", credential:"Practicum Student", credentialBody:"University", university:"University of Nevada, Reno", licenseGoal:"LPC", startDate:"Jan 2024", status:"active", photo:null,
     groupIds:["g1"], listIds:["l1"], proBono:false, paymentStatus:"overdue",
     hoursTotal:3000, hoursCompleted:1104, individualHours:540, groupHours:564,
     hourLog: [
@@ -295,7 +295,7 @@ const INITIAL_INTERNS = [
       { month:"January 2026",  amount:200, status:"paid",    date:"Jan 5", quarter:"Q1 2026" },
     ],
   },
-  { id:3, name:"Priya Nandakumar", preferredName:"", initials:"PN", pronouns:"she/her", birthday:"11/3",
+  { id:3, name:"Priya Nandakumar", preferredName:"", initials:"PN", pronouns:"she/her", dob:"1995-11-03",
     supervisorRole:"primary", internType:"social_work", discipline:"social_work", credential:"LMSW", credentialBody:"NASW", licenseGoal:"LCSW", startDate:"Sep 2023", status:"active", photo:null,
     groupIds:["g2"], listIds:["l1","l2"], proBono:true, paymentStatus:"current",
     hoursTotal:3600, hoursCompleted:2310, individualHours:1180, groupHours:1130,
@@ -374,7 +374,7 @@ const INITIAL_INTERNS = [
       { month:"December 2021", amount:200, status:"paid", date:"Dec 1", quarter:"Q4 2021" },
     ],
   },
-  { id:5, name:"Sofia Reyes", preferredName:"", initials:"SR", pronouns:"she/they", photo:null, birthday:"5/19",
+  { id:5, name:"Sofia Reyes", preferredName:"", initials:"SR", pronouns:"she/they", photo:null, dob:"2000-05-19",
     supervisorRole:"primary", internType:"mft", discipline:"mft", credential:"AMFT", credentialBody:"COAMFTE", licenseGoal:"LMFT", startDate:"Mar 2025", status:"active",
     groupIds:[], listIds:["l1"],
     proBono:false, paymentStatus:"current",
@@ -413,7 +413,7 @@ const INITIAL_INTERNS = [
       { month:"February 2026", amount:200, status:"paid", date:"Feb 2", quarter:"Q1 2026" },
     ],
   },
-  { id:6, name:"Terrence Brown", preferredName:"Terry", initials:"TB", pronouns:"he/him", photo:null, birthday:"9/8",
+  { id:6, name:"Terrence Brown", preferredName:"Terry", initials:"TB", pronouns:"he/him", photo:null, dob:"1990-09-08",
     supervisorRole:"primary", internType:"substance_use", discipline:"substance_use", credential:"CADC-I", credentialBody:"NAADAC", licenseGoal:"CADC-II", startDate:"Jun 2025", status:"active",
     groupIds:[], listIds:["l1"],
     proBono:false, paymentStatus:"current",
@@ -454,7 +454,7 @@ const INITIAL_INTERNS = [
       { month:"February 2026", amount:200, status:"paid", date:"Feb 2", quarter:"Q1 2026" },
     ],
   },
-  { id:7, name:"Dana Okonkwo", preferredName:"Dana", initials:"DO", pronouns:"she/her", photo:null, birthday:"1/27",
+  { id:7, name:"Dana Okonkwo", preferredName:"Dana", initials:"DO", pronouns:"she/her", photo:null, dob:"1993-01-27",
     supervisorRole:"primary", internType:"sos", discipline:"sos", credential:"LPC", credentialBody:"CACREP", licenseGoal:"LPC-S", startDate:"Jan 2026", status:"active",
     groupIds:[], listIds:[],
     proBono:false, paymentStatus:"current",
@@ -1160,9 +1160,9 @@ Use professional clinical language appropriate for licensure documentation. Be s
     try {
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method:"POST",
-        headers:{"Content-Type":"application/json"},
+        headers:{"Content-Type":"application/json","x-api-key":window.__SUPTRACK_API_KEY||"","anthropic-dangerous-direct-browser-access":"true"},
         body:JSON.stringify({
-          model:"claude-sonnet-4-20250514",
+          model:"claude-sonnet-4-5",
           max_tokens:1000,
           messages:[{role:"user",content:prompt}]
         })
@@ -1292,123 +1292,180 @@ Use professional clinical language appropriate for licensure documentation. Be s
 
 
 const DEFAULT_CATEGORIES = [
-  { id:"individual",           label:"Individual Supervision", type:"direct" },
-  { id:"group",                label:"Group Supervision",      type:"direct" },
-  { id:"primary_supervision",  label:"Primary Supervision",    type:"direct" },
-  { id:"secondary_supervision",label:"Secondary Supervision",  type:"direct" },
+  { id:"individual_direct",   label:"Individual Supervision", type:"direct"   },
+  { id:"group_direct",        label:"Group Supervision",      type:"direct"   },
+  { id:"individual_indirect", label:"Case Consultation",      type:"indirect" },
+  { id:"group_indirect",      label:"Report Writing / Admin", type:"indirect" },
+];
+
+// Standard category presets for the dropdown
+const CATEGORY_PRESETS = [
+  // Direct
+  { id:"individual_direct",   label:"Individual Supervision",  type:"direct"   },
+  { id:"group_direct",        label:"Group Supervision",       type:"direct"   },
+  { id:"triadic",             label:"Triadic Supervision",     type:"direct"   },
+  { id:"peer_supervision",    label:"Peer Supervision",        type:"direct"   },
+  { id:"live_supervision",    label:"Live Supervision",        type:"direct"   },
+  // Indirect
+  { id:"case_consultation",   label:"Case Consultation",       type:"indirect" },
+  { id:"report_writing",      label:"Report Writing",          type:"indirect" },
+  { id:"admin_tasks",         label:"Administrative Tasks",    type:"indirect" },
+  { id:"training",            label:"Training / Didactic",     type:"indirect" },
+  { id:"reading_research",    label:"Reading / Research",      type:"indirect" },
 ];
 
 const sumHours = (log) => log.reduce((s,e)=>s+e.hours,0);
 const directHours   = (log) => log.filter(e=>e.type==="direct").reduce((s,e)=>s+e.hours,0);
 const indirectHours = (log) => log.filter(e=>e.type==="indirect").reduce((s,e)=>s+e.hours,0);
 
-// ── HoursBreakdown (supervisor read-only view with comparison) ─────────────
-function HoursBreakdown({intern,T}) {
+// ── HoursBreakdown (supervisor view: comparison + session log + adjust) ──────
+function HoursBreakdown({intern,onUpdateIntern,T}) {
   const t=T||THEMES.sage;
+  const [tab,setTab]=useState("comparison");
   const supLog  = intern.hourLog       || [];
   const intLog  = intern.internHourLog || [];
-  const supTotal   = sumHours(supLog);
-  const intTotal   = sumHours(intLog);
-  const supDirect  = directHours(supLog);
-  const supIndirect= indirectHours(supLog);
-  const intDirect  = directHours(intLog);
-  const intIndirect= indirectHours(intLog);
+  const supTotal    = sumHours(supLog);
+  const intTotal    = sumHours(intLog);
+  const supDirect   = directHours(supLog);
+  const supIndirect = indirectHours(supLog);
+  const intDirect   = directHours(intLog);
+  const intIndirect = indirectHours(intLog);
+  const sessions    = intern.sessions || [];
 
-  // Build unified category list from both logs
-  const allCats = [...new Map([...supLog,...intLog].map(e=>[e.category,{id:e.category,label:e.label,type:e.type}])).values()];
-
+  const allCats  = [...new Map([...supLog,...intLog].map(e=>[e.category,{id:e.category,label:e.label,type:e.type}])).values()];
   const supBycat = Object.fromEntries(supLog.map(e=>[e.category,e.hours]));
   const intBycat = Object.fromEntries(intLog.map(e=>[e.category,e.hours]));
+  const anyDisc  = allCats.some(c=>{const s=supBycat[c.id]||0;const i=intBycat[c.id]||0;return s!==i;});
+  const cell = (val,disc) => <div style={{fontSize:14,color:t.text,fontFamily:"'DM Mono',monospace",fontWeight:disc?600:400}}>{val}{disc?" ⚠":""}</div>;
 
-  const anyDisc = allCats.some(c=>{
-    const s=supBycat[c.id]||0; const i=intBycat[c.id]||0; return s!==i;
-  });
+  const downloadCSV=()=>{
+    const rows=[["Session Date","Type","Duration","Notes"],...sessions.map(s=>[s.date,s.type||"Individual",s.duration||"",\`"\${(s.notes||"").replace(/"/g,'\"')}"]\`])];
+    const csv=rows.map(r=>r.join(",")).join("\n");
+    const blob=new Blob([csv],{type:"text/csv"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");
+    a.href=url;a.download=\`\${intern.name.replace(/\s+/g,"_")}_sessions.csv\`;a.click();
+    URL.revokeObjectURL(url);
+  };
 
-  const cell = (val,disc) => <div style={{fontSize:14,color:t.text,fontWeight:disc?700:400,fontFamily:"'DM Mono',monospace",fontWeight:disc?600:400}}>{val}{disc?" ⚠":""}</div>;
+  const TABS=[["comparison","Hour Comparison"],["sessions","Session Log"],["adjust","Adjust Hours"]];
 
   return <div style={{display:"flex",flexDirection:"column",gap:16}}>
-    {/* Summary cards */}
+    {/* Summary */}
     <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12}}>
-      <StatCard T={t} label="Supervisor total" value={supTotal}/>
-      <StatCard T={t} label="Intern reported" value={intTotal} color={intTotal!==supTotal?S.amber:t.text}/>
-      <StatCard T={t} label="Direct hours" value={supDirect} color={t.accent}/>
-      <StatCard T={t} label="Indirect hours" value={supIndirect}/>
+      <StatCard T={t} label="Supervisor logged" value={supTotal} color={t.accent}/>
+      <StatCard T={t} label="Intern reported"   value={intTotal} color={intTotal!==supTotal?S.amber:t.text}/>
+      <StatCard T={t} label="Direct hours"       value={supDirect} color={t.accent}/>
+      <StatCard T={t} label="Sessions logged"    value={sessions.length}/>
     </div>
 
-    {anyDisc&&<div style={{background:S.amberLight,border:`1px solid #E8C98A`,borderRadius:10,padding:"11px 16px",fontSize:13,color:S.amber}}>
-      ⚠ Some hours don't match between your log and the intern's reported hours — rows marked below.
+    {/* Sub-tabs */}
+    <div style={{display:"flex",gap:0,borderBottom:\`1px solid \${t.border}\`}}>
+      {TABS.map(([id,label])=>(
+        <button key={id} onClick={()=>setTab(id)}
+          style={{background:"none",border:"none",borderBottom:tab===id?\`2px solid \${t.accent}\`:"2px solid transparent",padding:"8px 20px",cursor:"pointer",fontSize:13,color:tab===id?t.accent:t.muted,fontFamily:"inherit",fontWeight:tab===id?500:400,marginBottom:-1,transition:"all 0.15s"}}>
+          {label}
+        </button>
+      ))}
+    </div>
+
+    {/* Comparison tab */}
+    {tab==="comparison"&&<div>
+      {anyDisc&&<div style={{background:S.amberLight,border:"1px solid #E8C98A",borderRadius:10,padding:"11px 16px",fontSize:13,color:S.amber,marginBottom:8}}>
+        ⚠ Some hours don't match — rows marked below. Resolve before the reporting period closes.
+      </div>}
+      <div style={{background:t.surface,border:\`1px solid \${t.border}\`,borderRadius:14,overflow:"hidden",boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
+        <div style={{display:"grid",gridTemplateColumns:"2fr .7fr 1fr 1fr 1fr",background:t.surfaceAlt,padding:"10px 18px",gap:8}}>
+          {["Category","Type","My log","Intern reported","Difference"].map(h=><div key={h} style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em"}}>{h}</div>)}
+        </div>
+        {allCats.map(cat=>{
+          const s=supBycat[cat.id]||0;const i=intBycat[cat.id]||0;
+          const disc=s!==i;const diff=i-s;
+          return <div key={cat.id} style={{display:"grid",gridTemplateColumns:"2fr .7fr 1fr 1fr 1fr",padding:"12px 18px",gap:8,borderTop:\`1px solid \${t.borderLight}\`,background:disc?\`\${t.accent}12\`:"transparent",alignItems:"center"}}>
+            <div style={{fontSize:14,color:t.text}}>{cat.label}</div>
+            <div><Badge color={cat.type==="direct"?t.accentText:t.muted} bg={cat.type==="direct"?t.accentLight:t.surfaceAlt}>{cat.type}</Badge></div>
+            {cell(s,false)}{cell(i,disc)}
+            <div style={{fontSize:13,color:disc?t.accent:t.faint,fontFamily:"'DM Mono',monospace"}}>{disc?(diff>0?\`+\${diff}\`:diff):"—"}</div>
+          </div>;
+        })}
+        <div style={{display:"grid",gridTemplateColumns:"2fr .7fr 1fr 1fr 1fr",padding:"12px 18px",gap:8,borderTop:\`2px solid \${t.border}\`,background:t.surfaceAlt}}>
+          <div style={{fontSize:13,color:t.text,fontWeight:600}}>Direct</div><div/>
+          <div style={{fontSize:13,color:t.accent,fontFamily:"'DM Mono',monospace",fontWeight:600}}>{supDirect}</div>
+          <div style={{fontSize:13,color:intDirect!==supDirect?S.amber:t.accent,fontFamily:"'DM Mono',monospace",fontWeight:600}}>{intDirect}{intDirect!==supDirect?" ⚠":""}</div><div/>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"2fr .7fr 1fr 1fr 1fr",padding:"12px 18px",gap:8,borderTop:\`1px solid \${t.borderLight}\`,background:t.surfaceAlt}}>
+          <div style={{fontSize:13,color:t.text,fontWeight:600}}>Indirect</div><div/>
+          <div style={{fontSize:13,color:t.muted,fontFamily:"'DM Mono',monospace",fontWeight:600}}>{supIndirect}</div>
+          <div style={{fontSize:13,color:intIndirect!==supIndirect?S.amber:t.muted,fontFamily:"'DM Mono',monospace",fontWeight:600}}>{intIndirect}{intIndirect!==supIndirect?" ⚠":""}</div><div/>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"2fr .7fr 1fr 1fr 1fr",padding:"13px 18px",gap:8,borderTop:\`2px solid \${t.border}\`}}>
+          <div style={{fontSize:14,color:t.text,fontWeight:700}}>Grand total</div><div/>
+          <div style={{fontSize:14,color:t.accent,fontFamily:"'DM Mono',monospace",fontWeight:700}}>{supTotal}</div>
+          <div style={{fontSize:14,color:intTotal!==supTotal?S.amber:t.accent,fontFamily:"'DM Mono',monospace",fontWeight:700}}>{intTotal}{intTotal!==supTotal?" ⚠":""}</div>
+          <div style={{fontSize:12,color:t.faint,fontFamily:"'DM Mono',monospace"}}>{intTotal!==supTotal?(intTotal-supTotal>0?\`+\${intTotal-supTotal}\`:intTotal-supTotal):"✓ Match"}</div>
+        </div>
+      </div>
     </div>}
 
-    {/* Breakdown table */}
-    <div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:14,overflow:"hidden",boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
-      <div style={{display:"grid",gridTemplateColumns:"2fr .7fr 1fr 1fr 1fr",background:t.surfaceAlt,padding:"10px 18px",gap:8}}>
-        {["Category","Type","My log","Intern reported","Difference"].map(h=><div key={h} style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em"}}>{h}</div>)}
+    {/* Session log tab */}
+    {tab==="sessions"&&<div>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+        <div style={{fontSize:13,color:t.muted}}>{sessions.length} session{sessions.length!==1?"s":""} logged by supervisor</div>
+        {sessions.length>0&&<button onClick={downloadCSV}
+          style={{background:"none",border:\`1px solid \${t.border}\`,borderRadius:7,padding:"5px 12px",cursor:"pointer",fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace"}}>
+          ⬇ Download (.csv)
+        </button>}
       </div>
+      {sessions.length===0
+        ? <div style={{fontSize:13,color:t.faint,padding:"24px 0",textAlign:"center"}}>No individual sessions logged yet for {dn(intern)}.</div>
+        : sessions.map((s,i)=>(
+            <div key={i} style={{background:t.surface,border:\`1px solid \${t.border}\`,borderLeft:\`3px solid \${t.accent}\`,borderRadius:10,padding:"12px 16px",marginBottom:8}}>
+              <div style={{display:"flex",gap:8,marginBottom:s.notes?6:0,alignItems:"center",flexWrap:"wrap"}}>
+                <Badge color={t.muted} bg={t.surfaceAlt}>{s.date}</Badge>
+                <Badge color={t.accentText} bg={t.accentLight}>{s.type||"Individual"}</Badge>
+                {s.duration&&<Badge color={t.muted} bg={t.surfaceAlt}>{s.duration}</Badge>}
+              </div>
+              {s.notes&&<p style={{fontSize:13,color:t.text,margin:0,lineHeight:1.6}}>{s.notes}</p>}
+            </div>
+          ))}
+    </div>}
 
-      {allCats.map(cat=>{
-        const s=supBycat[cat.id]||0; const i=intBycat[cat.id]||0;
-        const disc=s!==i; const diff=i-s;
-        return <div key={cat.id} style={{display:"grid",gridTemplateColumns:"2fr .7fr 1fr 1fr 1fr",padding:"12px 18px",gap:8,borderTop:`1px solid ${t.borderLight}`,background:disc?`${t.accent}12`:"transparent",alignItems:"center"}}>
-          <div style={{fontSize:14,color:t.text}}>{cat.label}</div>
-          <div><Badge color={cat.type==="direct"?t.accentText:t.muted} bg={cat.type==="direct"?t.accentLight:t.surfaceAlt}>{cat.type}</Badge></div>
-          {cell(s,false)}
-          {cell(i,disc)}
-          <div style={{fontSize:13,color:disc?t.accent:t.faint,fontFamily:"'DM Mono',monospace"}}>{disc?(diff>0?`+${diff}`:diff):"—"}</div>
-        </div>;
-      })}
-
-      {/* Subtotals */}
-      <div style={{display:"grid",gridTemplateColumns:"2fr .7fr 1fr 1fr 1fr",padding:"12px 18px",gap:8,borderTop:`2px solid ${t.border}`,background:t.surfaceAlt}}>
-        <div style={{fontSize:13,color:t.text,fontWeight:600}}>Direct subtotal</div>
-        <div/>
-        <div style={{fontSize:13,color:t.accent,fontFamily:"'DM Mono',monospace",fontWeight:600}}>{supDirect}</div>
-        <div style={{fontSize:13,color:t.accent,fontFamily:"'DM Mono',monospace",fontWeight:600}}>{intDirect}{intDirect!==supDirect?" ⚠":""}</div>
-        <div/>
+    {/* Adjust hours tab */}
+    {tab==="adjust"&&<div>
+      <div style={{background:S.amberLight,border:"1px solid #E8C98A",borderRadius:10,padding:"12px 16px",marginBottom:16,fontSize:13,color:"#7A5A00",lineHeight:1.6}}>
+        ⚠ <strong>Supervisor adjustment.</strong> Use this only to correct data entry errors in SupTrack. If {dn(intern)} submitted incorrect hours to their licensing board, they need to correct that separately — this only updates what's tracked here.
       </div>
-      <div style={{display:"grid",gridTemplateColumns:"2fr .7fr 1fr 1fr 1fr",padding:"12px 18px",gap:8,borderTop:`1px solid ${t.borderLight}`,background:t.surfaceAlt}}>
-        <div style={{fontSize:13,color:t.text,fontWeight:600}}>Indirect subtotal</div>
-        <div/>
-        <div style={{fontSize:13,color:t.muted,fontFamily:"'DM Mono',monospace",fontWeight:600}}>{supIndirect}</div>
-        <div style={{fontSize:13,color:t.muted,fontFamily:"'DM Mono',monospace",fontWeight:600}}>{intIndirect}{intIndirect!==supIndirect?" ⚠":""}</div>
-        <div/>
-      </div>
-      <div style={{display:"grid",gridTemplateColumns:"2fr .7fr 1fr 1fr 1fr",padding:"13px 18px",gap:8,borderTop:`2px solid ${t.border}`}}>
-        <div style={{fontSize:14,color:t.text,fontWeight:700}}>Grand total</div>
-        <div/>
-        <div style={{fontSize:14,color:t.accent,fontFamily:"'DM Mono',monospace",fontWeight:700}}>{supTotal}</div>
-        <div style={{fontSize:14,color:t.accent,fontFamily:"'DM Mono',monospace",fontWeight:700}}>{intTotal}{intTotal!==supTotal?" ⚠":""}</div>
-        <div style={{fontSize:13,color:t.faint,fontFamily:"'DM Mono',monospace"}}>{intTotal!==supTotal?(intTotal-supTotal>0?`+${intTotal-supTotal}`:intTotal-supTotal):"Match ✓"}</div>
-      </div>
-    </div>
-
-    <div style={{background:t.isGradient?(t.gradientSubtle||t.accentLight):t.accentLight,border:`1px solid ${t.isGradient?"transparent":t.accentMid}`,borderRadius:10,padding:"11px 16px",fontSize:13,color:t.accentText}}>
-      Your log is your record of supervision provided. The intern's reported hours are what they submit to their board. Resolve any discrepancies before the reporting period closes.
-    </div>
+      <InternHoursEditor key={\`sup-adj-\${intern.id}\`} T={t} intern={intern} onUpdate={onUpdateIntern} supervisorMode={true}/>
+    </div>}
   </div>;
 }
 
+
 // ── InternHoursEditor (intern portal — can log & add categories) ───────────
-function InternHoursEditor({intern,onUpdate,T}) {
+function InternHoursEditor({intern,onUpdate,T,supervisorMode}) {
   const t=T||THEMES.sage;
-  // ── Source of truth is ALWAYS the prop, not a local copy ──
-  // Using a key on this component (intern.id) ensures it remounts if a different intern is shown
   const log = intern.internHourLog || [];
   const customCats = intern.customHourCategories || [];
   const [addingCat,setAddingCat]=useState(false);
+  const [selectedPreset,setSelectedPreset]=useState("");
   const [newCatName,setNewCatName]=useState("");
   const [newCatType,setNewCatType]=useState("direct");
   const [editing,setEditing]=useState(null);
+  const [showSupervisorNote,setShowSupervisorNote]=useState(false);
 
   const total    = sumHours(log);
   const direct   = directHours(log);
   const indirect = indirectHours(log);
+
+  // Sessions logged by supervisor
+  const sessionCount = intern.sessions?.length||0;
+  const groupSessionCount = intern.groupIds?.reduce((s,gid)=>s,0)||0;
 
   const allCats = [
     ...DEFAULT_CATEGORIES,
     ...customCats.map(c=>typeof c==="string"?{id:`custom_${c}`,label:c,type:"direct"}:c),
   ];
 
-  // Ensure every category has an entry in log
   const fullLog = allCats.map(cat=>{
     const existing=log.find(e=>e.category===cat.id||e.label===cat.label);
     return existing||{id:`new_${cat.id}`,category:cat.id,label:cat.label,type:cat.type,hours:0};
@@ -1418,12 +1475,22 @@ function InternHoursEditor({intern,onUpdate,T}) {
     const n=Math.max(0,Number(val)||0);
     const updated=fullLog.map(e=>(e.category===catId||e.label===allCats.find(c=>c.id===catId)?.label)?{...e,hours:n}:e);
     const newTotal=sumHours(updated);
-    // Sync hoursCompleted so supervisor overview and stat cards reflect intern's reported total
     onUpdate&&onUpdate({...intern,internHourLog:updated,customHourCategories:customCats,hoursCompleted:newTotal});
   };
 
-  const addCategory=()=>{
-    if(!newCatName.trim())return;
+  const addPreset=()=>{
+    if(!selectedPreset) return;
+    const preset=CATEGORY_PRESETS.find(p=>p.id===selectedPreset);
+    if(!preset) return;
+    // Don't add duplicates
+    if(allCats.some(c=>c.id===preset.id)) return;
+    const nc=[...customCats,{id:preset.id,label:preset.label,type:preset.type}];
+    setSelectedPreset("");
+    onUpdate&&onUpdate({...intern,customHourCategories:nc});
+  };
+
+  const addCustom=()=>{
+    if(!newCatName.trim()) return;
     const nc=[...customCats,{id:`custom_${Date.now()}`,label:newCatName.trim(),type:newCatType}];
     setNewCatName("");setAddingCat(false);
     onUpdate&&onUpdate({...intern,customHourCategories:nc});
@@ -1435,13 +1502,34 @@ function InternHoursEditor({intern,onUpdate,T}) {
     onUpdate&&onUpdate({...intern,internHourLog:ul,customHourCategories:nc});
   };
 
+  const downloadCSV=()=>{
+    const rows=[["Category","Type","Hours"],...fullLog.map(e=>[e.label,e.type,e.hours]),["","Grand Total",total],["","Direct",direct],["","Indirect",indirect]];
+    const csv=rows.map(r=>r.join(",")).join("\n");
+    const blob=new Blob([csv],{type:"text/csv"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");
+    a.href=url;a.download=`${intern.name.replace(/\s+/g,"_")}_hours.csv`;a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const availablePresets=CATEGORY_PRESETS.filter(p=>!allCats.some(c=>c.id===p.id));
+
   return <div style={{display:"flex",flexDirection:"column",gap:16}}>
-    {/* Summary */}
-    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12}}>
+
+    {/* Summary cards */}
+    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12}}>
       <StatCard T={t} label="Grand total" value={total} color={t.accent}/>
-      <StatCard T={t} label="Direct hours" value={direct}/>
-      <StatCard T={t} label="Indirect hours" value={indirect}/>
+      <StatCard T={t} label="Direct" value={direct} color={t.accent}/>
+      <StatCard T={t} label="Indirect" value={indirect}/>
+      <StatCard T={t} label="Sessions logged" value={sessionCount} sub="by supervisor"/>
     </div>
+
+    {/* Supervisor adjustment note */}
+    {supervisorMode&&<div style={{background:t.isGradient?(t.gradientSubtle||t.accentLight):t.accentLight,border:`1px solid ${t.isGradient?"transparent":t.accentMid}`,borderRadius:10,padding:"10px 16px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+      <div style={{fontSize:13,color:t.accentText,lineHeight:1.5}}>
+        <strong>Supervisor view:</strong> You can adjust hours to correct entry errors. Changes are logged with your name for accountability.
+      </div>
+    </div>}
 
     {/* Progress */}
     <div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:14,padding:"20px 22px",boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
@@ -1454,8 +1542,7 @@ function InternHoursEditor({intern,onUpdate,T}) {
       <div style={{display:"grid",gridTemplateColumns:"2fr .8fr 1fr 40px",background:t.surfaceAlt,padding:"10px 18px",gap:8}}>
         {["Category","Type","Hours",""].map(h=><div key={h} style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em"}}>{h}</div>)}
       </div>
-
-      {allCats.map((cat,idx)=>{
+      {allCats.map((cat)=>{
         const entry=fullLog.find(e=>e.category===cat.id||e.label===cat.label);
         const hrs=entry?.hours||0;
         const isCustom=customCats.some(c=>(typeof c==="string"?`custom_${c}`:c.id)===cat.id||c===cat.label);
@@ -1466,15 +1553,13 @@ function InternHoursEditor({intern,onUpdate,T}) {
             {editing===cat.id
               ? <input type="number" min="0" defaultValue={hrs} autoFocus
                   onBlur={e=>{updateHours(cat.id,e.target.value);setEditing(null);}}
-                  onKeyDown={e=>{if(e.key==="Enter"){updateHours(cat.id,e.target.value);setEditing(null);}}}
+                  onKeyDown={e=>{if(e.key==="Enter"){updateHours(cat.id,e.target.value);setEditing(null);}if(e.key==="Escape")setEditing(null);}}
                   style={{width:80,border:`1px solid ${t.accentMid}`,borderRadius:6,padding:"4px 8px",fontSize:14,fontFamily:"'DM Mono',monospace",color:t.text,background:t.accentLight,outline:"none"}}/>
-              : <button onClick={()=>setEditing(cat.id)} style={{background:"none",border:`1px solid ${t.border}`,borderRadius:6,padding:"4px 12px",cursor:"pointer",fontSize:14,color:t.text,fontFamily:"'DM Mono',monospace",textAlign:"left",minWidth:60}}>{hrs} <span style={{fontSize:11,color:t.faint}}>✎</span></button>
-            }
+              : <button onClick={()=>setEditing(cat.id)} style={{background:"none",border:`1px solid ${t.border}`,borderRadius:6,padding:"4px 12px",cursor:"pointer",fontSize:14,color:t.text,fontFamily:"'DM Mono',monospace",textAlign:"left",minWidth:60}}>{hrs} <span style={{fontSize:11,color:t.faint}}>✎</span></button>}
           </div>
-          <div>{isCustom&&<button onClick={()=>removeCustom(cat.id)} title="Remove custom category" style={{background:"none",border:"none",cursor:"pointer",color:t.faint,fontSize:14,padding:0}}>✕</button>}</div>
+          <div>{isCustom&&<button onClick={()=>removeCustom(cat.id)} title="Remove" style={{background:"none",border:"none",cursor:"pointer",color:t.faint,fontSize:14,padding:0}}>✕</button>}</div>
         </div>;
       })}
-
       {/* Subtotals */}
       <div style={{display:"grid",gridTemplateColumns:"2fr .8fr 1fr 40px",padding:"11px 18px",gap:8,borderTop:`2px solid ${t.border}`,background:t.surfaceAlt}}>
         <div style={{fontSize:13,color:t.text,fontWeight:600}}>Direct subtotal</div><div/>
@@ -1490,28 +1575,43 @@ function InternHoursEditor({intern,onUpdate,T}) {
       </div>
     </div>
 
-    {/* Add custom category */}
-    {addingCat
-      ? <div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:12,padding:"16px 18px"}}>
-          <div style={{fontSize:14,color:t.text,marginBottom:12}}>Add a custom hour category</div>
-          <div style={{display:"flex",gap:8,marginBottom:10}}>
-            <input value={newCatName} onChange={e=>setNewCatName(e.target.value)} placeholder="e.g. Report Writing, Case Consultation..." onKeyDown={e=>e.key==="Enter"&&addCategory()}
-              style={{flex:1,border:`1px solid ${t.border}`,borderRadius:8,padding:"8px 12px",fontSize:14,fontFamily:"'DM Sans',system-ui,sans-serif",color:t.text,background:t.bg,outline:"none"}}/>
-          </div>
-          <div style={{display:"flex",gap:8,marginBottom:10}}>
-            {["direct","indirect"].map(type=><button key={type} onClick={()=>setNewCatType(type)} style={{background:newCatType===type?t.accentLight:"none",color:newCatType===type?t.accentText:t.muted,border:`1px solid ${newCatType===type?t.accentMid:t.border}`,borderRadius:8,padding:"5px 14px",fontSize:13,cursor:"pointer",fontFamily:"'DM Mono',monospace"}}>{type}</button>)}
-            <span style={{fontSize:12,color:t.muted,alignSelf:"center",marginLeft:4}}>Direct = supervised client contact. Indirect = everything else.</span>
-          </div>
-          <div style={{display:"flex",gap:8}}>
-            <Btn T={t} small onClick={addCategory}>Add category</Btn>
+    {/* Add category — preset dropdown or custom */}
+    <div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:12,padding:"14px 18px"}}>
+      <div style={{fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:10}}>Add hour category</div>
+      {/* Preset picker */}
+      {availablePresets.length>0&&<div style={{display:"flex",gap:8,marginBottom:10}}>
+        <select value={selectedPreset} onChange={e=>setSelectedPreset(e.target.value)}
+          style={{flex:1,border:`1px solid ${t.border}`,borderRadius:8,padding:"7px 12px",fontSize:13,color:selectedPreset?t.text:t.muted,background:t.bg,outline:"none",cursor:"pointer",fontFamily:"inherit"}}>
+          <option value="">— Choose from standard categories —</option>
+          <optgroup label="Direct hours">
+            {availablePresets.filter(p=>p.type==="direct").map(p=><option key={p.id} value={p.id}>{p.label}</option>)}
+          </optgroup>
+          <optgroup label="Indirect hours">
+            {availablePresets.filter(p=>p.type==="indirect").map(p=><option key={p.id} value={p.id}>{p.label}</option>)}
+          </optgroup>
+        </select>
+        <Btn T={t} small onClick={addPreset} disabled={!selectedPreset}>Add</Btn>
+      </div>}
+      {/* Custom */}
+      {!addingCat
+        ? <button onClick={()=>setAddingCat(true)} style={{background:"none",border:`1px dashed ${t.border}`,borderRadius:8,padding:"7px 14px",fontSize:12,color:t.faint,cursor:"pointer",fontFamily:"'DM Mono',monospace"}}>+ Add custom category</button>
+        : <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
+            <input value={newCatName} onChange={e=>setNewCatName(e.target.value)} placeholder="Custom category name..." onKeyDown={e=>e.key==="Enter"&&addCustom()}
+              style={{flex:1,border:`1px solid ${t.border}`,borderRadius:8,padding:"7px 12px",fontSize:13,fontFamily:"inherit",color:t.text,background:t.bg,outline:"none",minWidth:160}}/>
+            {["direct","indirect"].map(type=><button key={type} onClick={()=>setNewCatType(type)}
+              style={{background:newCatType===type?t.accentLight:"none",color:newCatType===type?t.accentText:t.muted,border:`1px solid ${newCatType===type?t.accentMid:t.border}`,borderRadius:7,padding:"5px 12px",fontSize:12,cursor:"pointer",fontFamily:"'DM Mono',monospace"}}>{type}</button>)}
+            <Btn T={t} small onClick={addCustom}>Add</Btn>
             <Btn T={t} variant="secondary" small onClick={()=>{setAddingCat(false);setNewCatName("");}}>Cancel</Btn>
-          </div>
-        </div>
-      : <button onClick={()=>setAddingCat(true)} style={{background:"none",border:`1px dashed ${t.border}`,borderRadius:10,padding:"11px 18px",fontSize:13,color:t.muted,cursor:"pointer",fontFamily:"'DM Mono',monospace",textAlign:"center"}}>+ Add custom hour category</button>
-    }
+          </div>}
+    </div>
 
-    <div style={{background:t.isGradient?(t.gradientSubtle||t.accentLight):t.accentLight,border:`1px solid ${t.isGradient?"transparent":t.accentMid}`,borderRadius:10,padding:"11px 16px",fontSize:13,color:t.accentText}}>
-      Click any hour value to edit it. Custom categories you add here will appear in your supervisor's comparison view.
+    {/* Download */}
+    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+      <div style={{fontSize:12,color:t.faint}}>Click any hour value to edit. Changes sync with your supervisor's view.</div>
+      <button onClick={downloadCSV}
+        style={{background:"none",border:`1px solid ${t.border}`,borderRadius:8,padding:"6px 14px",cursor:"pointer",fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace",display:"flex",alignItems:"center",gap:6}}>
+        ⬇ Download hours (.csv)
+      </button>
     </div>
   </div>;
 }
@@ -1560,6 +1660,181 @@ function ConfettiParticle({p}) {
 
 // ── Intern Profile ─────────────────────────────────────────────────────────
 // ── EmploymentCard — proper component so hooks are at top level ──────────────
+// ── EditProfileModal — edit intern's basic info ───────────────────────────────
+function EditProfileModal({intern,onSave,onClose,T}) {
+  const t=T||THEMES.sage;
+  const [form,setForm]=useState({
+    name:       intern.name||"",
+    preferredName: intern.preferredName||"",
+    pronouns:   intern.pronouns||"",
+    dob:        intern.dob||"",
+    gender:     intern.gender||"",
+    race:       intern.race||"",
+    ethnicity:  intern.ethnicity||"",
+    phone:      intern.phone||"",
+    email:      intern.email||"",
+    startDate:  intern.startDate||"",
+    // Employment
+    employer:         intern.employment?.employer||"",
+    employerAddress:  intern.employment?.employerAddress||"",
+    contactName:      intern.employment?.contactName||"",
+    contactTitle:     intern.employment?.contactTitle||"",
+    contactPhone:     intern.employment?.contactPhone||"",
+    contactEmail:     intern.employment?.contactEmail||"",
+    // Credential (supervisor-only fields)
+    credential:    intern.credential||"",
+    credentialBody:intern.credentialBody||"",
+    university:    intern.university||"",
+    licenseGoal:   intern.licenseGoal||"",
+  });
+  const [section,setSection]=useState("personal");
+  const [errors,setErrors]=useState({});
+  const set=(k,v)=>setForm(p=>({...p,[k]:v}));
+
+  const validate=()=>{
+    const e={};
+    if(!form.name.trim()) e.name="Required";
+    if(form.contactEmail&&!/\S+@\S+\.\S+/.test(form.contactEmail)) e.contactEmail="Invalid email";
+    return e;
+  };
+
+  const save=()=>{
+    const e=validate();
+    if(Object.keys(e).length){setErrors(e);return;}
+    const initials=form.name.trim().split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
+    onSave({
+      ...intern,
+      name:form.name.trim(), preferredName:form.preferredName.trim(),
+      initials, pronouns:form.pronouns.trim(),
+      dob:form.dob, gender:form.gender, race:form.race, ethnicity:form.ethnicity,
+      phone:form.phone, email:form.email, startDate:form.startDate,
+      credential:form.credential, credentialBody:form.credentialBody,
+      university:form.university, licenseGoal:form.licenseGoal,
+      employment:{
+        employer:form.employer, employerAddress:form.employerAddress,
+        contactName:form.contactName, contactTitle:form.contactTitle,
+        contactPhone:form.contactPhone, contactEmail:form.contactEmail,
+      },
+    });
+    onClose();
+  };
+
+  const inp=(key,placeholder,type="text",required=false)=><div>
+    <input type={type} value={form[key]} onChange={e=>set(key,e.target.value)} placeholder={placeholder}
+      style={{width:"100%",border:`1px solid ${errors[key]?"#E05050":t.border}`,borderRadius:8,padding:"8px 12px",fontSize:13,fontFamily:"inherit",color:t.text,background:t.bg,outline:"none",boxSizing:"border-box"}}/>
+    {errors[key]&&<div style={{fontSize:10,color:"#E05050",marginTop:2,fontFamily:"'DM Mono',monospace"}}>{errors[key]}</div>}
+  </div>;
+
+  const iLabel=(txt)=><div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:4}}>{txt}</div>;
+
+  const SECTIONS=[
+    {id:"personal",label:"Personal"},
+    {id:"demographic",label:"Demographics"},
+    {id:"contact",label:"Contact"},
+    {id:"employment",label:"Employment"},
+    {id:"credential",label:"Credential"},
+  ];
+
+  return <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.45)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:16}} onClick={onClose}>
+    <div style={{background:t.surface,borderRadius:18,width:560,maxHeight:"90vh",display:"flex",flexDirection:"column",boxShadow:"0 24px 64px rgba(0,0,0,0.2)"}} onClick={e=>e.stopPropagation()}>
+      {/* Header */}
+      <div style={{padding:"20px 24px 0",display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0}}>
+        <div style={{fontSize:18,color:t.text,fontWeight:500}}>Edit profile — {intern.preferredName||intern.name.split(" ")[0]}</div>
+        <button onClick={onClose} style={{background:"none",border:"none",cursor:"pointer",fontSize:18,color:t.faint,padding:4}}>✕</button>
+      </div>
+
+      {/* Section tabs */}
+      <div style={{display:"flex",gap:0,padding:"12px 24px 0",borderBottom:`1px solid ${t.border}`,flexShrink:0,overflowX:"auto"}}>
+        {SECTIONS.map(s=>(
+          <button key={s.id} onClick={()=>setSection(s.id)}
+            style={{background:"none",border:"none",borderBottom:section===s.id?`2px solid ${t.accent}`:"2px solid transparent",padding:"6px 14px",cursor:"pointer",fontSize:13,color:section===s.id?t.accent:t.muted,fontFamily:"inherit",fontWeight:section===s.id?500:400,marginBottom:-1,whiteSpace:"nowrap"}}>
+            {s.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Content */}
+      <div style={{flex:1,overflowY:"auto",padding:"18px 24px"}}>
+
+        {section==="personal"&&<div style={{display:"flex",flexDirection:"column",gap:12}}>
+          <div>{iLabel("Full legal name *")}{inp("name","e.g. Marissa Holloway","text",true)}</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            <div>{iLabel("Preferred name")}{inp("preferredName","e.g. Riss")}</div>
+            <div>{iLabel("Pronouns")}{inp("pronouns","e.g. she/her")}</div>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            <div>{iLabel("Date of birth")}{inp("dob","","date")}</div>
+            <div>{iLabel("Start date")}{inp("startDate","e.g. Mar 2026")}</div>
+          </div>
+        </div>}
+
+        {section==="demographic"&&<div style={{display:"flex",flexDirection:"column",gap:12}}>
+          <div>
+            {iLabel("Gender identity")}
+            <select value={form.gender} onChange={e=>set("gender",e.target.value)}
+              style={{width:"100%",border:`1px solid ${t.border}`,borderRadius:8,padding:"8px 12px",fontSize:13,fontFamily:"inherit",color:t.text,background:t.bg,outline:"none",cursor:"pointer"}}>
+              {["","Man","Woman","Nonbinary","Genderqueer","Transgender man","Transgender woman","Gender fluid","Agender","Two-spirit","Prefer not to say","Other"].map(g=><option key={g} value={g}>{g||"— Select —"}</option>)}
+            </select>
+          </div>
+          <div>
+            {iLabel("Race")}
+            <select value={form.race} onChange={e=>set("race",e.target.value)}
+              style={{width:"100%",border:`1px solid ${t.border}`,borderRadius:8,padding:"8px 12px",fontSize:13,fontFamily:"inherit",color:t.text,background:t.bg,outline:"none",cursor:"pointer"}}>
+              {["","American Indian or Alaska Native","Asian","Black or African American","Native Hawaiian or Pacific Islander","White","Multiracial","Prefer not to say","Other"].map(r=><option key={r} value={r}>{r||"— Select —"}</option>)}
+            </select>
+          </div>
+          <div>
+            {iLabel("Ethnicity")}
+            <select value={form.ethnicity} onChange={e=>set("ethnicity",e.target.value)}
+              style={{width:"100%",border:`1px solid ${t.border}`,borderRadius:8,padding:"8px 12px",fontSize:13,fontFamily:"inherit",color:t.text,background:t.bg,outline:"none",cursor:"pointer"}}>
+              {["","Hispanic or Latino","Not Hispanic or Latino","Prefer not to say"].map(e=><option key={e} value={e}>{e||"— Select —"}</option>)}
+            </select>
+          </div>
+        </div>}
+
+        {section==="contact"&&<div style={{display:"flex",flexDirection:"column",gap:12}}>
+          <div>{iLabel("Phone number")}{inp("phone","e.g. 702-555-0100","tel")}</div>
+          <div>{iLabel("Email address")}{inp("email","e.g. marissa@email.com","email")}</div>
+        </div>}
+
+        {section==="employment"&&<div style={{display:"flex",flexDirection:"column",gap:12}}>
+          <div style={{fontSize:12,color:t.muted,marginBottom:4}}>Place of employment & emergency contact</div>
+          <div>{iLabel("Employer / Agency *")}{inp("employer","e.g. Quest Counseling")}</div>
+          <div>{iLabel("Address (optional)")}{inp("employerAddress","e.g. 123 Main St, Reno NV")}</div>
+          <div style={{height:1,background:t.borderLight}}/>
+          <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em"}}>Emergency contact at employer</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            <div>{iLabel("Contact name")}{inp("contactName","Full name")}</div>
+            <div>{iLabel("Title / Role")}{inp("contactTitle","e.g. Clinical Director")}</div>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            <div>{iLabel("Phone *")}{inp("contactPhone","702-555-0100","tel")}</div>
+            <div>{iLabel("Email *")}{inp("contactEmail","contact@agency.com","email")}</div>
+          </div>
+        </div>}
+
+        {section==="credential"&&<div style={{display:"flex",flexDirection:"column",gap:12}}>
+          <div style={{background:S.amberLight,border:"1px solid #E8C98A",borderRadius:8,padding:"8px 14px",fontSize:12,color:"#7A5A00"}}>
+            ⚠ Credential changes are tracked. Only update these to correct data entry errors — do not change them to modify board records.
+          </div>
+          <div>{iLabel("Current credential")}{inp("credential","e.g. LPC-Intern")}</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            <div>{iLabel("Credentialing body")}{inp("credentialBody","e.g. CACREP")}</div>
+            <div>{iLabel("Licensure goal")}{inp("licenseGoal","e.g. LPC")}</div>
+          </div>
+          {intern.discipline==="student"&&<div>{iLabel("University *")}{inp("university","e.g. University of Nevada, Reno")}</div>}
+        </div>}
+      </div>
+
+      {/* Footer */}
+      <div style={{padding:"14px 24px",borderTop:`1px solid ${t.border}`,display:"flex",justifyContent:"flex-end",gap:10,flexShrink:0}}>
+        <Btn T={t} variant="secondary" onClick={onClose}>Cancel</Btn>
+        <Btn T={t} onClick={save}>✓ Save changes</Btn>
+      </div>
+    </div>
+  </div>;
+}
+
 function EmploymentCard({intern,onUpdateIntern,T}) {
   const t=T||THEMES.sage;
   const emp = intern.employment || {};
@@ -1668,7 +1943,7 @@ function EmploymentCard({intern,onUpdateIntern,T}) {
 }
 
 // ── InternActionsMenu — proper component so hooks are at top level ───────────
-function InternActionsMenu({T,intern,onConsult,onFlagOpen,onLinkOpen,onExportOpen,onShareOpen,onAiSession,onComplete}) {
+function InternActionsMenu({T,intern,onConsult,onFlagOpen,onLinkOpen,onExportOpen,onShareOpen,onAiSession,onComplete,onEditProfile}) {
   const t=T||THEMES.sage;
   const [open,setOpen]=useState(false);
   React.useEffect(()=>{
@@ -1682,6 +1957,7 @@ function InternActionsMenu({T,intern,onConsult,onFlagOpen,onLinkOpen,onExportOpe
         style={{background:t.surfaceAlt,border:`1px solid ${t.border}`,borderRadius:8,padding:"6px 10px",cursor:"pointer",fontSize:15,color:t.muted,lineHeight:1}}>···</button>
       {open&&<div onClick={e=>e.stopPropagation()} style={{position:"absolute",top:"calc(100% + 6px)",right:0,background:t.surface,border:`1px solid ${t.border}`,borderRadius:12,boxShadow:"0 8px 24px rgba(0,0,0,0.12)",zIndex:200,minWidth:160,padding:"6px 0"}}>
         {[
+          {label:"✎ Edit profile",  fn:()=>{onEditProfile&&onEditProfile();setOpen(false);}},
           {label:"🚩 Flags",     fn:()=>{onFlagOpen();setOpen(false);}},
           {label:"🔗 Send link", fn:()=>{onLinkOpen();setOpen(false);}},
           {label:"📤 Export",    fn:()=>{onExportOpen();setOpen(false);}},
@@ -1709,6 +1985,7 @@ function InternProfile({intern,groups,lists,onBack,onUpdateIntern,onConsult,onOp
   const [linkOpen,setLinkOpen]=useState(false);
   const [exportOpen,setExportOpen]=useState(false);
   const [flagOpen,setFlagOpen]=useState(false);
+  const [editProfileOpen,setEditProfileOpen]=useState(false);
   const [aiSessionOpen,setAiSessionOpen]=useState(false);
   const [showConfetti,setShowConfetti]=useState(false);
   const [showCompleteConfirm,setShowCompleteConfirm]=useState(false);
@@ -1732,6 +2009,7 @@ function InternProfile({intern,groups,lists,onBack,onUpdateIntern,onConsult,onOp
     {linkOpen&&<ShareLinkModal T={t} intern={intern} onClose={()=>setLinkOpen(false)}/>}
     {exportOpen&&<ExportModal T={t} intern={intern} groups={groups} onClose={()=>setExportOpen(false)}/>}
     {flagOpen&&<FlagModal T={t} intern={intern} onSave={flags=>{onUpdateIntern({...intern,flags});setFlagOpen(false);}} onClose={()=>setFlagOpen(false)}/>}
+    {editProfileOpen&&<EditProfileModal T={t} intern={intern} onSave={onUpdateIntern} onClose={()=>setEditProfileOpen(false)}/>}
     {aiSessionOpen&&<AISessionModal T={t} intern={intern} onSave={session=>{onUpdateIntern({...intern,sessions:[session,...(intern.sessions||[])]});}} onClose={()=>setAiSessionOpen(false)}/>}
 
     <button onClick={onBack} style={{background:"none",border:"none",cursor:"pointer",color:t.muted,fontSize:13,padding:"0 0 16px",fontFamily:"'DM Mono',monospace"}}>← Back</button>
@@ -1764,7 +2042,7 @@ function InternProfile({intern,groups,lists,onBack,onUpdateIntern,onConsult,onOp
           </div>
         </div>
         <div style={{display:"flex",gap:6,flexShrink:0,alignItems:"flex-start",position:"relative"}}>
-          <InternActionsMenu T={t} intern={intern} onConsult={onConsult} onFlagOpen={()=>setFlagOpen(true)} onLinkOpen={()=>setLinkOpen(true)} onExportOpen={()=>setExportOpen(true)} onShareOpen={()=>setShareOpen(true)} onAiSession={()=>setAiSessionOpen(true)} onComplete={()=>setShowCompleteConfirm(true)}/>
+          <InternActionsMenu T={t} intern={intern} onConsult={onConsult} onFlagOpen={()=>setFlagOpen(true)} onLinkOpen={()=>setLinkOpen(true)} onExportOpen={()=>setExportOpen(true)} onShareOpen={()=>setShareOpen(true)} onAiSession={()=>setAiSessionOpen(true)} onComplete={()=>setShowCompleteConfirm(true)} onEditProfile={()=>setEditProfileOpen(true)}/>
         </div>
       </div>
 
@@ -1826,21 +2104,40 @@ function InternProfile({intern,groups,lists,onBack,onUpdateIntern,onConsult,onOp
       {/* Credential & discipline info */}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
         <div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:12,padding:"16px 18px",boxShadow:"0 1px 3px rgba(0,0,0,0.04)"}}>
-          <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:10}}>Credential & Discipline</div>
+          <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:10,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+            <span>Credential & Info</span>
+            <button onClick={()=>setEditProfileOpen(true)}
+              style={{background:"none",border:`1px solid ${t.border}`,borderRadius:6,padding:"2px 10px",cursor:"pointer",fontSize:10,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"none",letterSpacing:"normal"}}>
+              ✎ Edit
+            </button>
+          </div>
           <div style={{display:"flex",flexDirection:"column",gap:7}}>
             {[
               ["Discipline",    <TypeBadge type={intern.discipline||intern.internType}/>],
-              ["Current credential", <span style={{fontSize:13,color:t.text,fontFamily:"'DM Mono',monospace"}}>{intern.credential}</span>],
-              ["Credentialing body",<span style={{fontSize:13,color:t.muted}}>{intern.credentialBody}</span>],
-              ["Licensure goal",    <span style={{fontSize:13,color:t.accentText,background:t.accentLight,borderRadius:6,padding:"2px 8px",fontFamily:"'DM Mono',monospace"}}>{intern.licenseGoal}</span>],
-              ["Start date",        <span style={{fontSize:13,color:t.muted}}>{intern.startDate}</span>],
-              ["Birthday",          intern.birthday
-                ? <span style={{fontSize:13,color:t.muted}}>{intern.birthday} {(()=>{const[m,d]=intern.birthday.split("/").map(Number);const today=new Date();return(m===today.getMonth()+1&&d===today.getDate())?"🎂 Today!":"";})()} </span>
-                : <button onClick={()=>{const b=window.prompt("Enter birthday (MM/DD):","");if(b?.trim())onUpdateIntern({...intern,birthday:b.trim()});}} style={{background:"none",border:`1px dashed ${t.border}`,borderRadius:6,padding:"2px 10px",cursor:"pointer",fontSize:12,color:t.faint,fontFamily:"'DM Mono',monospace"}}>+ Add birthday</button>],
-            ].map(([label,val])=>(
+              ["Credential",    <span style={{fontSize:13,color:t.text,fontFamily:"'DM Mono',monospace"}}>{intern.credential}</span>],
+              intern.discipline==="student"&&intern.university
+                ? ["University", <span style={{fontSize:13,color:t.muted}}>{intern.university}</span>]
+                : ["Cred. body", <span style={{fontSize:13,color:t.muted}}>{intern.credentialBody}</span>],
+              ["Goal",          <span style={{fontSize:13,color:t.accentText,background:t.accentLight,borderRadius:6,padding:"2px 8px",fontFamily:"'DM Mono',monospace"}}>{intern.licenseGoal}</span>],
+              ["Start date",    <span style={{fontSize:13,color:t.muted}}>{intern.startDate}</span>],
+              ["Date of birth", intern.dob
+                ? (()=>{
+                    const d=new Date(intern.dob+"T00:00:00");
+                    const age=Math.floor((new Date()-d)/(365.25*24*60*60*1000));
+                    const formatted=d.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});
+                    const isToday=d.getMonth()===new Date().getMonth()&&d.getDate()===new Date().getDate();
+                    return <span style={{fontSize:13,color:t.muted}}>{formatted} · Age {age}{isToday?" 🎂":""}</span>;
+                  })()
+                : <button onClick={()=>setEditProfileOpen(true)} style={{background:"none",border:`1px dashed ${t.border}`,borderRadius:6,padding:"2px 10px",cursor:"pointer",fontSize:11,color:t.faint,fontFamily:"'DM Mono',monospace"}}>+ Add DOB</button>],
+              intern.gender&&["Gender",     <span style={{fontSize:13,color:t.muted}}>{intern.gender}</span>],
+              intern.race&&["Race",         <span style={{fontSize:13,color:t.muted}}>{intern.race}</span>],
+              intern.ethnicity&&["Ethnicity",<span style={{fontSize:13,color:t.muted}}>{intern.ethnicity}</span>],
+              intern.phone&&["Phone",       <a href={`tel:${intern.phone}`} style={{fontSize:13,color:t.accentText,textDecoration:"none",fontFamily:"'DM Mono',monospace"}}>{intern.phone}</a>],
+              intern.email&&["Email",       <a href={`mailto:${intern.email}`} style={{fontSize:13,color:t.accentText,textDecoration:"none"}}>{intern.email}</a>],
+            ].filter(Boolean).map(([label,val])=>(
               <div key={label} style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingBottom:7,borderBottom:`1px solid ${t.borderLight}`}}>
-                <span style={{fontSize:12,color:t.muted}}>{label}</span>
-                {val}
+                <span style={{fontSize:12,color:t.muted,flexShrink:0}}>{label}</span>
+                <span style={{textAlign:"right",marginLeft:8}}>{val}</span>
               </div>
             ))}
           </div>
@@ -1886,7 +2183,7 @@ function InternProfile({intern,groups,lists,onBack,onUpdateIntern,onConsult,onOp
       </div>}
     </div>}
 
-    {tab==="hours"&&<HoursBreakdown intern={intern} T={t}/>}
+    {tab==="hours"&&<HoursBreakdown intern={intern} T={t} onUpdateIntern={onUpdateIntern}/>
 
     {tab==="sessions"&&<div>
       <div style={{display:"flex",justifyContent:"flex-end",marginBottom:14}}>
@@ -1911,312 +2208,9 @@ function InternProfile({intern,groups,lists,onBack,onUpdateIntern,onConsult,onOp
 
     {tab==="evaluations"&&<EvaluationTab intern={intern} onUpdateIntern={onUpdateIntern} T={t}/>}
 
-    {tab==="documents"&&(()=>{
-      const [docs,setDocs]=useState(intern.documents||[]);
-      const [viewing,setViewing]=useState(null); // doc index being viewed
-      const handleUpload=(e)=>{
-        const file=e.target.files?.[0]; if(!file) return;
-        const reader=new FileReader();
-        reader.onload=(ev)=>{
-          const newDoc={name:file.name,date:"Mar 21, 2026",type:guessType(file.name),uploadedBy:"supervisor",dataUrl:ev.target.result,mimeType:file.type};
-          const updated={...intern,documents:[...docs,newDoc]};
-          setDocs(updated.documents);
-          onUpdateIntern(updated);
-        };
-        reader.readAsDataURL(file);
-      };
-      const guessType=(name)=>{
-        const n=name.toLowerCase();
-        if(n.includes("agreement")||n.includes("contract"))return"Contract";
-        if(n.includes("license")||n.includes("credential"))return"License";
-        if(n.includes("insurance"))return"Insurance";
-        if(n.includes("eval"))return"Evaluation";
-        return"Plan";
-      };
-      const viewingDoc = viewing!==null ? docs[viewing] : null;
-      return <div>
-        {/* Viewer modal */}
-        {viewingDoc&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000}} onClick={()=>setViewing(null)}>
-          <div style={{background:t.surface,borderRadius:16,padding:0,width:"80vw",maxWidth:860,maxHeight:"90vh",overflow:"hidden",boxShadow:"0 24px 64px rgba(0,0,0,0.2)"}} onClick={e=>e.stopPropagation()}>
-            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"16px 20px",borderBottom:`1px solid ${t.border}`}}>
-              <div>
-                <div style={{fontSize:15,color:t.text,fontWeight:500}}>{viewingDoc.name}</div>
-                <div style={{fontSize:12,color:t.muted,marginTop:2}}>Uploaded {viewingDoc.date} · by {viewingDoc.uploadedBy}</div>
-              </div>
-              <button onClick={()=>setViewing(null)} style={{background:"none",border:"none",cursor:"pointer",fontSize:20,color:t.muted,padding:4}}>✕</button>
-            </div>
-            <div style={{padding:20,overflowY:"auto",maxHeight:"calc(90vh - 64px)",display:"flex",justifyContent:"center",alignItems:"flex-start"}}>
-              {viewingDoc.dataUrl
-                ? viewingDoc.mimeType?.startsWith("image/")
-                  ? <img src={viewingDoc.dataUrl} alt={viewingDoc.name} style={{maxWidth:"100%",borderRadius:8}}/>
-                  : viewingDoc.mimeType==="application/pdf"
-                    ? <iframe src={viewingDoc.dataUrl} title={viewingDoc.name} style={{width:"100%",height:"70vh",border:"none",borderRadius:8}}/>
-                    : <div style={{color:t.muted,fontSize:14,padding:40,textAlign:"center"}}>Preview not available for this file type.<br/>File is stored and accessible.</div>
-                : <div style={{background:t.surfaceAlt,borderRadius:10,padding:"40px",textAlign:"center",width:"100%"}}>
-                    <div style={{fontSize:40,marginBottom:12}}>📄</div>
-                    <div style={{fontSize:15,color:t.text,marginBottom:6}}>{viewingDoc.name}</div>
-                    <div style={{fontSize:13,color:t.muted}}>This document was added before file uploads were enabled.<br/>Re-upload to enable inline preview.</div>
-                  </div>}
-            </div>
-          </div>
-        </div>}
+    {tab==="documents"&&<DocumentsTab key={intern.id} intern={intern} onUpdateIntern={onUpdateIntern} T={t}/>}
 
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
-          <div style={{fontSize:13,color:t.muted}}>{docs.length} document{docs.length!==1?"s":""} on file</div>
-          <label style={{background:t.isGradient?t.gradient:t.accent,backgroundSize:t.isGradient?"200% 200%":undefined,animation:t.isGradient?"gradientShift 5s ease infinite":undefined,color:"#fff",borderRadius:8,padding:"7px 16px",fontSize:13,cursor:"pointer",fontFamily:"'DM Mono',monospace",display:"inline-block"}}>
-            + Upload Document
-            <input type="file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" onChange={handleUpload} style={{display:"none"}}/>
-          </label>
-        </div>
-
-        <div style={{display:"flex",flexDirection:"column",gap:10}}>
-          {docs.map((d,i)=>{
-            const [bg,color]=docTC(d.type);
-            return <div key={i} style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:12,padding:"14px 18px",display:"flex",alignItems:"center",gap:14,boxShadow:"0 1px 3px rgba(0,0,0,0.04)"}}>
-              {d.dataUrl&&d.mimeType?.startsWith("image/")
-                ? <img src={d.dataUrl} alt={d.name} style={{width:38,height:38,borderRadius:8,objectFit:"cover",flexShrink:0}}/>
-                : <div style={{width:38,height:38,borderRadius:10,background:bg,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,color,fontFamily:"'DM Mono',monospace",fontWeight:600,flexShrink:0}}>{d.type.slice(0,3).toUpperCase()}</div>}
-              <div style={{flex:1}}>
-                <div style={{fontSize:14,color:t.text}}>{d.name}</div>
-                <div style={{fontSize:12,color:t.muted,marginTop:2}}>Uploaded {d.date} · by {d.uploadedBy}</div>
-              </div>
-              <Badge color={color} bg={bg}>{d.type}</Badge>
-              <button onClick={()=>setViewing(i)}
-                style={{background:t.surfaceAlt,border:`1px solid ${t.border}`,borderRadius:7,padding:"5px 12px",cursor:"pointer",fontSize:12,color:t.text,fontFamily:"'DM Mono',monospace"}}>
-                View
-              </button>
-            </div>;
-          })}
-          {docs.length===0&&<div style={{background:t.surfaceAlt,borderRadius:12,padding:"30px",textAlign:"center",color:t.muted,fontSize:14}}>No documents on file yet. Upload the first one above.</div>}
-        </div>
-      </div>;
-    })()}
-
-    {tab==="payments"&&!intern.proBono&&(()=>{
-      const [markingIdx,setMarkingIdx]=useState(null);
-      const [markMethod,setMarkMethod]=useState("cash");
-      const [markNote,setMarkNote]=useState("");
-      const [showChargeModal,setShowChargeModal]=useState(false);
-      const [chargeAmount,setChargeAmount]=useState(intern.billingRate||150);
-      const [chargeNote,setChargeNote]=useState("");
-      const [showBillingSetup,setShowBillingSetup]=useState(false);
-      const [billingSchedule,setBillingSchedule]=useState(intern.billingSchedule||"per_session");
-      const [billingRate,setBillingRate]=useState(intern.billingRate||150);
-      const [cardOnFile,setCardOnFile]=useState(intern.cardOnFile||null);
-      const [addingCard,setAddingCard]=useState(false);
-      const [cardLast4,setCardLast4]=useState("");
-      const [cardBrand,setCardBrand]=useState("Visa");
-
-      const SCHEDULES = [
-        { id:"per_session",  label:"Per session",     desc:"Charge after each supervision session" },
-        { id:"weekly",       label:"Weekly",           desc:"Fixed weekly rate" },
-        { id:"biweekly",     label:"Every 2 weeks",    desc:"Charged every other week" },
-        { id:"monthly",      label:"Monthly",          desc:"Fixed monthly rate" },
-        { id:"custom",       label:"Custom",           desc:"You decide when to charge" },
-      ];
-
-      const METHODS=[
-        {id:"card",   label:"Card on file",  icon:"💳"},
-        {id:"cash",   label:"Cash",          icon:"💵"},
-        {id:"check",  label:"Check",         icon:"📄"},
-        {id:"venmo",  label:"Venmo",         icon:"💜"},
-        {id:"zelle",  label:"Zelle",         icon:"⚡"},
-        {id:"paypal", label:"PayPal",        icon:"🅿"},
-        {id:"other",  label:"Other",         icon:"●"},
-      ];
-
-      const saveBillingSetup=()=>{
-        onUpdateIntern({...intern,billingSchedule,billingRate,cardOnFile});
-        setShowBillingSetup(false);
-      };
-
-      const saveCard=()=>{
-        if(!cardLast4.trim()) return;
-        const card={last4:cardLast4.slice(-4),brand:cardBrand,added:"Mar 2026"};
-        setCardOnFile(card);
-        onUpdateIntern({...intern,cardOnFile:card});
-        setAddingCard(false);setCardLast4("");
-      };
-
-      const chargeCard=()=>{
-        const tx={month:`Session — ${new Date().toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})}`,amount:chargeAmount,status:"paid",date:new Date().toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}),receivedVia:"card",note:chargeNote||undefined};
-        const updated={...intern,payments:[tx,...intern.payments],paymentStatus:"current"};
-        onUpdateIntern(updated);
-        setShowChargeModal(false);setChargeNote("");setChargeAmount(intern.billingRate||150);
-      };
-
-      const markPaid=(idx)=>{
-        const updated={...intern,payments:intern.payments.map((p,i)=>i!==idx?p:{...p,status:"paid",date:"Mar 21, 2026",receivedVia:markMethod,note:markNote||undefined})};
-        onUpdateIntern(updated);
-        setMarkingIdx(null);setMarkNote("");setMarkMethod("cash");
-      };
-
-      const totalOwed=intern.payments.filter(p=>p.status==="overdue").reduce((s,p)=>s+p.amount,0);
-      const totalPaid=intern.payments.filter(p=>p.status==="paid").reduce((s,p)=>s+p.amount,0);
-      const currentSchedule=SCHEDULES.find(s=>s.id===(intern.billingSchedule||"per_session"));
-
-      return <div>
-        {/* Charge modal */}
-        {showChargeModal&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000}} onClick={()=>setShowChargeModal(false)}>
-          <div style={{background:t.surface,borderRadius:16,padding:"28px 32px",width:420,boxShadow:"0 24px 64px rgba(0,0,0,0.16)"}} onClick={e=>e.stopPropagation()}>
-            <div style={{fontFamily:"inherit",fontSize:20,color:t.text,marginBottom:4}}>Charge {dn(intern)}</div>
-            <div style={{fontSize:13,color:t.muted,marginBottom:20}}>{intern.cardOnFile?`${intern.cardOnFile.brand} •••• ${intern.cardOnFile.last4}`:"No card on file — log manual payment instead"}</div>
-            <div style={{marginBottom:14}}>
-              <div style={{fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:6}}>Amount</div>
-              <div style={{display:"flex",alignItems:"center",gap:8}}>
-                <span style={{fontSize:20,color:t.muted}}>$</span>
-                <input type="number" value={chargeAmount} onChange={e=>setChargeAmount(Number(e.target.value))} min="0"
-                  style={{width:120,border:`1px solid ${t.border}`,borderRadius:8,padding:"10px 14px",fontSize:20,fontFamily:"'DM Mono',monospace",color:t.text,background:t.bg,outline:"none"}}/>
-              </div>
-            </div>
-            <div style={{marginBottom:20}}>
-              <div style={{fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:6}}>Note (optional)</div>
-              <input value={chargeNote} onChange={e=>setChargeNote(e.target.value)} placeholder="e.g. Individual session 3/21, group supervision..."
-                style={{width:"100%",border:`1px solid ${t.border}`,borderRadius:8,padding:"9px 14px",fontSize:13,fontFamily:"'DM Sans',system-ui,sans-serif",color:t.text,background:t.bg,outline:"none",boxSizing:"border-box"}}/>
-            </div>
-            <div style={{display:"flex",gap:10}}>
-              {intern.cardOnFile
-                ? <button onClick={chargeCard} style={{flex:1,background:t.accent,color:"#fff",border:"none",borderRadius:10,padding:"12px 0",cursor:"pointer",fontSize:15,fontWeight:600,fontFamily:"inherit"}}>
-                    Charge ${chargeAmount} now
-                  </button>
-                : <button onClick={()=>{setShowChargeModal(false);setShowBillingSetup(true);setAddingCard(true);}}
-                    style={{flex:1,background:t.surfaceAlt,color:t.muted,border:`1px solid ${t.border}`,borderRadius:10,padding:"12px 0",cursor:"pointer",fontSize:14,fontFamily:"inherit"}}>
-                    Add card first →
-                  </button>}
-              <button onClick={()=>setShowChargeModal(false)} style={{background:"none",border:`1px solid ${t.border}`,borderRadius:10,padding:"12px 18px",cursor:"pointer",fontSize:14,color:t.muted,fontFamily:"inherit"}}>Cancel</button>
-            </div>
-          </div>
-        </div>}
-
-        {/* Billing setup panel */}
-        {showBillingSetup&&<div style={{background:t.surface,border:`1px solid ${t.accentMid}`,borderRadius:14,padding:"22px 24px",marginBottom:20,boxShadow:"0 2px 8px rgba(0,0,0,0.06)"}}>
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
-            <div style={{fontSize:16,color:t.text,fontWeight:500}}>Billing setup</div>
-            <button onClick={()=>setShowBillingSetup(false)} style={{background:"none",border:"none",cursor:"pointer",color:t.faint,fontSize:18}}>✕</button>
-          </div>
-
-          <div style={{marginBottom:16}}>
-            <div style={{fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:8}}>Billing schedule</div>
-            <div style={{display:"flex",flexDirection:"column",gap:6}}>
-              {SCHEDULES.map(s=>(
-                <button key={s.id} onClick={()=>setBillingSchedule(s.id)}
-                  style={{background:billingSchedule===s.id?t.accentLight:t.surfaceAlt,color:billingSchedule===s.id?t.accentText:t.text,border:`1px solid ${billingSchedule===s.id?t.accentMid:t.border}`,borderRadius:8,padding:"10px 14px",cursor:"pointer",textAlign:"left",transition:"all 0.1s",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-                  <span style={{fontSize:14,fontWeight:billingSchedule===s.id?500:400}}>{s.label}</span>
-                  <span style={{fontSize:12,color:t.muted}}>{s.desc}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div style={{marginBottom:16}}>
-            <div style={{fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:6}}>Rate ($)</div>
-            <div style={{display:"flex",alignItems:"center",gap:8}}>
-              <span style={{fontSize:16,color:t.muted}}>$</span>
-              <input type="number" value={billingRate} onChange={e=>setBillingRate(Number(e.target.value))} min="0"
-                style={{width:120,border:`1px solid ${t.border}`,borderRadius:8,padding:"8px 12px",fontSize:16,fontFamily:"'DM Mono',monospace",color:t.text,background:t.bg,outline:"none"}}/>
-              <span style={{fontSize:13,color:t.faint}}>per {SCHEDULES.find(s=>s.id===billingSchedule)?.label.toLowerCase()||"period"}</span>
-            </div>
-          </div>
-
-          {/* Card on file */}
-          <div style={{marginBottom:20}}>
-            <div style={{fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:8}}>Card on file</div>
-            {cardOnFile
-              ? <div style={{background:t.surfaceAlt,borderRadius:10,padding:"12px 16px",display:"flex",alignItems:"center",gap:12}}>
-                  <span style={{fontSize:20}}>💳</span>
-                  <div style={{flex:1}}>
-                    <div style={{fontSize:14,color:t.text,fontWeight:500}}>{cardOnFile.brand} •••• {cardOnFile.last4}</div>
-                    <div style={{fontSize:12,color:t.muted}}>Added {cardOnFile.added}</div>
-                  </div>
-                  <button onClick={()=>{setCardOnFile(null);onUpdateIntern({...intern,cardOnFile:null});}}
-                    style={{background:"none",border:`1px solid ${t.border}`,borderRadius:6,padding:"4px 10px",cursor:"pointer",fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace"}}>Remove</button>
-                </div>
-              : addingCard
-                ? <div style={{background:t.surfaceAlt,borderRadius:10,padding:"14px 16px"}}>
-                    <div style={{fontSize:13,color:t.muted,marginBottom:10}}>In production this connects to Stripe. For now, log the last 4 digits of the card.</div>
-                    <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
-                      <select value={cardBrand} onChange={e=>setCardBrand(e.target.value)} style={{border:`1px solid ${t.border}`,borderRadius:8,padding:"7px 10px",fontSize:13,color:t.text,background:t.surface,outline:"none"}}>
-                        {["Visa","Mastercard","Amex","Discover"].map(b=><option key={b}>{b}</option>)}
-                      </select>
-                      <input value={cardLast4} onChange={e=>setCardLast4(e.target.value.replace(/\D/g,"").slice(0,4))} placeholder="Last 4 digits"
-                        style={{width:120,border:`1px solid ${t.border}`,borderRadius:8,padding:"7px 12px",fontSize:14,fontFamily:"'DM Mono',monospace",color:t.text,background:t.surface,outline:"none"}}/>
-                      <Btn T={t} small onClick={saveCard}>Save card</Btn>
-                      <Btn T={t} variant="secondary" small onClick={()=>setAddingCard(false)}>Cancel</Btn>
-                    </div>
-                  </div>
-                : <button onClick={()=>setAddingCard(true)} style={{background:"none",border:`1px dashed ${t.border}`,borderRadius:10,padding:"12px 18px",cursor:"pointer",fontSize:13,color:t.muted,fontFamily:"'DM Mono',monospace",width:"100%",textAlign:"center"}}>
-                    + Add card on file
-                  </button>}
-          </div>
-
-          <div style={{display:"flex",gap:8}}>
-            <Btn T={t} onClick={saveBillingSetup}>Save billing setup</Btn>
-            <Btn T={t} variant="secondary" onClick={()=>setShowBillingSetup(false)}>Cancel</Btn>
-          </div>
-        </div>}
-
-        {/* Summary header */}
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14,marginBottom:20}}>
-          <StatCard T={t} label="Billing schedule" value={currentSchedule?.label||"—"} sub={`$${intern.billingRate||0} per ${currentSchedule?.label.toLowerCase()||"period"}`} color={t.accent}/>
-          <StatCard T={t} label="Paid total" value={`$${totalPaid}`} sub="All time"/>
-          <StatCard T={t} label="Outstanding" value={`$${totalOwed}`} color={totalOwed>0?t.accent:t.text}/>
-        </div>
-
-        {/* Action buttons */}
-        <div style={{display:"flex",gap:10,marginBottom:20,flexWrap:"wrap"}}>
-          <button onClick={()=>setShowChargeModal(true)}
-            style={{background:t.accent,color:"#fff",border:"none",borderRadius:10,padding:"10px 22px",cursor:"pointer",fontSize:14,fontWeight:600,fontFamily:"inherit",boxShadow:`0 2px 8px ${t.accent}40`}}>
-            💳 Charge {dn(intern)}
-          </button>
-          <button onClick={()=>setShowBillingSetup(s=>!s)}
-            style={{background:t.surfaceAlt,color:t.text,border:`1px solid ${t.border}`,borderRadius:10,padding:"10px 18px",cursor:"pointer",fontSize:13,fontFamily:"inherit"}}>
-            ⚙ Billing setup
-          </button>
-          {intern.cardOnFile&&<div style={{display:"flex",alignItems:"center",gap:6,background:t.accentLight,border:`1px solid ${t.accentMid}`,borderRadius:10,padding:"10px 16px",fontSize:13,color:t.accentText}}>
-            💳 {intern.cardOnFile.brand} •••• {intern.cardOnFile.last4} on file
-          </div>}
-        </div>
-
-        {/* Transaction history */}
-        <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:10}}>Transaction history</div>
-        {intern.payments.length===0&&<div style={{background:t.surfaceAlt,borderRadius:10,padding:"24px",textAlign:"center",color:t.muted,fontSize:14}}>No transactions yet</div>}
-        {intern.payments.map((p,i)=>{
-          const isMarking=markingIdx===i;
-          return <div key={i} style={{marginBottom:8}}>
-            <div style={{background:t.surface,border:`1px solid ${p.status==="overdue"?t.accentMid:t.border}`,borderLeft:`3px solid ${p.status==="overdue"?t.accent:t.accentMid}`,borderRadius:10,padding:"13px 16px",display:"flex",alignItems:"center",gap:12}}>
-              <div style={{flex:1}}>
-                <div style={{fontSize:14,color:t.text,fontWeight:500}}>{p.month||p.description||"Payment"}</div>
-                <div style={{fontSize:12,color:t.muted,marginTop:2}}>
-                  {p.status==="paid"?`Received ${p.date}${p.receivedVia?` · ${METHODS.find(m=>m.id===p.receivedVia)?.icon} ${METHODS.find(m=>m.id===p.receivedVia)?.label}`:""}`:p.status==="overdue"?"Awaiting payment":"—"}
-                  {p.note&&<span style={{color:t.faint,fontStyle:"italic"}}> · "{p.note}"</span>}
-                </div>
-              </div>
-              <span style={{fontSize:17,color:t.text,fontFamily:"'DM Mono',monospace",fontWeight:600}}>${p.amount}</span>
-              <Badge color={p.status==="paid"?t.accentText:t.accent} bg={p.status==="paid"?t.accentLight:t.accentLight}>
-                {p.status==="paid"?"✓ Paid":"Unpaid"}
-              </Badge>
-              {p.status==="overdue"&&<button onClick={()=>setMarkingIdx(isMarking?null:i)}
-                style={{background:isMarking?t.surfaceAlt:t.accent,color:isMarking?t.muted:"#fff",border:"none",borderRadius:6,padding:"5px 12px",cursor:"pointer",fontSize:12,fontFamily:"'DM Mono',monospace"}}>
-                {isMarking?"Cancel":"Mark received"}
-              </button>}
-              {p.status==="paid"&&<button onClick={()=>{const u={...intern,payments:intern.payments.map((px,ix)=>ix!==i?px:{...px,status:"overdue",date:"—",receivedVia:undefined,note:undefined})};onUpdateIntern(u);}}
-                style={{background:"none",border:`1px solid ${t.border}`,borderRadius:6,padding:"5px 10px",cursor:"pointer",fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace"}}>Undo</button>}
-            </div>
-            {isMarking&&<div style={{background:t.surfaceAlt,border:`1px solid ${t.accentMid}`,borderTop:"none",borderRadius:"0 0 10px 10px",padding:"14px 16px"}}>
-              <div style={{fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace",marginBottom:10}}>How was it received?</div>
-              <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:10}}>
-                {METHODS.map(m=><button key={m.id} onClick={()=>setMarkMethod(m.id)} style={{background:markMethod===m.id?t.accentLight:"none",color:markMethod===m.id?t.accentText:t.muted,border:`1px solid ${markMethod===m.id?t.accentMid:t.border}`,borderRadius:8,padding:"5px 12px",cursor:"pointer",fontSize:12,fontFamily:"'DM Mono',monospace"}}>{m.icon} {m.label}</button>)}
-              </div>
-              <div style={{display:"flex",gap:8}}>
-                <input value={markNote} onChange={e=>setMarkNote(e.target.value)} placeholder="Optional note..."
-                  style={{flex:1,border:`1px solid ${t.border}`,borderRadius:8,padding:"7px 12px",fontSize:13,fontFamily:"'DM Sans',system-ui,sans-serif",color:t.text,background:t.surface,outline:"none"}}/>
-                <Btn T={t} small onClick={()=>markPaid(i)}>Save</Btn>
-              </div>
-            </div>}
-          </div>;
-        })}
-      </div>;
-    })()}
+    {tab==="payments"&&!intern.proBono&&<PaymentsTab key={intern.id} intern={intern} onUpdateIntern={onUpdateIntern} T={t}/>}
 
   </div>;
 }
@@ -2434,7 +2428,9 @@ function Dashboard({interns,groups,lists,onSelectIntern,onNavigate,onOpenOnboard
         {id:"payments",   label:"Payments"},
         {id:"ce",         label:"CE Tracker"},
         {id:"agreements", label:"Agreements"},
+        {id:"discover",   label:"🔭 Discover"},
         {id:"profile",    label:"My Profile"},
+        {id:"discover",   label:"🔭 Discover"},
         {id:"billing",    label:"Plan & Billing"},
         {id:"support",    label:"Support"},
         ...interns.filter(i=>i.status==="active").map(i=>({id:`intern:${i.id}`,label:`→ ${dn(i)}`})),
@@ -2460,7 +2456,7 @@ function Dashboard({interns,groups,lists,onSelectIntern,onNavigate,onOpenOnboard
       return <div style={{marginBottom:24}}>
         <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
           <div style={{fontFamily:"inherit",fontSize:16,color:t.text,letterSpacing:"-0.01em"}}>To-do</div>
-          <span style={{fontSize:11,color:t.faint,fontFamily:"'DM Mono',monospace"}}>{todos.filter(td=>!td.done).length} remaining</span>
+          <span style={{fontSize:11,color:t.faint,fontFamily:"'DM Mono',monospace"}}>{todos.length} remaining</span>
           <button onClick={()=>setShowNewTodo(s=>!s)}
             style={{marginLeft:"auto",background:"none",border:`1px solid ${t.border}`,borderRadius:6,padding:"3px 10px",cursor:"pointer",fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace"}}>
             + Add
@@ -2490,22 +2486,22 @@ function Dashboard({interns,groups,lists,onSelectIntern,onNavigate,onOpenOnboard
           {todos.map(td=>{
             const hasLink = td.link&&td.link!=="none";
             const linkLabel = hasLink ? LINK_OPTIONS.find(o=>o.id===td.link)?.label : null;
-            return <div key={td.id} style={{display:"flex",alignItems:"center",gap:10,background:td.done?t.surfaceAlt:t.surface,border:`1px solid ${t.border}`,borderRadius:9,padding:"9px 14px",opacity:td.done?0.55:1,transition:"all 0.2s"}}>
-              {/* Checkbox */}
-              <button onClick={()=>setTodos(p=>p.map(x=>x.id===td.id?{...x,done:!x.done}:x))}
-                style={{width:18,height:18,borderRadius:4,border:`2px solid ${td.done?t.accent:t.border}`,background:td.done?t.accent:"transparent",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"all 0.15s",padding:0}}>
-                {td.done&&<span style={{color:"#fff",fontSize:11,lineHeight:1}}>✓</span>}
+            return <div key={td.id} style={{display:"flex",alignItems:"center",gap:10,background:t.surface,border:`1px solid ${t.border}`,borderRadius:9,padding:"9px 14px",transition:"all 0.2s"}}>
+              {/* Checkbox — checking deletes the item */}
+              <button onClick={()=>setTodos(p=>p.filter(x=>x.id!==td.id))}
+                style={{width:18,height:18,borderRadius:4,border:`2px solid ${t.border}`,background:"transparent",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"all 0.15s",padding:0}}
+                title="Mark done (removes from list)">
               </button>
               {/* Task text — clickable if has a link */}
               <div style={{flex:1,minWidth:0}}>
                 <div
-                  onClick={hasLink&&!td.done?()=>navigate(td.link):undefined}
-                  style={{fontSize:13,color:hasLink&&!td.done?t.accentText:t.text,textDecoration:td.done?"line-through":"none",cursor:hasLink&&!td.done?"pointer":"default",fontWeight:hasLink&&!td.done?500:400,lineHeight:1.4}}
-                  onMouseEnter={e=>{if(hasLink&&!td.done)e.currentTarget.style.textDecoration="underline";}}
-                  onMouseLeave={e=>{e.currentTarget.style.textDecoration=td.done?"line-through":"none";}}>
+                  onClick={hasLink?()=>navigate(td.link):undefined}
+                  style={{fontSize:13,color:hasLink?t.accentText:t.text,cursor:hasLink?"pointer":"default",fontWeight:hasLink?500:400,lineHeight:1.4}}
+                  onMouseEnter={e=>{if(hasLink)e.currentTarget.style.textDecoration="underline";}}
+                  onMouseLeave={e=>{e.currentTarget.style.textDecoration="none";}}>
                   {td.text}
                 </div>
-                {hasLink&&!td.done&&<div style={{fontSize:10,color:t.faint,fontFamily:"'DM Mono',monospace",marginTop:2}}>→ {linkLabel}</div>}
+                {hasLink&&<div style={{fontSize:10,color:t.faint,fontFamily:"'DM Mono',monospace",marginTop:2}}>→ {linkLabel}</div>}
               </div>
               {/* Delete */}
               <button onClick={()=>setTodos(p=>p.filter(x=>x.id!==td.id))}
@@ -2608,58 +2604,581 @@ function Dashboard({interns,groups,lists,onSelectIntern,onNavigate,onOpenOnboard
 }
 
 // ── Payments Page ──────────────────────────────────────────────────────────
-function PaymentsPage({interns,onSelectIntern,T}) {
+// ── PaymentsTab — per-intern payments inside InternProfile ───────────────────
+// ── DocumentsTab — file upload, preview, delete, signature pad ───────────────
+function DocumentsTab({intern,onUpdateIntern,T}) {
   const t=T||THEMES.sage;
-  const [period,setPeriod]=useState("all");
-  const periods=[{id:"all",label:"All time"},{id:"Q1 2026",label:"Q1 2026"},{id:"Q4 2025",label:"Q4 2025"},{id:"2026",label:"Full year 2026"},{id:"2025",label:"Full year 2025"}];
-  const allP=interns.filter(i=>!i.proBono).flatMap(intern=>intern.payments.filter(p=>period==="all"||p.quarter?.includes(period)||p.quarter?.startsWith(period.substring(0,4))).map(p=>({...p,internName:dn(intern),internId:intern.id,credential:intern.credential})));
-  const totalRec=allP.filter(p=>p.status==="paid").reduce((s,p)=>s+p.amount,0);
-  const totalOut=allP.filter(p=>p.status==="overdue").reduce((s,p)=>s+p.amount,0);
-  const buildCSV=(interns,period)=>{const rows=[["Intern","Credential","Month","Quarter","Amount","Status","Date","Received Via","Note"]];interns.filter(i=>!i.proBono).forEach(intern=>intern.payments.forEach(p=>{if(period==="all"||p.quarter?.includes(period)||p.quarter?.startsWith(period.substring(0,4)))rows.push([intern.name,intern.credential,p.month,p.quarter||"",`$${p.amount}`,p.status,p.date,p.receivedVia||"stripe",p.note||""]);}));return rows;};
+  const [docs,setDocs]=useState(intern.documents||[]);
+  const [viewing,setViewing]=useState(null);
+  const [signing,setSigning]=useState(null); // doc index to sign
+  const [dragging,setDragging]=useState(false);
+  const [sigCanvas,setSigCanvas]=useState(null);
+  const [isSigning,setIsSigning]=useState(false);
+  const [sigColor,setSigColor]=useState("#1A1A2E");
+  const canvasRef = React.useRef(null);
+  const drawingRef = React.useRef(false);
+
+  // Keep docs in sync with intern
+  React.useEffect(()=>{ setDocs(intern.documents||[]); },[intern.id]);
+
+  const save=(updated)=>{
+    setDocs(updated);
+    onUpdateIntern({...intern,documents:updated});
+  };
+
+  const guessType=(name)=>{
+    const n=name.toLowerCase();
+    if(n.includes("agreement")||n.includes("contract")||n.includes("supervision")) return "Agreement";
+    if(n.includes("license")||n.includes("credential")) return "License";
+    if(n.includes("insurance")) return "Insurance";
+    if(n.includes("eval")) return "Evaluation";
+    if(n.includes("resume")||n.includes("cv")) return "Resume";
+    return "Document";
+  };
+
+  const processFile=(file)=>{
+    if(!file) return;
+    const reader=new FileReader();
+    reader.onload=(ev)=>{
+      const newDoc={name:file.name,date:TODAY(),type:guessType(file.name),uploadedBy:"supervisor",dataUrl:ev.target.result,mimeType:file.type,size:file.size};
+      save([...docs,newDoc]);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleInput=(e)=>{ Array.from(e.target.files||[]).forEach(processFile); e.target.value=""; };
+
+  const handleDrop=(e)=>{
+    e.preventDefault();setDragging(false);
+    Array.from(e.dataTransfer.files||[]).forEach(processFile);
+  };
+
+  const deleteDoc=(i)=>{ const updated=[...docs];updated.splice(i,1);save(updated); };
+
+  const formatSize=(bytes)=>{
+    if(!bytes) return "";
+    if(bytes<1024) return bytes+"B";
+    if(bytes<1024*1024) return (bytes/1024).toFixed(0)+"KB";
+    return (bytes/1024/1024).toFixed(1)+"MB";
+  };
+
+  // ── Signature pad ──
+  const startDraw=(e,canvas)=>{
+    if(!canvas) return;
+    drawingRef.current=true;
+    const ctx=canvas.getContext("2d");
+    const r=canvas.getBoundingClientRect();
+    const clientX=e.touches?e.touches[0].clientX:e.clientX;
+    const clientY=e.touches?e.touches[0].clientY:e.clientY;
+    ctx.beginPath();
+    ctx.moveTo(clientX-r.left,clientY-r.top);
+  };
+  const draw=(e,canvas)=>{
+    if(!drawingRef.current||!canvas) return;
+    e.preventDefault();
+    const ctx=canvas.getContext("2d");
+    const r=canvas.getBoundingClientRect();
+    const clientX=e.touches?e.touches[0].clientX:e.clientX;
+    const clientY=e.touches?e.touches[0].clientY:e.clientY;
+    ctx.strokeStyle=sigColor;ctx.lineWidth=2.5;ctx.lineCap="round";ctx.lineJoin="round";
+    ctx.lineTo(clientX-r.left,clientY-r.top);
+    ctx.stroke();
+  };
+  const endDraw=()=>{ drawingRef.current=false; };
+  const clearSig=(canvas)=>{
+    if(!canvas) return;
+    const ctx=canvas.getContext("2d");
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+  };
+  const applySignature=(canvas,docIdx)=>{
+    if(!canvas) return;
+    const sigDataUrl=canvas.toDataURL("image/png");
+    const doc=docs[docIdx];
+    const signedDoc={...doc,signed:true,signedDate:TODAY(),signedBy:"Alyson K.",signatureDataUrl:sigDataUrl};
+    const updated=[...docs];updated[docIdx]=signedDoc;
+    save(updated);
+    setSigning(null);
+  };
+
+  const viewingDoc = viewing!==null ? docs[viewing] : null;
+  const [bg,color]=viewingDoc?docTC(viewingDoc.type):["#eee","#555"];
 
   return <div>
-    <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:24}}>
-      <div><h1 style={{fontFamily:"inherit",fontSize:28,fontWeight:400,color:t.text,margin:"0 0 4px",letterSpacing:"-0.02em"}}>Payments</h1><p style={{color:t.muted,fontSize:14,margin:0}}>Track and export supervision fees</p></div>
-      <Btn T={t} variant="soft" onClick={()=>downloadCSV(buildCSV(interns,period),`SupTrack_Payments_${period.replace(/ /g,"_")}.csv`)}>↓ Export CSV</Btn>
-    </div>
-    <div style={{display:"flex",gap:8,marginBottom:24,flexWrap:"wrap"}}>{periods.map(p=><button key={p.id} onClick={()=>setPeriod(p.id)} style={{background:period===p.id?t.accentLight:"none",color:period===p.id?t.accentText:t.muted,border:`1px solid ${period===p.id?t.accentMid:t.border}`,borderRadius:20,padding:"5px 16px",fontSize:13,cursor:"pointer",fontFamily:"'DM Mono',monospace"}}>{p.label}</button>)}</div>
-    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14,marginBottom:28}}>
-      <StatCard T={t} label="Total Received" value={`$${totalRec.toLocaleString()}`} color={t.accent}/>
-      <StatCard T={t} label="Outstanding" value={`$${totalOut.toLocaleString()}`} color={totalOut>0?S.red:t.text}/>
-      <StatCard T={t} label="Transactions" value={allP.filter(p=>p.status==="paid").length} sub="Payments received"/>
-    </div>
-    <div style={{background:t.isGradient?(t.gradientSubtle||t.accentLight):t.accentLight,border:`1px solid ${t.isGradient?"transparent":t.accentMid}`,borderRadius:12,padding:"14px 18px",marginBottom:20,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-      <span style={{fontSize:13,color:t.accentText}}>Export CSV for your accountant or quarterly tax filing.</span>
-      <div style={{display:"flex",gap:8}}>
-        <Btn T={t} variant="soft" small onClick={()=>downloadCSV(buildCSV(interns,"Q1 2026"),"SupTrack_Q1_2026.csv")}>Q1 2026</Btn>
-        <Btn T={t} variant="soft" small onClick={()=>downloadCSV(buildCSV(interns,"2025"),"SupTrack_2025.csv")}>Full year 2025</Btn>
+    {/* Viewer modal */}
+    {viewingDoc&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000}} onClick={()=>setViewing(null)}>
+      <div style={{background:t.surface,borderRadius:16,width:"82vw",maxWidth:900,maxHeight:"92vh",overflow:"hidden",boxShadow:"0 24px 64px rgba(0,0,0,0.2)",display:"flex",flexDirection:"column"}} onClick={e=>e.stopPropagation()}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 20px",borderBottom:`1px solid ${t.border}`,flexShrink:0}}>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontSize:15,color:t.text,fontWeight:500,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{viewingDoc.name}</div>
+            <div style={{fontSize:11,color:t.muted,marginTop:2,fontFamily:"'DM Mono',monospace"}}>Uploaded {viewingDoc.date} · {viewingDoc.uploadedBy}{viewingDoc.size?" · "+formatSize(viewingDoc.size):""}</div>
+          </div>
+          <div style={{display:"flex",gap:8,flexShrink:0,marginLeft:16}}>
+            {viewingDoc.dataUrl&&<a href={viewingDoc.dataUrl} download={viewingDoc.name}
+              style={{background:t.surfaceAlt,border:`1px solid ${t.border}`,borderRadius:7,padding:"5px 12px",cursor:"pointer",fontSize:12,color:t.text,fontFamily:"'DM Mono',monospace",textDecoration:"none"}}>
+              ⬇ Download
+            </a>}
+            <button onClick={()=>setViewing(null)} style={{background:"none",border:"none",cursor:"pointer",fontSize:20,color:t.muted,padding:4}}>✕</button>
+          </div>
+        </div>
+        <div style={{flex:1,overflowY:"auto",padding:20,display:"flex",justifyContent:"center",alignItems:"flex-start"}}>
+          {viewingDoc.dataUrl
+            ? viewingDoc.mimeType?.startsWith("image/")
+              ? <img src={viewingDoc.dataUrl} alt={viewingDoc.name} style={{maxWidth:"100%",borderRadius:8}}/>
+              : viewingDoc.mimeType==="application/pdf"
+                ? <iframe src={viewingDoc.dataUrl} title={viewingDoc.name} style={{width:"100%",height:"75vh",border:"none",borderRadius:8}}/>
+                : <div style={{color:t.muted,fontSize:14,padding:40,textAlign:"center"}}>Preview not available for this file type.<br/>Use the Download button to open it.</div>
+            : <div style={{background:t.surfaceAlt,borderRadius:10,padding:40,textAlign:"center",width:"100%"}}>
+                <div style={{fontSize:40,marginBottom:12}}>📄</div>
+                <div style={{fontSize:15,color:t.text,marginBottom:6}}>{viewingDoc.name}</div>
+                <div style={{fontSize:13,color:t.muted}}>No preview available.</div>
+              </div>}
+        </div>
+        {viewingDoc.signed&&<div style={{padding:"10px 20px",borderTop:`1px solid ${t.border}`,background:t.surfaceAlt,fontSize:12,color:t.muted,display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
+          ✍ Signed by {viewingDoc.signedBy} on {viewingDoc.signedDate}
+          {viewingDoc.signatureDataUrl&&<img src={viewingDoc.signatureDataUrl} alt="signature" style={{height:28,marginLeft:8,border:`1px solid ${t.border}`,borderRadius:4,background:"#fff",padding:"0 6px"}}/>}
+        </div>}
       </div>
+    </div>}
+
+    {/* Signature pad modal */}
+    {signing!==null&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000}} onClick={()=>setSigning(null)}>
+      <div style={{background:t.surface,borderRadius:16,padding:"24px 28px",width:520,boxShadow:"0 24px 64px rgba(0,0,0,0.18)"}} onClick={e=>e.stopPropagation()}>
+        <div style={{fontSize:18,color:t.text,fontWeight:500,marginBottom:4}}>Sign document</div>
+        <div style={{fontSize:13,color:t.muted,marginBottom:16}}>{docs[signing]?.name}</div>
+        <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:6}}>Draw your signature below</div>
+        <canvas ref={canvasRef}
+          width={460} height={140}
+          style={{border:`2px solid ${t.border}`,borderRadius:10,cursor:"crosshair",background:"#FAFAFA",touchAction:"none",width:"100%",display:"block",marginBottom:10}}
+          onMouseDown={e=>startDraw(e,canvasRef.current)}
+          onMouseMove={e=>draw(e,canvasRef.current)}
+          onMouseUp={endDraw}
+          onMouseLeave={endDraw}
+          onTouchStart={e=>startDraw(e,canvasRef.current)}
+          onTouchMove={e=>draw(e,canvasRef.current)}
+          onTouchEnd={endDraw}
+        />
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:14}}>
+          <span style={{fontSize:12,color:t.muted}}>Ink color:</span>
+          {["#1A1A2E","#1A3A8C","#2D5A3D","#8C1A1A"].map(c=><button key={c} onClick={()=>setSigColor(c)}
+            style={{width:22,height:22,borderRadius:"50%",background:c,border:sigColor===c?`3px solid ${t.text}`:"2px solid transparent",cursor:"pointer",padding:0}}/>)}
+          <button onClick={()=>clearSig(canvasRef.current)}
+            style={{marginLeft:"auto",background:"none",border:`1px solid ${t.border}`,borderRadius:6,padding:"4px 10px",cursor:"pointer",fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace"}}>
+            Clear
+          </button>
+        </div>
+        <div style={{background:t.surfaceAlt,borderRadius:8,padding:"10px 14px",fontSize:12,color:t.muted,marginBottom:14,lineHeight:1.5}}>
+          By clicking "Apply signature" you agree that this electronic signature is legally binding, equivalent to a handwritten signature, applied on {TODAY()}.
+        </div>
+        <div style={{display:"flex",gap:10}}>
+          <Btn T={t} onClick={()=>applySignature(canvasRef.current,signing)} style={{flex:1}}>✍ Apply signature</Btn>
+          <Btn T={t} variant="secondary" onClick={()=>setSigning(null)}>Cancel</Btn>
+        </div>
+      </div>
+    </div>}
+
+    {/* Upload area */}
+    <div
+      onDragOver={e=>{e.preventDefault();setDragging(true);}}
+      onDragLeave={()=>setDragging(false)}
+      onDrop={handleDrop}
+      style={{border:`2px dashed ${dragging?t.accent:t.border}`,borderRadius:12,padding:"24px",textAlign:"center",marginBottom:18,background:dragging?t.accentLight:t.surfaceAlt,transition:"all 0.2s",cursor:"pointer"}}
+      onClick={()=>document.getElementById(`doc-upload-${intern.id}`).click()}>
+      <div style={{fontSize:28,marginBottom:8}}>📁</div>
+      <div style={{fontSize:14,color:dragging?t.accentText:t.muted,fontWeight:500,marginBottom:4}}>{dragging?"Drop to upload":"Drag files here or click to browse"}</div>
+      <div style={{fontSize:12,color:t.faint}}>PDF, Word, images, or any file type · Multiple files at once</div>
+      <input id={`doc-upload-${intern.id}`} type="file" multiple accept="*/*" onChange={handleInput} style={{display:"none"}}/>
     </div>
-    <div style={{display:"flex",flexDirection:"column",gap:10}}>
-      {allP.length===0&&<div style={{color:t.muted,fontSize:14}}>No payments in this period.</div>}
-      {allP.map((p,i)=>{
-        const intern=interns.find(x=>x.id===p.internId);
-        const methodIcons={cash:"💵",check:"📄",venmo:"💜",zelle:"⚡",paypal:"🅿",stripe:"💳",other:"●"};
-        return <div key={i} style={{background:t.surface,border:`1px solid ${p.status==="overdue"?t.accentMid:t.border}`,borderLeftWidth:p.status==="overdue"?3:1,borderLeftColor:p.status==="overdue"?t.accent:t.border,borderRadius:12,padding:"14px 18px",display:"flex",alignItems:"center",boxShadow:"0 1px 3px rgba(0,0,0,0.04)"}}>
-          <div style={{flex:1}}>
-            <div style={{fontSize:14,color:t.text}}>{p.month} —{" "}
-              <span onClick={()=>intern&&onSelectIntern(intern)}
-                style={{color:t.accent,cursor:"pointer",textDecoration:"underline",textDecorationStyle:"dotted",textUnderlineOffset:3}}
-                onMouseEnter={e=>e.currentTarget.style.opacity="0.7"}
-                onMouseLeave={e=>e.currentTarget.style.opacity="1"}>
-                {p.internName}
+
+    {/* Header */}
+    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+      <div style={{fontSize:13,color:t.muted}}>{docs.length} document{docs.length!==1?"s":""} on file</div>
+      <label style={{background:t.isGradient?t.gradient:t.accent,backgroundSize:t.isGradient?"200% 200%":undefined,animation:t.isGradient?"gradientShift 5s ease infinite":undefined,color:"#fff",borderRadius:8,padding:"6px 14px",fontSize:12,cursor:"pointer",fontFamily:"'DM Mono',monospace",display:"inline-block"}}>
+        + Upload
+        <input type="file" multiple accept="*/*" onChange={handleInput} style={{display:"none"}}/>
+      </label>
+    </div>
+
+    {/* Document list */}
+    <div style={{display:"flex",flexDirection:"column",gap:8}}>
+      {docs.length===0&&<div style={{background:t.surfaceAlt,borderRadius:12,padding:"32px",textAlign:"center",color:t.muted,fontSize:14}}>
+        No documents yet — drag files here or click Upload above.
+      </div>}
+      {docs.map((d,i)=>{
+        const [bg,col]=docTC(d.type);
+        return <div key={i} style={{background:t.surface,border:`1px solid ${d.signed?t.accentMid:t.border}`,borderRadius:12,padding:"12px 16px",display:"flex",alignItems:"center",gap:12,boxShadow:"0 1px 3px rgba(0,0,0,0.04)"}}>
+          {d.dataUrl&&d.mimeType?.startsWith("image/")
+            ? <img src={d.dataUrl} alt={d.name} style={{width:36,height:36,borderRadius:7,objectFit:"cover",flexShrink:0}}/>
+            : <div style={{width:36,height:36,borderRadius:8,background:bg,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,color:col,fontFamily:"'DM Mono',monospace",fontWeight:700,flexShrink:0}}>{d.type.slice(0,3).toUpperCase()}</div>}
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontSize:13,color:t.text,fontWeight:500,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{d.name}</div>
+            <div style={{fontSize:11,color:t.muted,marginTop:2,fontFamily:"'DM Mono',monospace"}}>
+              {d.date} · {d.uploadedBy}{d.size?" · "+formatSize(d.size):""}
+              {d.signed&&<span style={{color:t.accentText,marginLeft:6}}>✍ Signed {d.signedDate}</span>}
+            </div>
+          </div>
+          <Badge color={col} bg={bg}>{d.type}</Badge>
+          <div style={{display:"flex",gap:6,flexShrink:0}}>
+            <button onClick={()=>setViewing(i)}
+              style={{background:t.surfaceAlt,border:`1px solid ${t.border}`,borderRadius:6,padding:"4px 10px",cursor:"pointer",fontSize:11,color:t.text,fontFamily:"'DM Mono',monospace"}}>View</button>
+            {!d.signed&&<button onClick={()=>setSigning(i)}
+              style={{background:t.accentLight,border:`1px solid ${t.accentMid}`,borderRadius:6,padding:"4px 10px",cursor:"pointer",fontSize:11,color:t.accentText,fontFamily:"'DM Mono',monospace"}}>✍ Sign</button>}
+            <button onClick={()=>deleteDoc(i)}
+              style={{background:"none",border:`1px solid ${S.red}30`,borderRadius:6,padding:"4px 8px",cursor:"pointer",fontSize:11,color:S.red,fontFamily:"'DM Mono',monospace"}} title="Delete">✕</button>
+          </div>
+        </div>;
+      })}
+    </div>
+  </div>;
+}
+
+function PaymentsTab({intern,onUpdateIntern,T}) {
+  const t=T||THEMES.sage;
+  const [markingIdx,setMarkingIdx]=useState(null);
+  const [markMethod,setMarkMethod]=useState("cash");
+  const [markNote,setMarkNote]=useState("");
+  const [showChargeModal,setShowChargeModal]=useState(false);
+  const [chargeAmount,setChargeAmount]=useState(intern.billingRate||150);
+  const [chargeNote,setChargeNote]=useState("");
+  const [showBillingSetup,setShowBillingSetup]=useState(false);
+  const [billingSchedule,setBillingSchedule]=useState(intern.billingSchedule||"monthly");
+  const [billingRate,setBillingRate]=useState(intern.billingRate||150);
+  const [cardOnFile,setCardOnFile]=useState(intern.cardOnFile||null);
+  const [addingCard,setAddingCard]=useState(false);
+  const [cardLast4,setCardLast4]=useState("");
+  const [cardBrand,setCardBrand]=useState("Visa");
+
+  const SCHEDULES=[
+    {id:"per_session",label:"Per session",   desc:"Charge after each supervision session"},
+    {id:"weekly",     label:"Weekly",         desc:"Fixed weekly rate"},
+    {id:"biweekly",   label:"Every 2 weeks",  desc:"Charged every other week"},
+    {id:"monthly",    label:"Monthly",        desc:"Fixed monthly rate"},
+    {id:"custom",     label:"Custom",         desc:"You decide when to charge"},
+  ];
+  const METHOD_ICONS={cash:"💵",check:"📄",venmo:"💜",zelle:"⚡",paypal:"🅿",stripe:"💳",other:"●"};
+
+  const totalOwed=intern.payments.filter(p=>p.status==="overdue").reduce((s,p)=>s+p.amount,0);
+  const totalPaid=intern.payments.filter(p=>p.status==="paid").reduce((s,p)=>s+p.amount,0);
+
+  const addCharge=()=>{
+    const newPay={month:TODAY(),amount:Number(chargeAmount)||0,status:"overdue",date:"—",note:chargeNote||undefined};
+    onUpdateIntern({...intern,payments:[newPay,...intern.payments],paymentStatus:"overdue"});
+    setShowChargeModal(false);setChargeAmount(intern.billingRate||150);setChargeNote("");
+  };
+
+  const markPaid=(idx)=>{
+    const updated={...intern,payments:intern.payments.map((p,i)=>i!==idx?p:{...p,status:"paid",date:TODAY(),receivedVia:markMethod,note:markNote||undefined})};
+    const stillOwed=updated.payments.some(p=>p.status==="overdue");
+    onUpdateIntern({...updated,paymentStatus:stillOwed?"overdue":"current"});
+    setMarkingIdx(null);setMarkNote("");
+  };
+
+  const saveBillingSetup=()=>{
+    onUpdateIntern({...intern,billingSchedule,billingRate:Number(billingRate)||0,cardOnFile});
+    setShowBillingSetup(false);
+  };
+
+  const iStyle={border:`1px solid ${t.border}`,borderRadius:8,padding:"7px 12px",fontSize:13,fontFamily:"inherit",color:t.text,background:t.bg,outline:"none"};
+
+  return <div style={{display:"flex",flexDirection:"column",gap:16}}>
+    {/* Summary */}
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12}}>
+      <StatCard T={t} label="Total paid" value={`$${totalPaid}`} color={t.accent}/>
+      <StatCard T={t} label="Outstanding" value={`$${totalOwed}`} color={totalOwed>0?S.red:t.text}/>
+      <StatCard T={t} label="Transactions" value={intern.payments.length}/>
+    </div>
+
+    {/* Billing setup */}
+    <div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:12,padding:"16px 18px"}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:showBillingSetup?14:0}}>
+        <div>
+          <div style={{fontSize:14,color:t.text,fontWeight:500}}>Billing setup</div>
+          <div style={{fontSize:12,color:t.muted,marginTop:2}}>
+            {intern.billingSchedule
+              ? `${SCHEDULES.find(s=>s.id===intern.billingSchedule)?.label||intern.billingSchedule} · $${intern.billingRate||0}`
+              : "No billing schedule set"}
+            {intern.cardOnFile&&` · ${intern.cardOnFile.brand} ····${intern.cardOnFile.last4}`}
+          </div>
+        </div>
+        <button onClick={()=>setShowBillingSetup(s=>!s)}
+          style={{background:"none",border:`1px solid ${t.border}`,borderRadius:7,padding:"4px 12px",cursor:"pointer",fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace"}}>
+          {showBillingSetup?"✓ Save":"✎ Edit"}
+        </button>
+      </div>
+      {showBillingSetup&&<div style={{display:"flex",flexDirection:"column",gap:10}}>
+        <div>
+          <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:6}}>Billing schedule</div>
+          <div style={{display:"flex",flexDirection:"column",gap:5}}>
+            {SCHEDULES.map(s=><button key={s.id} onClick={()=>setBillingSchedule(s.id)}
+              style={{background:billingSchedule===s.id?t.accentLight:t.surfaceAlt,color:billingSchedule===s.id?t.accentText:t.text,border:`1px solid ${billingSchedule===s.id?t.accentMid:t.border}`,borderRadius:8,padding:"8px 14px",cursor:"pointer",textAlign:"left",fontSize:13,display:"flex",alignItems:"center",gap:10}}>
+              <span style={{width:16,height:16,borderRadius:"50%",border:`2px solid ${billingSchedule===s.id?t.accent:t.border}`,background:billingSchedule===s.id?t.accent:"transparent",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                {billingSchedule===s.id&&<span style={{width:6,height:6,borderRadius:"50%",background:"#fff"}}/>}
               </span>
+              <span><strong>{s.label}</strong> — {s.desc}</span>
+            </button>)}
+          </div>
+        </div>
+        <div style={{display:"flex",gap:10,alignItems:"center"}}>
+          <div>
+            <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:5}}>Rate ($)</div>
+            <div style={{display:"flex",alignItems:"center",gap:4}}>
+              <span style={{color:t.muted}}>$</span>
+              <input type="number" value={billingRate} onChange={e=>setBillingRate(e.target.value)} style={{...iStyle,width:90}}/>
+            </div>
+          </div>
+          <div style={{flex:1}}>
+            <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:5}}>Card on file</div>
+            {cardOnFile
+              ? <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                  <span style={{fontSize:13,color:t.text}}>{cardOnFile.brand} ····{cardOnFile.last4}</span>
+                  <button onClick={()=>setCardOnFile(null)} style={{background:"none",border:"none",cursor:"pointer",fontSize:12,color:S.red,fontFamily:"'DM Mono',monospace"}}>Remove</button>
+                </div>
+              : addingCard
+                ? <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                    <select value={cardBrand} onChange={e=>setCardBrand(e.target.value)} style={{...iStyle,width:90,cursor:"pointer"}}>
+                      {["Visa","Mastercard","Amex","Discover"].map(b=><option key={b}>{b}</option>)}
+                    </select>
+                    <input value={cardLast4} onChange={e=>setCardLast4(e.target.value.replace(/\D/g,"").slice(0,4))} placeholder="Last 4" maxLength={4} style={{...iStyle,width:70}}/>
+                    <button onClick={()=>{if(cardLast4.length===4){setCardOnFile({brand:cardBrand,last4:cardLast4});setAddingCard(false);setCardLast4("");}}}
+                      style={{background:t.accent,color:"#fff",border:"none",borderRadius:7,padding:"6px 12px",cursor:"pointer",fontSize:12,fontFamily:"inherit"}}>Save</button>
+                    <button onClick={()=>{setAddingCard(false);setCardLast4("");}} style={{background:"none",border:`1px solid ${t.border}`,borderRadius:7,padding:"6px 10px",cursor:"pointer",fontSize:12,color:t.muted}}>✕</button>
+                  </div>
+                : <button onClick={()=>setAddingCard(true)} style={{background:"none",border:`1px dashed ${t.border}`,borderRadius:7,padding:"5px 12px",cursor:"pointer",fontSize:12,color:t.faint,fontFamily:"'DM Mono',monospace"}}>+ Add card</button>}
+          </div>
+        </div>
+        <div style={{display:"flex",gap:8}}>
+          <Btn T={t} small onClick={saveBillingSetup}>Save setup</Btn>
+          <Btn T={t} variant="secondary" small onClick={()=>setShowBillingSetup(false)}>Cancel</Btn>
+        </div>
+      </div>}
+    </div>
+
+    {/* Action buttons */}
+    <div style={{display:"flex",gap:10}}>
+      <Btn T={t} onClick={()=>setShowChargeModal(true)}>+ Add charge</Btn>
+      <Btn T={t} variant="secondary" onClick={()=>{/* send reminder */}}>📧 Send reminder</Btn>
+    </div>
+
+    {/* Add charge modal */}
+    {showChargeModal&&<div style={{background:t.surfaceAlt,border:`1px solid ${t.accentMid}`,borderRadius:12,padding:"16px 18px"}}>
+      <div style={{fontSize:14,color:t.text,fontWeight:500,marginBottom:12}}>Add a charge</div>
+      <div style={{display:"flex",gap:10,marginBottom:10,alignItems:"center"}}>
+        <span style={{color:t.muted}}>$</span>
+        <input type="number" value={chargeAmount} onChange={e=>setChargeAmount(e.target.value)} style={{...iStyle,width:100}}/>
+        <input value={chargeNote} onChange={e=>setChargeNote(e.target.value)} placeholder="Note (e.g. Individual session 3/21)" style={{...iStyle,flex:1}}/>
+      </div>
+      <div style={{display:"flex",gap:8}}>
+        <Btn T={t} small onClick={addCharge}>Add charge</Btn>
+        <Btn T={t} variant="secondary" small onClick={()=>setShowChargeModal(false)}>Cancel</Btn>
+      </div>
+    </div>}
+
+    {/* Transaction list */}
+    <div>
+      <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:10}}>Transaction history</div>
+      {intern.payments.length===0&&<div style={{background:t.surfaceAlt,borderRadius:10,padding:"24px",textAlign:"center",color:t.muted,fontSize:14}}>No transactions yet</div>}
+      {intern.payments.map((p,i)=>{
+        const isMarking=markingIdx===i;
+        return <div key={i} style={{background:t.surface,border:`1px solid ${p.status==="overdue"?t.accentMid:t.border}`,borderLeft:p.status==="overdue"?`3px solid ${t.accent}`:"none",borderRadius:12,padding:"14px 18px",marginBottom:10}}>
+          <div style={{display:"flex",alignItems:"flex-start",gap:12}}>
+            <div style={{flex:1}}>
+              <div style={{fontSize:14,color:t.text,fontWeight:500}}>{p.month||p.date||"—"}</div>
+              {p.note&&<div style={{fontSize:12,color:t.muted,marginTop:2}}>{p.note}</div>}
+              {p.receivedVia&&<div style={{fontSize:12,color:t.muted,marginTop:2}}>Received via {METHOD_ICONS[p.receivedVia]} {p.receivedVia}</div>}
+            </div>
+            <div style={{fontSize:18,color:t.text,fontFamily:"'DM Mono',monospace",fontWeight:600}}>${p.amount}</div>
+            {p.status==="paid"
+              ? <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                  <Badge color={t.accentText} bg={t.accentLight}>✓ Paid</Badge>
+                  <button onClick={()=>{const u={...intern,payments:intern.payments.map((px,ix)=>ix!==i?px:{...px,status:"overdue",date:"—",receivedVia:undefined,note:undefined})};onUpdateIntern({...u,paymentStatus:"overdue"});}}
+                    style={{background:"none",border:"none",cursor:"pointer",fontSize:11,color:t.faint,fontFamily:"'DM Mono',monospace"}}>Undo</button>
+                </div>
+              : <div>
+                  {!isMarking
+                    ? <Btn T={t} small onClick={()=>setMarkingIdx(i)}>Mark received</Btn>
+                    : <div style={{background:t.surfaceAlt,borderRadius:10,padding:"10px 12px",marginTop:8,minWidth:200}}>
+                        <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:6}}>Received via</div>
+                        <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:8}}>
+                          {Object.keys(METHOD_ICONS).map(m=><button key={m} onClick={()=>setMarkMethod(m)}
+                            style={{background:markMethod===m?t.accentLight:"none",color:markMethod===m?t.accentText:t.muted,border:`1px solid ${markMethod===m?t.accentMid:t.border}`,borderRadius:6,padding:"3px 8px",cursor:"pointer",fontSize:12,fontFamily:"'DM Mono',monospace"}}>
+                            {METHOD_ICONS[m]} {m}
+                          </button>)}
+                        </div>
+                        <input value={markNote} onChange={e=>setMarkNote(e.target.value)} placeholder="Optional note..." style={{...iStyle,width:"100%",marginBottom:8,boxSizing:"border-box"}}/>
+                        <div style={{display:"flex",gap:6}}>
+                          <Btn T={t} small onClick={()=>markPaid(i)}>✓ Confirm paid</Btn>
+                          <Btn T={t} variant="secondary" small onClick={()=>{setMarkingIdx(null);setMarkNote("");}}>Cancel</Btn>
+                        </div>
+                      </div>}
+                </div>}
+          </div>
+        </div>;
+      })}
+    </div>
+  </div>;
+}
+
+function PaymentsPage({interns,groups,onSelectIntern,T}) {
+  const t=T||THEMES.sage;
+  const [period,setPeriod]=useState("all");
+  const [view,setView]=useState("all"); // "all" | "byIntern" | "byGroup"
+  const [selectedId,setSelectedId]=useState(null); // internId or groupId
+
+  const periods=[{id:"all",label:"All time"},{id:"Q1 2026",label:"Q1 2026"},{id:"Q4 2025",label:"Q4 2025"},{id:"2026",label:"2026"},{id:"2025",label:"2025"}];
+  const billableInterns=interns.filter(i=>!i.proBono);
+
+  // Get payments for the current view
+  const getPayments=(internList)=>internList.flatMap(intern=>
+    intern.payments
+      .filter(p=>period==="all"||p.quarter?.includes(period)||p.quarter?.startsWith(period.substring(0,4)))
+      .map(p=>({...p,internName:dn(intern),internId:intern.id,credential:intern.credential,internObj:intern}))
+  );
+
+  const allP = view==="all"
+    ? getPayments(billableInterns)
+    : view==="byIntern" && selectedId
+      ? getPayments(billableInterns.filter(i=>i.id===selectedId))
+      : view==="byGroup" && selectedId
+        ? getPayments(billableInterns.filter(i=>i.groupIds?.includes(selectedId)))
+        : getPayments(billableInterns);
+
+  const totalRec=allP.filter(p=>p.status==="paid").reduce((s,p)=>s+p.amount,0);
+  const totalOut=allP.filter(p=>p.status==="overdue").reduce((s,p)=>s+p.amount,0);
+
+  const buildCSV=()=>{
+    const rows=[["Intern","Credential","Month","Amount","Status","Date Paid","Method","Note"]];
+    allP.forEach(p=>rows.push([p.internName,p.credential,p.month||"",`$${p.amount}`,p.status,p.date||"",p.receivedVia||"",p.note||""]));
+    return rows;
+  };
+
+  const methodIcons={cash:"💵",check:"📄",venmo:"💜",zelle:"⚡",paypal:"🅿",stripe:"💳",other:"●"};
+
+  return <div>
+    <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:20}}>
+      <div>
+        <h1 style={{fontFamily:"inherit",fontSize:28,fontWeight:400,color:t.text,margin:"0 0 4px",letterSpacing:"-0.02em"}}>Payments</h1>
+        <p style={{color:t.muted,fontSize:14,margin:0}}>Track and export supervision fees</p>
+      </div>
+      <Btn T={t} variant="soft" onClick={()=>downloadCSV(buildCSV(),`SupTrack_Payments_${period}.csv`)}>↓ Export CSV</Btn>
+    </div>
+
+    {/* View toggle — All / By Intern / By Group */}
+    <div style={{display:"flex",gap:0,border:`1px solid ${t.border}`,borderRadius:10,overflow:"hidden",marginBottom:16,alignSelf:"flex-start",width:"fit-content"}}>
+      {[["all","All payments"],["byIntern","By intern"],["byGroup","By group"]].map(([id,label],i)=>(
+        <button key={id} onClick={()=>{setView(id);setSelectedId(null);}}
+          style={{background:view===id?t.accentLight:"none",color:view===id?t.accentText:t.muted,border:"none",borderRight:i<2?`1px solid ${t.border}`:"none",padding:"8px 18px",cursor:"pointer",fontSize:13,fontFamily:"'DM Mono',monospace",transition:"all 0.1s"}}>
+          {label}
+        </button>
+      ))}
+    </div>
+
+    {/* Intern picker */}
+    {view==="byIntern"&&<div style={{marginBottom:14}}>
+      <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:8}}>Select intern</div>
+      <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+        {billableInterns.map(i=>(
+          <button key={i.id} onClick={()=>setSelectedId(i.id)}
+            style={{background:selectedId===i.id?t.accentLight:t.surfaceAlt,color:selectedId===i.id?t.accentText:t.muted,border:`1px solid ${selectedId===i.id?t.accentMid:t.border}`,borderRadius:8,padding:"6px 14px",cursor:"pointer",fontSize:13,display:"flex",alignItems:"center",gap:8}}>
+            <Avatar initials={i.initials} size={20} T={t}/>
+            {dn(i)}
+            {i.paymentStatus==="overdue"&&<span style={{fontSize:10,color:S.red}}>⚠</span>}
+          </button>
+        ))}
+      </div>
+    </div>}
+
+    {/* Group picker */}
+    {view==="byGroup"&&<div style={{marginBottom:14}}>
+      <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:8}}>Select group</div>
+      <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+        {groups.map(g=>(
+          <button key={g.id} onClick={()=>setSelectedId(g.id)}
+            style={{background:selectedId===g.id?g.colorLight:t.surfaceAlt,color:selectedId===g.id?g.color:t.muted,border:`1px solid ${selectedId===g.id?g.color+"60":t.border}`,borderRadius:8,padding:"6px 14px",cursor:"pointer",fontSize:13,display:"flex",alignItems:"center",gap:6}}>
+            <div style={{width:8,height:8,borderRadius:"50%",background:g.color}}/>
+            {g.name}
+            <span style={{fontSize:11,color:t.faint}}>({billableInterns.filter(i=>i.groupIds?.includes(g.id)).length})</span>
+          </button>
+        ))}
+        {groups.length===0&&<span style={{fontSize:13,color:t.faint}}>No groups yet</span>}
+      </div>
+    </div>}
+
+    {/* Period filter */}
+    <div style={{display:"flex",gap:8,marginBottom:20,flexWrap:"wrap"}}>
+      {periods.map(p=>(
+        <button key={p.id} onClick={()=>setPeriod(p.id)}
+          style={{background:period===p.id?t.accentLight:"none",color:period===p.id?t.accentText:t.muted,border:`1px solid ${period===p.id?t.accentMid:t.border}`,borderRadius:20,padding:"5px 14px",fontSize:12,cursor:"pointer",fontFamily:"'DM Mono',monospace"}}>
+          {p.label}
+        </button>
+      ))}
+    </div>
+
+    {/* Summary */}
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14,marginBottom:24}}>
+      <StatCard T={t} label="Total received" value={`$${totalRec.toLocaleString()}`} color={t.accent}/>
+      <StatCard T={t} label="Outstanding" value={`$${totalOut.toLocaleString()}`} color={totalOut>0?S.red:t.text}/>
+      <StatCard T={t} label="Transactions" value={allP.filter(p=>p.status==="paid").length} sub="payments received"/>
+    </div>
+
+    {/* By-intern summary — when viewing all or by group, show per-intern breakdown */}
+    {(view==="all"||(view==="byGroup"&&selectedId))&&billableInterns.length>0&&<div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:12,padding:"16px 18px",marginBottom:20}}>
+      <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:12}}>Per-intern summary</div>
+      <div style={{display:"flex",flexDirection:"column",gap:0}}>
+        {(view==="byGroup"&&selectedId
+          ? billableInterns.filter(i=>i.groupIds?.includes(selectedId))
+          : billableInterns
+        ).map((intern,i,arr)=>{
+          const internP=intern.payments.filter(p=>period==="all"||p.quarter?.includes(period)||p.quarter?.startsWith(period.substring(0,4)));
+          const paid=internP.filter(p=>p.status==="paid").reduce((s,p)=>s+p.amount,0);
+          const owed=internP.filter(p=>p.status==="overdue").reduce((s,p)=>s+p.amount,0);
+          return <div key={intern.id} onClick={()=>{setView("byIntern");setSelectedId(intern.id);}}
+            style={{display:"flex",alignItems:"center",gap:12,padding:"10px 0",borderTop:i>0?`1px solid ${t.borderLight}`:"none",cursor:"pointer"}}
+            onMouseEnter={e=>e.currentTarget.style.background=t.surfaceAlt}
+            onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+            <Avatar initials={intern.initials} size={28} T={t}/>
+            <div style={{flex:1}}>
+              <div style={{fontSize:13,color:t.text,fontWeight:500}}>{dn(intern)}</div>
+              <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace"}}>{intern.credential}</div>
+            </div>
+            <div style={{textAlign:"right"}}>
+              {paid>0&&<div style={{fontSize:13,color:t.accentText,fontFamily:"'DM Mono',monospace"}}>${paid} paid</div>}
+              {owed>0&&<div style={{fontSize:12,color:S.red,fontFamily:"'DM Mono',monospace"}}>⚠ ${owed} owed</div>}
+              {paid===0&&owed===0&&<div style={{fontSize:12,color:t.faint,fontFamily:"'DM Mono',monospace"}}>No activity</div>}
+            </div>
+            <span style={{fontSize:12,color:t.faint}}>›</span>
+          </div>;
+        })}
+      </div>
+    </div>}
+
+    {/* Transaction list */}
+    <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:10}}>
+      {allP.length} transaction{allP.length!==1?"s":""}
+      {view==="byIntern"&&selectedId&&` · ${dn(billableInterns.find(i=>i.id===selectedId)||{name:"?"})}`}
+      {view==="byGroup"&&selectedId&&` · ${groups.find(g=>g.id===selectedId)?.name||"?"}`}
+    </div>
+    <div style={{display:"flex",flexDirection:"column",gap:8}}>
+      {allP.length===0&&<div style={{background:t.surfaceAlt,borderRadius:12,padding:"32px",textAlign:"center",color:t.muted,fontSize:14}}>
+        No payments{period!=="all"?` in ${period}`:""}.
+        {(view==="byIntern"||view==="byGroup")&&!selectedId&&<div style={{fontSize:12,color:t.faint,marginTop:6}}>Select an intern or group above to filter.</div>}
+      </div>}
+      {allP.map((p,i)=>(
+        <div key={i} style={{background:t.surface,border:`1px solid ${p.status==="overdue"?t.accentMid:t.border}`,borderLeft:p.status==="overdue"?`3px solid ${t.accent}`:"none",borderRadius:12,padding:"13px 16px",display:"flex",alignItems:"center",gap:12,boxShadow:"0 1px 3px rgba(0,0,0,0.04)"}}>
+          <div style={{flex:1}}>
+            <div style={{fontSize:13,color:t.text}}>
+              {p.month||"—"}{view!=="byIntern"&&<span> — <span onClick={()=>onSelectIntern(p.internObj)} style={{color:t.accent,cursor:"pointer"}}>{p.internName}</span></span>}
             </div>
             <div style={{display:"flex",gap:6,marginTop:3,alignItems:"center",flexWrap:"wrap"}}>
-              <span style={{fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace"}}>{p.credential} · {p.quarter}</span>
+              <span style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace"}}>{p.credential}</span>
               {p.receivedVia&&<Badge color={t.muted} bg={t.surfaceAlt}>{methodIcons[p.receivedVia]} {p.receivedVia}</Badge>}
               {p.note&&<span style={{fontSize:11,color:t.faint,fontStyle:"italic"}}>"{p.note}"</span>}
             </div>
           </div>
-          <span style={{fontFamily:"inherit",fontSize:18,color:t.text,marginRight:14}}>${p.amount}</span>
-          <Badge color={p.status==="paid"?t.accentText:S.red} bg={p.status==="paid"?t.accentLight:S.redLight}>{p.status==="paid"?"Paid":"Overdue"}</Badge>
-        </div>;
-      })}
+          <span style={{fontFamily:"'DM Mono',monospace",fontSize:16,color:t.text,fontWeight:600}}>${p.amount}</span>
+          <Badge color={p.status==="paid"?t.accentText:S.red} bg={p.status==="paid"?t.accentLight:S.redLight}>
+            {p.status==="paid"?"✓ Paid":"Overdue"}
+          </Badge>
+        </div>
+      ))}
     </div>
   </div>;
 }
@@ -2825,7 +3344,17 @@ function GroupsPage({groups,interns,setGroups,onSelectIntern,initialGroupId,upda
     setEditingGroup(false);
   };
 
-  const toggleMember=(internId)=>{
+  const [groupDragIdx,setGroupDragIdx]=useState(null);
+  const [groupDragOver,setGroupDragOver]=useState(null);
+
+  const onGroupDrop=(i)=>{
+    if(groupDragIdx===null||groupDragIdx===i) return;
+    const arr=[...groups];
+    const [moved]=arr.splice(groupDragIdx,1);
+    arr.splice(i,0,moved);
+    setGroups(arr);
+    setGroupDragIdx(null);setGroupDragOver(null);
+  };
     const intern=interns.find(i=>i.id===internId);
     if(!intern||!updateIntern) return;
     const inGroup=intern.groupIds?.includes(selected);
@@ -2868,13 +3397,27 @@ function GroupsPage({groups,interns,setGroups,onSelectIntern,initialGroupId,upda
     </div>}
 
     <div style={{display:"flex",gap:20}}>
-      {/* Group list sidebar */}
+      {/* Group list sidebar — drag to reorder */}
       <div style={{width:200,flexShrink:0}}>
-        {groups.map(g=><button key={g.id} onClick={()=>{setSelected(g.id);setEditingGroup(false);}} style={{width:"100%",background:selected===g.id?g.colorLight:"none",border:selected===g.id?`1px solid ${g.color}50`:"1px solid transparent",borderRadius:10,padding:"12px 14px",cursor:"pointer",textAlign:"left",marginBottom:8,transition:"all 0.1s"}}>
-          <div style={{display:"flex",alignItems:"center",gap:8}}><div style={{width:8,height:8,borderRadius:"50%",background:g.color,flexShrink:0}}/><span style={{fontSize:14,color:t.text,fontWeight:selected===g.id?500:400}}>{g.name}</span></div>
-          <div style={{fontSize:12,color:t.muted,marginTop:4,paddingLeft:16}}>{interns.filter(i=>i.groupIds.includes(g.id)).length} members · {g.sessions.length} sessions</div>
-          {g.sharedWith?.length>0&&<div style={{paddingLeft:16,marginTop:4}}><SharedAvatars sharedWith={g.sharedWith} size={18}/></div>}
-        </button>)}
+        <div style={{fontSize:10,color:t.faint,fontFamily:"'DM Mono',monospace",letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:6,paddingLeft:4}}>⠿ drag to reorder</div>
+        {groups.map((g,i)=><div key={g.id}
+          draggable
+          onDragStart={()=>setGroupDragIdx(i)}
+          onDragOver={e=>{e.preventDefault();setGroupDragOver(i);}}
+          onDrop={()=>onGroupDrop(i)}
+          onDragEnd={()=>{setGroupDragIdx(null);setGroupDragOver(null);}}
+        >
+          <button onClick={()=>{setSelected(g.id);setEditingGroup(false);setShowNewSess(false);}}
+            style={{width:"100%",background:groupDragOver===i?t.accentLight:selected===g.id?g.colorLight:"none",border:selected===g.id?`1px solid ${g.color}50`:groupDragOver===i?`1px solid ${t.accentMid}`:"1px solid transparent",borderRadius:10,padding:"12px 14px",cursor:"pointer",textAlign:"left",marginBottom:6,transition:"all 0.1s",opacity:groupDragIdx===i?0.5:1}}>
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              <span style={{color:t.faint,fontSize:11,cursor:"grab"}}>⠿</span>
+              <div style={{width:8,height:8,borderRadius:"50%",background:g.color,flexShrink:0}}/>
+              <span style={{fontSize:14,color:t.text,fontWeight:selected===g.id?500:400}}>{g.name}</span>
+            </div>
+            <div style={{fontSize:12,color:t.muted,marginTop:4,paddingLeft:24}}>{interns.filter(i=>i.groupIds.includes(g.id)).length} members · {g.sessions.length} sessions</div>
+            {g.sharedWith?.length>0&&<div style={{paddingLeft:24,marginTop:4}}><SharedAvatars sharedWith={g.sharedWith} size={18}/></div>}
+          </button>
+        </div>)}
         {groups.length===0&&<div style={{fontSize:13,color:t.faint,padding:"12px 0"}}>No groups yet</div>}
       </div>
 
@@ -2979,69 +3522,123 @@ function GroupsPage({groups,interns,setGroups,onSelectIntern,initialGroupId,upda
           </div>}
         </div>
 
-        {/* Payment split panel — only shown if group has payment set */}
-        {(ag.paymentPerIntern || ag.sharedWith?.length > 0) && (
-          <div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:14,padding:"20px 22px",marginBottom:16,boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
-            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
-              <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em"}}>Monthly flat fee & split</div>
+        {/* Flat fee billing — off by default, toggle to enable */}
+        <div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:14,padding:"18px 20px",marginBottom:16,boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:ag.flatFeeEnabled?14:0}}>
+            <div>
+              <div style={{fontSize:14,color:t.text,fontWeight:500}}>Flat fee billing</div>
+              <div style={{fontSize:12,color:t.muted,marginTop:2}}>Set a recurring fee per intern — customize amount and frequency per person</div>
             </div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14,marginBottom:16}}>
-              <div>
-                <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:6}}>Fee per intern / month</div>
-                <input type="number" defaultValue={ag.paymentPerIntern||0} onBlur={e=>setGroups(p=>p.map(g=>g.id!==selected?g:{...g,paymentPerIntern:Number(e.target.value)}))}
-                  style={{width:"100%",border:`1px solid ${t.border}`,borderRadius:8,padding:"8px 12px",fontSize:14,fontFamily:"'DM Mono',monospace",color:t.text,background:t.bg,outline:"none",boxSizing:"border-box"}}/>
-              </div>
-              <div>
-                <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:6}}>Your share (%)</div>
-                <input type="number" min="0" max="100" defaultValue={ag.split||100} onBlur={e=>setGroups(p=>p.map(g=>g.id!==selected?g:{...g,split:Math.min(100,Math.max(0,Number(e.target.value)))}))}
-                  style={{width:"100%",border:`1px solid ${t.border}`,borderRadius:8,padding:"8px 12px",fontSize:14,fontFamily:"'DM Mono',monospace",color:t.text,background:t.bg,outline:"none",boxSizing:"border-box"}}/>
-              </div>
-              <div>
-                <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:6}}>Your earnings / intern</div>
-                <div style={{padding:"8px 12px",fontSize:14,fontFamily:"'DM Mono',monospace",color:t.accentText,background:t.accentLight,borderRadius:8,fontWeight:600}}>${((ag.paymentPerIntern||0)*((ag.split||100)/100)).toFixed(2)}</div>
-              </div>
-            </div>
-            {members.length > 0 && (
-              <div style={{background:t.surfaceAlt,borderRadius:10,padding:"12px 14px"}}>
-                <div style={{fontSize:12,color:t.muted,marginBottom:8,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em"}}>This group — payment summary</div>
-                <div style={{display:"flex",justifyContent:"space-between",fontSize:13,color:t.text,marginBottom:4}}>
-                  <span>{members.length} intern{members.length!==1?"s":""} × ${ag.paymentPerIntern||0}</span>
-                  <span style={{fontFamily:"'DM Mono',monospace"}}>Total collected: ${((ag.paymentPerIntern||0)*members.length).toFixed(2)}</span>
-                </div>
-                <div style={{display:"flex",justifyContent:"space-between",fontSize:13,color:t.accentText}}>
-                  <span>Your {ag.split||100}% share</span>
-                  <span style={{fontFamily:"'DM Mono',monospace",fontWeight:600}}>${((ag.paymentPerIntern||0)*members.length*((ag.split||100)/100)).toFixed(2)}</span>
-                </div>
-                {ag.sharedWith?.length > 0 && <div style={{fontSize:12,color:t.muted,marginTop:6}}>Co-facilitators see only their own share.</div>}
-              </div>
-            )}
+            <button onClick={()=>setGroups(p=>p.map(g=>g.id!==selected?g:{...g,flatFeeEnabled:!g.flatFeeEnabled}))}
+              style={{background:ag.flatFeeEnabled?t.accent:t.surfaceAlt,border:`1px solid ${ag.flatFeeEnabled?t.accent:t.border}`,borderRadius:20,width:44,height:24,cursor:"pointer",position:"relative",transition:"all 0.2s",flexShrink:0}}>
+              <span style={{position:"absolute",top:3,left:ag.flatFeeEnabled?22:2,width:18,height:18,borderRadius:"50%",background:"#fff",transition:"left 0.2s"}}/>
+            </button>
           </div>
-        )}
 
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
-          <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em"}}>Group Session Notes</div>
-          <div style={{display:"flex",gap:8}}>
-            <Btn T={t} variant="secondary" small onClick={()=>setShowNewSess(true)}>+ Manual</Btn>
-            <Btn T={t} small onClick={()=>setAiGroupOpen(true)}>✦ Log with AI</Btn>
-          </div>
-        </div>
-        {showNewSess&&<SessionLogForm T={t} ag={ag} members={members} newNotes={newNotes} setNewNotes={setNewNotes} setGroups={setGroups} selected={selected} setShowNewSess={setShowNewSess} updateInterns={updateInterns}/>}
-        {ag.sessions.length===0&&!showNewSess&&<div style={{color:t.muted,fontSize:14}}>No group sessions logged yet.</div>}
-        {ag.sessions.map((s,i)=>{
-          const byCol=s.author!=="Alyson";
-          const presentNames=s.attendees?.map(id=>members.find(m=>m.id===id)).filter(Boolean).map(m=>dn(m).split(" ")[0]);
-          return <div key={i} style={{background:t.surface,border:`1px solid ${ag.color}40`,borderLeft:`3px solid ${byCol?S.purple:ag.color}`,borderRadius:12,padding:"16px 18px",marginBottom:12}}>
-            <div style={{display:"flex",gap:8,marginBottom:8,alignItems:"center",flexWrap:"wrap"}}>
-              <Badge color={t.muted} bg={t.surfaceAlt}>{s.date}</Badge>
-              <Badge color={ag.color} bg={ag.colorLight}>{ag.name}</Badge>
-              {presentNames&&<Badge color={t.muted} bg={t.surfaceAlt}>{presentNames.length} attended</Badge>}
-              {s.chargedPerSession&&s.chargeAmount>0&&<Badge color={t.accentText} bg={t.accentLight}>${s.chargeAmount} × {s.attendees?.length||0} charged</Badge>}
-              <span style={{fontSize:12,color:t.accent,opacity:byCol?0.65:1,fontFamily:"'DM Mono',monospace",marginLeft:"auto"}}>{s.author}</span>
+          {ag.flatFeeEnabled&&<div>
+            {/* Default rate row */}
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:14,padding:"12px 14px",background:t.surfaceAlt,borderRadius:10}}>
+              <div>
+                <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:5}}>Default rate</div>
+                <div style={{display:"flex",alignItems:"center",gap:4}}>
+                  <span style={{fontSize:13,color:t.muted}}>$</span>
+                  <input type="number" min="0" defaultValue={ag.paymentPerIntern||0}
+                    onBlur={e=>setGroups(p=>p.map(g=>g.id!==selected?g:{...g,paymentPerIntern:Number(e.target.value)}))}
+                    style={{width:70,border:`1px solid ${t.border}`,borderRadius:7,padding:"5px 8px",fontSize:13,fontFamily:"'DM Mono',monospace",color:t.text,background:t.bg,outline:"none"}}/>
+                </div>
+              </div>
+              <div>
+                <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:5}}>Default frequency</div>
+                <select defaultValue={ag.feeFrequency||"monthly"}
+                  onChange={e=>setGroups(p=>p.map(g=>g.id!==selected?g:{...g,feeFrequency:e.target.value}))}
+                  style={{border:`1px solid ${t.border}`,borderRadius:7,padding:"5px 10px",fontSize:12,color:t.text,background:t.bg,outline:"none",cursor:"pointer",fontFamily:"inherit"}}>
+                  {["weekly","biweekly","monthly","per session","per semester"].map(f=><option key={f}>{f}</option>)}
+                </select>
+              </div>
+              <div>
+                <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:5}}>Your share (%)</div>
+                <input type="number" min="0" max="100" defaultValue={ag.split||100}
+                  onBlur={e=>setGroups(p=>p.map(g=>g.id!==selected?g:{...g,split:Math.min(100,Math.max(0,Number(e.target.value)))}))}
+                  style={{width:60,border:`1px solid ${t.border}`,borderRadius:7,padding:"5px 8px",fontSize:13,fontFamily:"'DM Mono',monospace",color:t.text,background:t.bg,outline:"none"}}/>
+              </div>
             </div>
-            {presentNames&&<div style={{fontSize:12,color:t.faint,marginBottom:6}}>Present: {presentNames.join(", ")}{s.attendees?.length<members.length?` · Absent: ${members.filter(m=>!s.attendees?.includes(m.id)).map(m=>dn(m).split(" ")[0]).join(", ")}`:"" }</div>}
-            <p style={{fontSize:14,color:t.text,margin:0,lineHeight:1.7}}>{s.notes}</p>
-          </div>;
-        })}
+
+            {/* Per-intern overrides */}
+            {members.length>0&&<div>
+              <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:8}}>Per-intern billing — override defaults individually</div>
+              <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                {members.map(m=>{
+                  const override=(ag.internBilling||{})[m.id]||{};
+                  const amt=override.amount!=null?override.amount:(ag.paymentPerIntern||0);
+                  const freq=override.frequency||ag.feeFrequency||"monthly";
+                  return <div key={m.id} style={{display:"flex",alignItems:"center",gap:10,background:t.surfaceAlt,borderRadius:8,padding:"8px 12px"}}>
+                    <Avatar initials={m.initials} size={24} T={t}/>
+                    <span style={{fontSize:13,color:t.text,flex:1}}>{dn(m).split(" ")[0]}</span>
+                    <span style={{fontSize:12,color:t.muted}}>$</span>
+                    <input type="number" min="0" value={amt}
+                      onChange={e=>setGroups(p=>p.map(g=>g.id!==selected?g:{...g,internBilling:{...(g.internBilling||{}),[m.id]:{...(g.internBilling?.[m.id]||{}),amount:Number(e.target.value)}}}))}
+                      style={{width:64,border:`1px solid ${t.border}`,borderRadius:6,padding:"4px 6px",fontSize:12,fontFamily:"'DM Mono',monospace",color:t.text,background:t.bg,outline:"none",textAlign:"right"}}/>
+                    <span style={{fontSize:12,color:t.muted}}>/</span>
+                    <select value={freq}
+                      onChange={e=>setGroups(p=>p.map(g=>g.id!==selected?g:{...g,internBilling:{...(g.internBilling||{}),[m.id]:{...(g.internBilling?.[m.id]||{}),frequency:e.target.value}}}))}
+                      style={{border:`1px solid ${t.border}`,borderRadius:6,padding:"4px 8px",fontSize:11,color:t.text,background:t.bg,outline:"none",cursor:"pointer",fontFamily:"inherit"}}>
+                      {["weekly","biweekly","monthly","per session","per semester"].map(f=><option key={f}>{f}</option>)}
+                    </select>
+                  </div>;
+                })}
+              </div>
+              <div style={{fontSize:12,color:t.muted,marginTop:8}}>
+                Group total ({ag.feeFrequency||"monthly"}): <strong style={{color:t.accentText}}>${members.reduce((s,m)=>{const o=(ag.internBilling||{})[m.id];return s+(o?.amount!=null?o.amount:(ag.paymentPerIntern||0));},0).toFixed(2)}</strong>
+              </div>
+            </div>}
+          </div>}
+        </div>
+
+        {/* ── Quick session log — prominent, always accessible ── */}
+        <div style={{background:t.surface,border:`2px solid ${ag.color}40`,borderRadius:14,padding:"18px 20px",marginBottom:16,boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:showNewSess?14:0}}>
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <div style={{width:8,height:8,borderRadius:"50%",background:ag.color}}/>
+              <span style={{fontSize:15,color:t.text,fontWeight:500}}>Log a session</span>
+              <span style={{fontSize:12,color:t.muted}}>{ag.sessions.length} logged</span>
+            </div>
+            <div style={{display:"flex",gap:8}}>
+              {!showNewSess&&<button onClick={()=>setShowNewSess(true)}
+                style={{background:ag.color,color:"#fff",border:"none",borderRadius:8,padding:"7px 16px",cursor:"pointer",fontSize:13,fontWeight:500,fontFamily:"inherit"}}>
+                + Log session
+              </button>}
+              {!showNewSess&&<Btn T={t} small onClick={()=>setAiGroupOpen(true)}>✦ AI assist</Btn>}
+              {showNewSess&&<button onClick={()=>{setShowNewSess(false);setNewNotes("");}}
+                style={{background:"none",border:`1px solid ${t.border}`,borderRadius:7,padding:"5px 12px",cursor:"pointer",fontSize:12,color:t.muted,fontFamily:"inherit"}}>
+                Cancel
+              </button>}
+            </div>
+          </div>
+
+          {showNewSess&&<SessionLogForm T={t} ag={ag} members={members} newNotes={newNotes} setNewNotes={setNewNotes} setGroups={setGroups} selected={selected} setShowNewSess={setShowNewSess} updateInterns={updateInterns}/>}
+        </div>
+
+        {/* ── Past sessions ── */}
+        {ag.sessions.length===0
+          ? <div style={{color:t.muted,fontSize:14,textAlign:"center",padding:"20px 0"}}>No sessions logged yet — use the form above to log your first.</div>
+          : <div>
+              <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:10}}>Session history</div>
+              {ag.sessions.map((s,i)=>{
+                const byCol=s.author!=="Alyson";
+                const presentNames=s.attendees?.map(id=>members.find(m=>m.id===id)).filter(Boolean).map(m=>dn(m).split(" ")[0]);
+                return <div key={i} style={{background:t.surface,border:`1px solid ${ag.color}40`,borderLeft:`3px solid ${byCol?S.purple:ag.color}`,borderRadius:12,padding:"16px 18px",marginBottom:12}}>
+                  <div style={{display:"flex",gap:8,marginBottom:8,alignItems:"center",flexWrap:"wrap"}}>
+                    <Badge color={t.muted} bg={t.surfaceAlt}>{s.date}</Badge>
+                    <Badge color={ag.color} bg={ag.colorLight}>{ag.name}</Badge>
+                    {presentNames&&<Badge color={t.muted} bg={t.surfaceAlt}>{presentNames.length} attended</Badge>}
+                    {s.chargedPerSession&&s.chargeAmount>0&&<Badge color={t.accentText} bg={t.accentLight}>${s.chargeAmount} × {s.attendees?.length||0} charged</Badge>}
+                    <span style={{fontSize:12,color:t.accent,opacity:byCol?0.65:1,fontFamily:"'DM Mono',monospace",marginLeft:"auto"}}>{s.author}</span>
+                  </div>
+                  {presentNames&&<div style={{fontSize:12,color:t.faint,marginBottom:6}}>Present: {presentNames.join(", ")}{s.attendees?.length<members.length?` · Absent: ${members.filter(m=>!s.attendees?.includes(m.id)).map(m=>dn(m).split(" ")[0]).join(", ")}`:"" }</div>}
+                  <p style={{fontSize:14,color:t.text,margin:0,lineHeight:1.7}}>{s.notes}</p>
+                </div>;
+              })}
+            </div>}
       </div>}
     </div>
   </div>;
@@ -3062,8 +3659,9 @@ const generateAlerts = (interns) => {
     if (!intern.documents?.some(d=>d.type==="Evaluation") && intern.id===2)
       alerts.push({ id:`eval-${intern.id}`, type:"evaluation", severity:"medium", internId:intern.id, internName:dn(intern), message:`No evaluation on file for ${dn(intern)} — mid-year evaluation may be due`, action:"intern-profile" });
     // Birthday alert
-    if (intern.birthday) {
-      const [bm,bd]=intern.birthday.split("/").map(Number);
+    if (intern.dob) {
+      const dobDate = new Date(intern.dob + "T00:00:00");
+      const bm = dobDate.getMonth()+1, bd = dobDate.getDate();
       const isBirthday = bm===today.getMonth()+1 && bd===today.getDate();
       const isUpcoming = (()=>{const next=new Date(today.getFullYear(),bm-1,bd);if(next<today)next.setFullYear(today.getFullYear()+1);const diff=(next-today)/(1000*60*60*24);return diff>0&&diff<=7;})();
       if (isBirthday)
@@ -3186,7 +3784,7 @@ function EvaluationTab({intern,onUpdateIntern,T}) {
     const ratingText=EVAL_QUESTIONS.map(q=>`- ${q.label}: ${ratings[q.id]}/5`).join("\n");
     const prompt=`You are a licensed clinical supervisor writing a formal evaluation of a supervisee. Write a professional, balanced evaluation summary based on these ratings and notes.\n\nSupervisee: ${intern.name}\nEvaluation type: ${evalType}\nCredential goal: ${intern.licenseGoal}\n\nRatings (1-5):\n${ratingText}\n\nStrengths: ${strengths||"Not specified"}\nGrowth areas: ${growth||"Not specified"}\nGoals: ${goals||"Not specified"}\n\nWrite a 2-3 paragraph professional evaluation in third person. Reference the supervisee by last name. Be specific, balanced, and clinically appropriate.`;
     try{
-      const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:600,messages:[{role:"user",content:prompt}]})});
+      const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":window.__SUPTRACK_API_KEY||"","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-sonnet-4-5",max_tokens:600,messages:[{role:"user",content:prompt}]})});
       const data=await res.json();
       setGeneratedSummary(data.content?.filter(c=>c.type==="text").map(c=>c.text).join("")||"");
     }catch(e){setGeneratedSummary("Unable to generate. Please write manually.");}
@@ -3253,11 +3851,11 @@ function EvaluationTab({intern,onUpdateIntern,T}) {
 function AddInternModal({onSave, onClose, onSendLink, groups, lists, T}) {
   const t = T||THEMES.sage;
   const [form, setForm] = useState({
-    name:"", preferredName:"", pronouns:"",
+    name:"", preferredName:"", pronouns:"", gender:"", race:"", ethnicity:"",
     discipline:"counseling", credential:"LPC-Intern", credentialBody:"CACREP",
     licenseGoal:"LPC", startDate: new Date().toLocaleDateString("en-US",{month:"short",year:"numeric"}),
-    supervisorRole:"primary", proBono:false, groupIds:[], listIds:[], birthday:"",
-    paymentAmount:150,
+    supervisorRole:"primary", proBono:false, groupIds:[], listIds:[], dob:"",
+    university:"", paymentAmount:150, paymentFrequency:"monthly",
   });
   const [step, setStep] = useState(1); // 1=personal, 2=credential, 3=settings
   const [error, setError] = useState("");
@@ -3280,7 +3878,7 @@ function AddInternModal({onSave, onClose, onSendLink, groups, lists, T}) {
     substance_use:["CADC-I","CADC-II","LADC","LCDC","CSAC","CASAC","RADT"],
     psychology:["Doctoral Intern","Postdoctoral Resident","Psychologist","ABPP"],
     sos:["LPC","LCSW","LMFT"],
-    student:["Practicum Student","Intern"],
+    student:["Practicum Student"],
   };
   const GOAL_BY_DISC = {
     counseling:["LPC","LPCC","LCMHC","LPC-S"],
@@ -3298,7 +3896,7 @@ function AddInternModal({onSave, onClose, onSendLink, groups, lists, T}) {
     substance_use:["NAADAC","IC&RC","State Board"],
     psychology:["APA","State Board"],
     sos:["State Board","ACES"],
-    student:["University","State Board"],
+    student:["University"], // always locked to University for students
   };
 
   const creds = CRED_BY_DISC[form.discipline]||[];
@@ -3307,23 +3905,27 @@ function AddInternModal({onSave, onClose, onSendLink, groups, lists, T}) {
 
   const save = () => {
     if (!form.name.trim()) { setError("Name is required."); return; }
+    if (form.discipline==="student"&&!form.university?.trim()) { setStep(2); setError("University name is required for practicum students."); return; }
     const initials = form.name.trim().split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
     const id = Date.now();
     const newIntern = {
       id, name:form.name.trim(), preferredName:form.preferredName.trim(),
       initials, pronouns:form.pronouns.trim(),
+      gender:form.gender||"", race:form.race||"", ethnicity:form.ethnicity||"",
       discipline:form.discipline, internType:form.discipline,
       credential:form.credential, credentialBody:form.credentialBody,
+      university:form.discipline==="student"?form.university:"",
       licenseGoal:form.licenseGoal, startDate:form.startDate,
       supervisorRole:form.supervisorRole,
       status:"active", proBono:form.proBono,
       groupIds:form.groupIds, listIds:form.listIds,
-      birthday:form.birthday, photo:null, flags:[],
+      dob:form.dob, photo:null, flags:[],
       hoursCompleted:0, hoursTotal:form.discipline==="substance_use"?2000:form.discipline==="student"?300:3000,
       individualHours:0, groupHours:0,
       hourLog:[], internHourLog:[], customHourCategories:[],
-      payments:form.proBono?[]:[{month:"Month 1",amount:form.paymentAmount,status:"overdue"}],
+      payments:form.proBono?[]:[{month:TODAY(),amount:form.paymentAmount,status:"overdue"}],
       paymentStatus:form.proBono?"current":"overdue",
+      billingSchedule:form.paymentFrequency||"monthly", billingRate:form.paymentAmount,
       sessions:[], cases:[], documents:[], evaluations:[],
       sharedWith:[],
     };
@@ -3372,12 +3974,32 @@ function AddInternModal({onSave, onClose, onSendLink, groups, lists, T}) {
         </div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
           <div>
+            <label style={labelStyle}>Date of birth</label>
+            <input type="date" value={form.dob} onChange={e=>set("dob",e.target.value)} style={inputStyle}/>
+          </div>
+          <div>
             <label style={labelStyle}>Start date</label>
             <input value={form.startDate} onChange={e=>set("startDate",e.target.value)} placeholder="e.g. Mar 2026" style={inputStyle}/>
           </div>
+        </div>
+        <div>
+          <label style={labelStyle}>Gender identity</label>
+          <select value={form.gender} onChange={e=>set("gender",e.target.value)} style={{...inputStyle,cursor:"pointer"}}>
+            {["","Man","Woman","Nonbinary","Genderqueer","Transgender man","Transgender woman","Gender fluid","Agender","Two-spirit","Prefer not to say","Other"].map(g=><option key={g} value={g}>{g||"— Select —"}</option>)}
+          </select>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
           <div>
-            <label style={labelStyle}>Birthday (optional)</label>
-            <input value={form.birthday} onChange={e=>set("birthday",e.target.value)} placeholder="MM/DD" style={inputStyle}/>
+            <label style={labelStyle}>Race</label>
+            <select value={form.race} onChange={e=>set("race",e.target.value)} style={{...inputStyle,cursor:"pointer"}}>
+              {["","American Indian or Alaska Native","Asian","Black or African American","Native Hawaiian or Pacific Islander","White","Multiracial","Prefer not to say","Other"].map(r=><option key={r} value={r}>{r||"— Select —"}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={labelStyle}>Ethnicity</label>
+            <select value={form.ethnicity} onChange={e=>set("ethnicity",e.target.value)} style={{...inputStyle,cursor:"pointer"}}>
+              {["","Hispanic or Latino","Not Hispanic or Latino","Prefer not to say"].map(e=><option key={e} value={e}>{e||"— Select —"}</option>)}
+            </select>
           </div>
         </div>
         <div>
@@ -3399,38 +4021,75 @@ function AddInternModal({onSave, onClose, onSendLink, groups, lists, T}) {
           <label style={labelStyle}>Discipline</label>
           <div style={{display:"flex",flexDirection:"column",gap:6}}>
             {DISCIPLINE_OPTS.map(d=>(
-              <button key={d.id} onClick={()=>{set("discipline",d.id);set("credential",CRED_BY_DISC[d.id]?.[0]||"");set("licenseGoal",GOAL_BY_DISC[d.id]?.[0]||"");set("credentialBody",BODY_BY_DISC[d.id]?.[0]||"");}}
+              <button key={d.id} onClick={()=>{
+                set("discipline",d.id);
+                set("credential",CRED_BY_DISC[d.id]?.[0]||"");
+                set("licenseGoal",GOAL_BY_DISC[d.id]?.[0]||"");
+                set("credentialBody",BODY_BY_DISC[d.id]?.[0]||"");
+                if(d.id!=="student") set("university","");
+              }}
                 style={{background:form.discipline===d.id?t.accentLight:t.surfaceAlt,color:form.discipline===d.id?t.accentText:t.text,border:`1px solid ${form.discipline===d.id?t.accentMid:t.border}`,borderRadius:8,padding:"8px 14px",cursor:"pointer",textAlign:"left",fontSize:13,transition:"all 0.1s"}}>
                 {form.discipline===d.id?"✓ ":""}{d.label}
               </button>
             ))}
           </div>
         </div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-          <div>
-            <label style={labelStyle}>Current credential</label>
-            <select value={form.credential} onChange={e=>set("credential",e.target.value)} style={{...inputStyle,cursor:"pointer"}}>
-              {creds.map(c=><option key={c}>{c}</option>)}
-            </select>
-          </div>
-          <div>
-            <label style={labelStyle}>Credentialing body</label>
-            <select value={form.credentialBody} onChange={e=>set("credentialBody",e.target.value)} style={{...inputStyle,cursor:"pointer"}}>
-              {bodies.map(b=><option key={b}>{b}</option>)}
-            </select>
-          </div>
-        </div>
-        <div>
-          <label style={labelStyle}>Licensure goal</label>
-          <select value={form.licenseGoal} onChange={e=>set("licenseGoal",e.target.value)} style={{...inputStyle,cursor:"pointer"}}>
-            {goals.map(g=><option key={g}>{g}</option>)}
-          </select>
-        </div>
+
+        {/* Student-specific: locked credential + university */}
+        {form.discipline==="student"
+          ? <div style={{background:t.surfaceAlt,borderRadius:10,padding:"14px 16px",display:"flex",flexDirection:"column",gap:10}}>
+              <div style={{fontSize:12,color:t.accentText,fontFamily:"'DM Mono',monospace",marginBottom:2}}>ℹ Practicum students always use "Practicum Student" and "University" — these are locked.</div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                <div>
+                  <label style={labelStyle}>Current credential</label>
+                  <div style={{...inputStyle,background:t.surfaceAlt,color:t.muted,cursor:"not-allowed"}}>Practicum Student</div>
+                </div>
+                <div>
+                  <label style={labelStyle}>Credentialing body</label>
+                  <div style={{...inputStyle,background:t.surfaceAlt,color:t.muted,cursor:"not-allowed"}}>University</div>
+                </div>
+              </div>
+              <div>
+                <label style={labelStyle}>University name *</label>
+                <input value={form.university||""} onChange={e=>set("university",e.target.value)}
+                  placeholder="e.g. University of Nevada, Reno" autoFocus
+                  style={{...inputStyle,borderColor:!form.university?.trim()?t.accentMid:t.border}}/>
+                {!form.university?.trim()&&<div style={{fontSize:11,color:t.accentText,marginTop:3,fontFamily:"'DM Mono',monospace"}}>Required</div>}
+              </div>
+              <div>
+                <label style={labelStyle}>Licensure goal</label>
+                <select value={form.licenseGoal} onChange={e=>set("licenseGoal",e.target.value)} style={{...inputStyle,cursor:"pointer"}}>
+                  {goals.map(g=><option key={g}>{g}</option>)}
+                </select>
+              </div>
+            </div>
+          : <>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+                <div>
+                  <label style={labelStyle}>Current credential</label>
+                  <select value={form.credential} onChange={e=>set("credential",e.target.value)} style={{...inputStyle,cursor:"pointer"}}>
+                    {creds.map(c=><option key={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={labelStyle}>Credentialing body</label>
+                  <select value={form.credentialBody} onChange={e=>set("credentialBody",e.target.value)} style={{...inputStyle,cursor:"pointer"}}>
+                    {bodies.map(b=><option key={b}>{b}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label style={labelStyle}>Licensure goal</label>
+                <select value={form.licenseGoal} onChange={e=>set("licenseGoal",e.target.value)} style={{...inputStyle,cursor:"pointer"}}>
+                  {goals.map(g=><option key={g}>{g}</option>)}
+                </select>
+              </div>
+            </>}
       </div>}
 
       {/* Step 3 — Settings */}
-      {step===3&&<div style={{display:"flex",flexDirection:"column",gap:16}}>
-        {/* Pro bono */}
+      {step===3&&<div style={{display:"flex",flexDirection:"column",gap:14}}>
+        {/* Pro bono toggle */}
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",background:t.surfaceAlt,borderRadius:10,padding:"12px 16px"}}>
           <div>
             <div style={{fontSize:14,color:t.text,fontWeight:500}}>Pro bono</div>
@@ -3441,10 +4100,31 @@ function AddInternModal({onSave, onClose, onSendLink, groups, lists, T}) {
             <span style={{position:"absolute",top:3,left:form.proBono?22:2,width:18,height:18,borderRadius:"50%",background:"#fff",transition:"left 0.2s"}}/>
           </button>
         </div>
-        {!form.proBono&&<div>
-          <label style={labelStyle}>Monthly supervision fee ($)</label>
-          <input type="number" value={form.paymentAmount} onChange={e=>set("paymentAmount",Number(e.target.value))} style={{...inputStyle,width:160}}/>
+
+        {/* Payment settings — only if not pro bono */}
+        {!form.proBono&&<div style={{border:`1px solid ${t.border}`,borderRadius:10,padding:"14px 16px",display:"flex",flexDirection:"column",gap:12}}>
+          <div style={{fontSize:13,color:t.text,fontWeight:500}}>Billing</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+            <div>
+              <label style={labelStyle}>Fee amount ($)</label>
+              <div style={{display:"flex",alignItems:"center",gap:6}}>
+                <span style={{color:t.muted,fontSize:14}}>$</span>
+                <input type="number" min="0" value={form.paymentAmount} onChange={e=>set("paymentAmount",Number(e.target.value))}
+                  style={{...inputStyle,width:"100%"}}/>
+              </div>
+            </div>
+            <div>
+              <label style={labelStyle}>Billing frequency</label>
+              <select value={form.paymentFrequency} onChange={e=>set("paymentFrequency",e.target.value)} style={{...inputStyle,cursor:"pointer"}}>
+                {["weekly","biweekly","monthly","per session","per semester","custom"].map(f=><option key={f} value={f}>{f.charAt(0).toUpperCase()+f.slice(1)}</option>)}
+              </select>
+            </div>
+          </div>
+          <div style={{fontSize:12,color:t.muted}}>
+            Billing summary: <strong style={{color:t.text}}>${form.paymentAmount} {form.paymentFrequency}</strong>. You can update this anytime from their Payments tab.
+          </div>
         </div>}
+
         {/* Groups */}
         {groups.length>0&&<div>
           <label style={labelStyle}>Assign to group(s)</label>
@@ -3458,13 +4138,25 @@ function AddInternModal({onSave, onClose, onSendLink, groups, lists, T}) {
             })}
           </div>
         </div>}
-        {/* Summary */}
-        <div style={{background:t.isGradient?(t.gradientSubtle||t.accentLight):t.accentLight,border:`1px solid ${t.isGradient?"transparent":t.accentMid}`,borderRadius:10,padding:"14px 16px"}}>
-          <div style={{fontSize:13,color:t.accentText,fontWeight:500,marginBottom:8}}>Ready to add:</div>
-          <div style={{fontSize:13,color:t.text,lineHeight:1.8}}>
-            <strong>{form.name||"—"}</strong>{form.preferredName?` (${form.preferredName})`:""}{form.pronouns?` · ${form.pronouns}`:""}<br/>
-            {form.credential} → {form.licenseGoal} · {form.credentialBody}<br/>
-            {form.supervisorRole.charAt(0).toUpperCase()+form.supervisorRole.slice(1)} supervisor · {form.proBono?"Pro bono":`$${form.paymentAmount}/mo`}
+
+        {/* Summary — clear, no mystery white box */}
+        <div style={{background:t.surfaceAlt,borderRadius:10,padding:"14px 16px",border:`1px solid ${t.border}`}}>
+          <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:10}}>Ready to add</div>
+          <div style={{display:"flex",flexDirection:"column",gap:6}}>
+            {[
+              ["Name",        `${form.name||"—"}${form.preferredName?` (${form.preferredName})`:""}`],
+              ["Pronouns",    form.pronouns||"Not specified"],
+              ["DOB",         form.dob ? new Date(form.dob+"T00:00:00").toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}) : "Not specified"],
+              ["Credential",  `${form.credential} → ${form.licenseGoal}`],
+              ["Body",        form.discipline==="student"?`University${form.university?` — ${form.university}`:""}`:form.credentialBody],
+              ["Role",        `${form.supervisorRole.charAt(0).toUpperCase()+form.supervisorRole.slice(1)} supervisor`],
+              ["Billing",     form.proBono?"Pro bono":`$${form.paymentAmount} / ${form.paymentFrequency}`],
+            ].map(([label,val])=>(
+              <div key={label} style={{display:"flex",gap:8,fontSize:13}}>
+                <span style={{color:t.muted,minWidth:80,fontFamily:"'DM Mono',monospace",fontSize:11,paddingTop:2}}>{label}</span>
+                <span style={{color:t.text}}>{val}</span>
+              </div>
+            ))}
           </div>
         </div>
       </div>}
@@ -3485,32 +4177,243 @@ function AddInternModal({onSave, onClose, onSendLink, groups, lists, T}) {
 
 function OnboardingModal({onClose,supervisorName,T}) {
   const t=T||THEMES.sage;
+  const [step,setStep]=useState(0); // 0=overview, 1=customize, 2=link
   const [copied,setCopied]=useState(false);
-  const link=`https://app.suptrack.io/onboard/${(supervisorName||"").toLowerCase().replace(/\s+/g,"-").replace(/[^a-z0-9-]/g,"")||"supervisor"}?token=st_onboard_${Math.random().toString(36).slice(2,10)}`;
-  const copy=()=>{navigator.clipboard?.writeText(link);setCopied(true);setTimeout(()=>setCopied(false),2000);};
-  return <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.3)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000}} onClick={onClose}>
-    <div style={{background:t.surface,borderRadius:18,padding:"28px 30px",width:540,boxShadow:"0 24px 64px rgba(0,0,0,0.14)"}} onClick={e=>e.stopPropagation()}>
-      <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:20}}>
-        <div><div style={{fontFamily:"inherit",fontSize:20,color:t.text,marginBottom:3}}>Intern onboarding link</div><div style={{fontSize:13,color:t.muted}}>Send this to a new intern — they fill everything in themselves</div></div>
-        <button onClick={onClose} style={{background:"none",border:"none",cursor:"pointer",fontSize:18,color:t.muted,padding:4}}>✕</button>
+  const [includePayment,setIncludePayment]=useState(true);
+  const [payFrequency,setPayFrequency]=useState("monthly");
+  const [showLinkPreview,setShowLinkPreview]=useState(false);
+  const [includeAgreement,setIncludeAgreement]=useState(true);
+  const [includeDocs,setIncludeDocs]=useState(true);
+  const [customMessage,setCustomMessage]=useState("");
+  const [expiryDays,setExpiryDays]=useState("30");
+
+  const slugName=(supervisorName||"supervisor").toLowerCase().replace(/[^a-z0-9]/g,"-").replace(/-+/g,"-");
+  const token=React.useMemo(()=>"st_"+Math.random().toString(36).slice(2,10),[]);
+  const link=`https://app.suptrack.io/join/${slugName}?token=${token}`;
+
+  const copy=()=>{
+    navigator.clipboard?.writeText(link);
+    setCopied(true);
+    setTimeout(()=>setCopied(false),2500);
+  };
+
+  const STEPS=[
+    {id:"info",      label:"Personal info",  desc:"Name, pronouns, preferred name, birthday, contact info"},
+    {id:"creds",     label:"Credentials",    desc:"License type, number, body, and licensure goal"},
+    {id:"docs",      label:"Documents",      desc:"Upload license, insurance, and required forms",       toggle:includeDocs,    setToggle:setIncludeDocs},
+    {id:"agreement", label:"Agreement",      desc:"Review and e-sign your supervision agreement",        toggle:includeAgreement,setToggle:setIncludeAgreement},
+    {id:"payment",   label:"Payment setup",  desc:"Connect payment method or mark as pro bono",          toggle:includePayment,  setToggle:setIncludePayment},
+  ];
+
+  const iStyle={width:"100%",border:`1px solid ${t.border}`,borderRadius:8,padding:"8px 12px",fontSize:13,fontFamily:"inherit",color:t.text,background:t.bg,outline:"none",boxSizing:"border-box"};
+
+  return <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:20}} onClick={onClose}>
+    <div style={{background:t.surface,borderRadius:18,width:540,maxHeight:"90vh",overflowY:"auto",boxShadow:"0 24px 64px rgba(0,0,0,0.18)"}} onClick={e=>e.stopPropagation()}>
+
+      {/* Header */}
+      <div style={{padding:"22px 28px 0",display:"flex",alignItems:"flex-start",justifyContent:"space-between"}}>
+        <div>
+          <div style={{fontSize:20,color:t.text,fontWeight:500,marginBottom:3}}>Intern onboarding link</div>
+          <div style={{fontSize:13,color:t.muted}}>Generate a link to send a new intern — they complete everything themselves</div>
+        </div>
+        <button onClick={onClose} style={{background:"none",border:"none",cursor:"pointer",fontSize:18,color:t.faint,padding:4,marginLeft:12,flexShrink:0}}>✕</button>
       </div>
-      <div style={{background:t.surfaceAlt,borderRadius:12,padding:"16px 18px",marginBottom:18}}>
-        <div style={{fontSize:13,color:t.text,marginBottom:12,fontWeight:500}}>Your intern completes the full onboarding in one flow:</div>
-        {[["Personal info","Name, pronouns, preferred name, contact"],["Credentials","License type, number, body, and licensure goal"],["Documents","They upload license, insurance, and required forms — auto-stored in SupTrack"],["Agreement","They review and e-sign your supervision agreement template"],["Payment setup","They connect their payment method (if not pro bono)"]].map(([title,desc])=>(
-          <div key={title} style={{display:"flex",gap:12,marginBottom:10}}>
-            <div style={{width:22,height:22,borderRadius:"50%",background:t.accentMid,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,color:t.accentText,fontFamily:"'DM Mono',monospace",fontWeight:600,flexShrink:0}}>✓</div>
-            <div><div style={{fontSize:13,color:t.text,fontWeight:500}}>{title}</div><div style={{fontSize:12,color:t.muted}}>{desc}</div></div>
+
+      {/* Step pills */}
+      <div style={{display:"flex",gap:6,padding:"16px 28px 0"}}>
+        {["Overview","Customize","Get link"].map((s,i)=>(
+          <div key={s} style={{display:"flex",alignItems:"center",gap:6}}>
+            <button onClick={()=>setStep(i)}
+              style={{background:step===i?t.accent:step>i?t.accentLight:"none",color:step===i?"#fff":step>i?t.accentText:t.faint,border:`1px solid ${step===i?t.accent:step>i?t.accentMid:t.border}`,borderRadius:20,padding:"4px 14px",cursor:"pointer",fontSize:12,fontFamily:"'DM Mono',monospace",transition:"all 0.15s"}}>
+              {step>i?"✓ ":""}{s}
+            </button>
+            {i<2&&<span style={{color:t.faint,fontSize:12}}>›</span>}
           </div>
         ))}
       </div>
-      <div style={{display:"flex",gap:10,marginBottom:14}}>
-        <div style={{flex:1,background:t.surfaceAlt,borderRadius:10,padding:"10px 14px",fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{link}</div>
-        <button onClick={copy} style={{background:copied?t.accent:t.surface,color:copied?"#fff":t.text,border:`1px solid ${t.border}`,borderRadius:10,padding:"10px 18px",fontSize:13,cursor:"pointer",fontFamily:"'DM Mono',monospace",flexShrink:0,transition:"all 0.15s"}}>{copied?"✓ Copied":"Copy link"}</button>
+
+      <div style={{padding:"20px 28px 24px"}}>
+
+        {/* Step 0: Overview */}
+        {step===0&&<div>
+          <div style={{fontSize:14,color:t.text,fontWeight:500,marginBottom:14}}>What your intern will complete:</div>
+          <div style={{display:"flex",flexDirection:"column",gap:0,border:`1px solid ${t.border}`,borderRadius:12,overflow:"hidden",marginBottom:20}}>
+            {STEPS.map((s,i)=>(
+              <div key={s.id} style={{display:"flex",alignItems:"center",gap:12,padding:"13px 16px",borderTop:i>0?`1px solid ${t.borderLight}`:"none",background:s.toggle===false?t.surfaceAlt:"transparent",opacity:s.toggle===false?0.5:1}}>
+                <div style={{width:26,height:26,borderRadius:"50%",background:s.toggle===false?t.surfaceAlt:t.accentLight,border:`1px solid ${s.toggle===false?t.border:t.accentMid}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,color:t.accentText,fontWeight:600,flexShrink:0}}>
+                  {s.toggle===false?"—":i+1}
+                </div>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:13,color:t.text,fontWeight:500}}>{s.label}</div>
+                  <div style={{fontSize:12,color:t.muted,marginTop:1}}>{s.desc}</div>
+                </div>
+                {s.setToggle&&<button onClick={()=>s.setToggle(!s.toggle)}
+                  style={{background:s.toggle?t.accentLight:t.surfaceAlt,color:s.toggle?t.accentText:t.faint,border:`1px solid ${s.toggle?t.accentMid:t.border}`,borderRadius:6,padding:"3px 10px",cursor:"pointer",fontSize:11,fontFamily:"'DM Mono',monospace",transition:"all 0.15s"}}>
+                  {s.toggle?"On":"Off"}
+                </button>}
+              </div>
+            ))}
+          </div>
+          <div style={{background:t.isGradient?(t.gradientSubtle||t.accentLight):t.accentLight,border:`1px solid ${t.isGradient?"transparent":t.accentMid}`,borderRadius:10,padding:"12px 16px",fontSize:13,color:t.accentText,marginBottom:20,lineHeight:1.6}}>
+            Once they complete onboarding, they appear in your supervisees list automatically — no manual entry needed.
+          </div>
+          <div style={{display:"flex",justifyContent:"flex-end"}}>
+            <Btn T={t} onClick={()=>setStep(1)}>Customize link →</Btn>
+          </div>
+        </div>}
+
+        {/* Step 1: Customize */}
+        {step===1&&<div>
+          <div style={{display:"flex",flexDirection:"column",gap:14}}>
+            <div>
+              <div style={{fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:6}}>Personal message (optional)</div>
+              <textarea value={customMessage} onChange={e=>setCustomMessage(e.target.value)}
+                placeholder={`Hi! I'm looking forward to working with you. Please complete your onboarding at the link below — it only takes a few minutes. Reach out if you have any questions.\n\n— ${supervisorName||"Your Supervisor"}`}
+                rows={4} style={{...iStyle,resize:"vertical",lineHeight:1.6}}/>
+              <div style={{fontSize:11,color:t.faint,marginTop:4}}>Appears at the top of the intern's onboarding page.</div>
+            </div>
+            <div>
+              <div style={{fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:6}}>Link expires after</div>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                {["7","14","30","60","Never"].map(d=>(
+                  <button key={d} onClick={()=>setExpiryDays(d)}
+                    style={{background:expiryDays===d?t.accentLight:"none",color:expiryDays===d?t.accentText:t.muted,border:`1px solid ${expiryDays===d?t.accentMid:t.border}`,borderRadius:7,padding:"5px 12px",cursor:"pointer",fontSize:12,fontFamily:"'DM Mono',monospace"}}>
+                    {d==="Never"?"Never":d+" days"}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <div style={{fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:8}}>Sections to include</div>
+              <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                {STEPS.filter(s=>s.setToggle).map(s=>(
+                  <div key={s.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",background:t.surfaceAlt,borderRadius:8,padding:"10px 14px"}}>
+                    <div>
+                      <div style={{fontSize:13,color:t.text,fontWeight:500}}>{s.label}</div>
+                      <div style={{fontSize:11,color:t.muted}}>{s.desc}</div>
+                    </div>
+                    <button onClick={()=>s.setToggle(!s.toggle)}
+                      style={{background:s.toggle?t.accent:t.surfaceAlt,border:`1px solid ${s.toggle?t.accent:t.border}`,borderRadius:20,width:40,height:22,cursor:"pointer",position:"relative",transition:"all 0.2s",flexShrink:0}}>
+                      <span style={{position:"absolute",top:2,left:s.toggle?20:2,width:18,height:18,borderRadius:"50%",background:"#fff",transition:"left 0.2s"}}/>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+            {/* Payment frequency — only shown if payment is enabled */}
+            {includePayment&&<div style={{background:t.surfaceAlt,borderRadius:10,padding:"12px 14px"}}>
+              <div style={{fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:8}}>Billing frequency to show intern</div>
+              <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                {["weekly","biweekly","monthly","per session","per semester"].map(f=>(
+                  <button key={f} onClick={()=>setPayFrequency(f)}
+                    style={{background:payFrequency===f?t.accentLight:"none",color:payFrequency===f?t.accentText:t.muted,border:`1px solid ${payFrequency===f?t.accentMid:t.border}`,borderRadius:7,padding:"4px 12px",cursor:"pointer",fontSize:12,fontFamily:"'DM Mono',monospace"}}>
+                    {f.charAt(0).toUpperCase()+f.slice(1)}
+                  </button>
+                ))}
+              </div>
+              <div style={{fontSize:11,color:t.faint,marginTop:6}}>Interns will see this frequency when setting up payment. You can change it later from their profile.</div>
+            </div>}
+          </div>
+          <div style={{display:"flex",justifyContent:"space-between",marginTop:20}}>
+            <Btn T={t} variant="secondary" onClick={()=>setStep(0)}>← Back</Btn>
+            <Btn T={t} onClick={()=>setStep(2)}>Generate link →</Btn>
+          </div>
+        </div>}
+
+        {/* Step 2: Link */}
+        {step===2&&<div>
+          <div style={{textAlign:"center",marginBottom:16}}>
+            <div style={{fontSize:28,marginBottom:8}}>🔗</div>
+            <div style={{fontSize:16,color:t.text,fontWeight:500,marginBottom:4}}>Your onboarding link is ready</div>
+            <div style={{fontSize:13,color:t.muted}}>Send via email or text. Expires {expiryDays==="Never"?"never":expiryDays+" days from now"}.</div>
+          </div>
+
+          {/* Link box */}
+          <div style={{background:t.surfaceAlt,border:`1px solid ${t.border}`,borderRadius:10,padding:"12px 16px",marginBottom:12,display:"flex",alignItems:"center",gap:10}}>
+            <div style={{flex:1,fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{link}</div>
+            <button onClick={copy}
+              style={{background:copied?t.accent:t.surface,color:copied?"#fff":t.text,border:`1px solid ${t.border}`,borderRadius:8,padding:"7px 16px",fontSize:13,cursor:"pointer",fontFamily:"'DM Mono',monospace",flexShrink:0,transition:"all 0.15s",whiteSpace:"nowrap"}}>
+              {copied?"✓ Copied!":"Copy link"}
+            </button>
+          </div>
+
+          {/* Intern-facing page preview */}
+          <div style={{marginBottom:14}}>
+            <button onClick={()=>setShowLinkPreview(p=>!p)}
+              style={{background:"none",border:`1px solid ${t.border}`,borderRadius:8,padding:"7px 14px",cursor:"pointer",fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace",width:"100%",textAlign:"center"}}>
+              {showLinkPreview?"▾ Hide page preview":"▸ Preview what your intern will see"}
+            </button>
+            {showLinkPreview&&<div style={{border:`1px solid ${t.border}`,borderRadius:12,overflow:"hidden",marginTop:10}}>
+              {/* Simulated intern onboarding page */}
+              <div style={{background:"#F8F8FC",padding:"20px 22px"}}>
+                <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
+                  <div style={{fontSize:18,fontWeight:700,color:"#3D5A7A",fontFamily:"inherit"}}>SupTrack</div>
+                  <div style={{fontSize:11,color:"#888",fontFamily:"'DM Mono',monospace",background:"#EEF2F8",borderRadius:4,padding:"2px 8px"}}>Onboarding</div>
+                </div>
+                <div style={{background:"#fff",borderRadius:10,padding:"16px 18px",boxShadow:"0 1px 4px rgba(0,0,0,0.06)"}}>
+                  <div style={{fontSize:15,fontWeight:500,color:"#1A1A2E",marginBottom:6}}>Welcome to SupTrack</div>
+                  <div style={{fontSize:12,color:"#666",marginBottom:12,lineHeight:1.6}}>
+                    {customMessage || `Hi!\n\nI'm looking forward to working with you. Please complete your onboarding below — it only takes a few minutes.\n\n— ${supervisorName||"Your Supervisor"}`}
+                  </div>
+                  <div style={{fontSize:11,color:"#888",fontFamily:"'DM Mono',monospace",marginBottom:10}}>YOUR SUPERVISOR</div>
+                  <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px",background:"#F3F4F6",borderRadius:8,marginBottom:14}}>
+                    <div style={{width:34,height:34,borderRadius:"50%",background:"#3D5A7A",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:13,fontWeight:700}}>
+                      {(supervisorName||"A").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()}
+                    </div>
+                    <div>
+                      <div style={{fontSize:13,color:"#1A1A2E",fontWeight:500}}>{supervisorName||"Your Supervisor"}</div>
+                      <div style={{fontSize:11,color:"#888"}}>LPC-S · SupTrack</div>
+                    </div>
+                  </div>
+                  <div style={{fontSize:11,color:"#888",fontFamily:"'DM Mono',monospace",marginBottom:8}}>STEPS TO COMPLETE</div>
+                  {STEPS.filter(s=>s.toggle!==false).map((s,i)=>(
+                    <div key={s.id} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderTop:i>0?"1px solid #F0F0F0":"none"}}>
+                      <div style={{width:22,height:22,borderRadius:"50%",background:"#EEF2F8",border:"1px solid #CBD5E1",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,color:"#3D5A7A",fontWeight:600,flexShrink:0}}>{i+1}</div>
+                      <div style={{fontSize:12,color:"#374151",fontWeight:500}}>{s.label}</div>
+                    </div>
+                  ))}
+                  <button style={{width:"100%",background:"#3D5A7A",color:"#fff",border:"none",borderRadius:8,padding:"10px",marginTop:14,cursor:"pointer",fontSize:13,fontWeight:500,fontFamily:"inherit"}}>
+                    Get started →
+                  </button>
+                </div>
+                <div style={{fontSize:10,color:"#aaa",textAlign:"center",marginTop:10,fontFamily:"'DM Mono',monospace"}}>
+                  Expires {expiryDays==="Never"?"never":expiryDays+" days from now"} · Powered by SupTrack
+                </div>
+              </div>
+            </div>}
+          </div>
+          <div style={{background:t.surfaceAlt,borderRadius:10,padding:"12px 16px",marginBottom:20}}>
+            <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:8}}>This link includes</div>
+            <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+              {STEPS.filter(s=>s.toggle!==false).map(s=>(
+                <span key={s.id} style={{background:t.accentLight,color:t.accentText,border:`1px solid ${t.accentMid}`,borderRadius:6,padding:"3px 10px",fontSize:12,fontFamily:"'DM Mono',monospace"}}>
+                  ✓ {s.label}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          {/* Email template */}
+          <div style={{border:`1px solid ${t.border}`,borderRadius:10,overflow:"hidden",marginBottom:20}}>
+            <div style={{background:t.surfaceAlt,padding:"10px 14px",fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+              <span>Email template</span>
+              <button onClick={()=>{
+                const email=`Subject: Welcome — please complete your SupTrack onboarding\n\n${customMessage||`Hi,\n\nI'm looking forward to working with you! Please complete your supervision onboarding at the link below — it only takes a few minutes.\n\n— ${supervisorName||"Your Supervisor"}`}\n\nOnboarding link: ${link}\n\nThis link expires ${expiryDays==="Never"?"and does not expire":("in "+expiryDays+" days")}.`;
+                navigator.clipboard?.writeText(email);
+              }} style={{background:"none",border:"none",cursor:"pointer",fontSize:11,color:t.accentText,fontFamily:"'DM Mono',monospace"}}>Copy email</button>
+            </div>
+            <div style={{padding:"12px 14px",fontSize:12,color:t.text,lineHeight:1.7,whiteSpace:"pre-wrap"}}>
+              {`${customMessage||`Hi,\n\nI'm looking forward to working with you! Please complete your supervision onboarding at the link below — it only takes a few minutes.\n\n— ${supervisorName||"Your Supervisor"}`}\n\n🔗 ${link}\n\nExpires: ${expiryDays==="Never"?"No expiry":expiryDays+" days"}`}
+            </div>
+          </div>
+
+          <div style={{display:"flex",gap:10,justifyContent:"space-between"}}>
+            <Btn T={t} variant="secondary" onClick={()=>setStep(1)}>← Back</Btn>
+            <Btn T={t} onClick={copy}>{copied?"✓ Copied!":"Copy link"}</Btn>
+          </div>
+        </div>}
+
       </div>
-      <div style={{background:t.isGradient?(t.gradientSubtle||t.accentLight):t.accentLight,border:`1px solid ${t.isGradient?"transparent":t.accentMid}`,borderRadius:10,padding:"11px 14px",fontSize:13,color:t.accentText,marginBottom:16}}>
-        Once they complete onboarding, they appear in your supervisees list automatically — no manual entry needed.
-      </div>
-      <div style={{display:"flex",justifyContent:"flex-end",gap:10}}><Btn T={t} variant="secondary" onClick={onClose}>Close</Btn><Btn T={t} onClick={copy}>Copy onboarding link</Btn></div>
     </div>
   </div>;
 }
@@ -3577,7 +4480,7 @@ function PublicProfilePage({supervisorPhoto,setSupervisorPhoto,supervisorName:su
     <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:24}}>
       <div>
         <h1 style={{fontFamily:"inherit",fontSize:28,fontWeight:400,color:t.text,margin:"0 0 4px",letterSpacing:"-0.02em"}}>Public Profile</h1>
-        <p style={{color:t.muted,fontSize:14,margin:0}}>How interns find you on SupTrack · <span style={{fontFamily:"'DM Mono',monospace",fontSize:12}}>suptrack.io/supervisor/{(supervisorName||"").toLowerCase().replace(/\s+/g,"-").replace(/[^a-z0-9-]/g,"") || "your-name"}</span></p>
+        <p style={{color:t.muted,fontSize:14,margin:0}}>How interns find you on SupTrack · <span style={{fontFamily:"'DM Mono',monospace",fontSize:12}}>suptrack.io/supervisor/{(supName||"").toLowerCase().replace(/\s+/g,"-").replace(/[^a-z0-9-]/g,"") || "your-name"}</span></p>
       </div>
       <Btn T={t} onClick={()=>setEditing(e=>!e)}>{editing?"✓ Save profile":"Edit profile"}</Btn>
     </div>
@@ -3750,7 +4653,7 @@ function PublicProfilePage({supervisorPhoto,setSupervisorPhoto,supervisorName:su
         {/* Live URL */}
         <div style={{background:t.isGradient?(t.gradientSubtle||t.accentLight):t.accentLight,border:`1px solid ${t.isGradient?"transparent":t.accentMid}`,borderRadius:12,padding:"14px 16px",fontSize:13,color:t.accentText,lineHeight:1.7}}>
           🌐 Live at:<br/>
-          <span style={{fontFamily:"'DM Mono',monospace",fontSize:11}}>suptrack.io/supervisor/{(supervisorName||"").toLowerCase().replace(/\s+/g,"-").replace(/[^a-z0-9-]/g,"") || "your-name"}</span><br/><br/>
+          <span style={{fontFamily:"'DM Mono',monospace",fontSize:11}}>suptrack.io/supervisor/{(supName||"").toLowerCase().replace(/\s+/g,"-").replace(/[^a-z0-9-]/g,"") || "your-name"}</span><br/><br/>
           Interns searching for supervisors can find your profile and send a request directly to your SupTrack inbox.
         </div>
       </div>
@@ -3800,22 +4703,57 @@ const PLANS = {
   starter: {
     id:"starter", name:"Starter", monthly:24.99, annual:249.90,
     internLimit:"1–10 active interns", internMax:10,
-    features:["Unlimited session notes","AI note writer","Payment tracking","Groups & lists","Intern portal","Document storage","14-day free trial"],
+    badge:null,
+    tagline:"Get organized and stop losing track",
+    features:[
+      "Hour tracking & intern portal",
+      "Session logging & notes",
+      "Basic document storage",
+      "Payment tracking",
+      "Groups & lists",
+      "14-day free trial",
+    ],
+    limits:["Basic reporting only","No discrepancy detection","No audit exports"],
     color:"#5B7B5E", colorLight:"#EEF4EE",
   },
   growth: {
-    id:"growth", name:"Growth", monthly:34.99, annual:349.90,
-    internLimit:"11–20 active interns", internMax:20,
-    features:["Everything in Starter","Priority support","Advanced reporting","Co-facilitated group splits","Colleague sharing & permissions","Export for board presentations"],
+    id:"growth", name:"Growth", monthly:39.99, annual:399.90,
+    internLimit:"10–20 active interns", internMax:20,
+    badge:"⭐ Most popular",
+    tagline:"\"I don't have to worry about my supervision anymore\"",
+    features:[
+      "Everything in Starter",
+      "Discrepancy detection — catch mismatches before board submission",
+      "Audit-ready hour reports & board exports",
+      "Payment tracking with reminders",
+      "Colleague sharing & permissions",
+      "AI session notes & consultation",
+      "Priority support",
+    ],
+    limits:[],
     color:"#3D5A7A", colorLight:"#EBF0F7",
   },
   practice: {
-    id:"practice", name:"Practice", monthly:49.99, annual:499.90,
-    internLimit:"21+ active interns", internMax:999,
-    features:["Everything in Growth","Unlimited interns","Multi-site support","Custom lists & categories","Dedicated onboarding","Annual tax export package"],
+    id:"practice", name:"Practice", monthly:69.99, annual:699.90,
+    internLimit:"Unlimited interns", internMax:999,
+    badge:"🏢 For group practices",
+    tagline:"Scale your supervision without the chaos",
+    features:[
+      "Everything in Growth",
+      "Unlimited interns",
+      "Multi-supervisor support",
+      "Supervisor onboarding & setup",
+      "Annual tax export package",
+      "Dedicated account support",
+      "Custom categories & workflows",
+    ],
+    limits:[],
     color:"#6B3FA0", colorLight:"#F2EDFB",
   },
 };
+
+const PLAN_HEADLINE = "Track supervision hours, eliminate discrepancies, generate audit-ready reports, and get paid — all in one system.";
+
 
 const SEAT_PRICE_MONTHLY = 9.99;
 const SEAT_PRICE_ANNUAL  = 99.90;
@@ -4253,7 +5191,9 @@ function ConsultPage({interns,T,consultIntern}) {
   const [input,setInput]=useState(consultIntern ? `I want to consult about a supervisee situation involving ${consultIntern.preferredName||consultIntern.name.split(" ")[0]} (${consultIntern.discipline||consultIntern.internType}, ${consultIntern.credential}). ` : "");
   const [loading,setLoading]=useState(false);
   const [hipaaAck,setHipaaAck]=useState(false);
-  const messagesEndRef = {current:null};
+  const [apiKey,setApiKey]=useState(()=>window.__SUPTRACK_API_KEY||"");
+  const [showKeyInput,setShowKeyInput]=useState(false);
+  const [tempKey,setTempKey]=useState("");
 
   const activeInternSummary = interns.filter(i=>i.status==="active").map(i=>
     `- ${dn(i)} (${i.discipline||i.internType}, ${i.credential}, ${i.supervisorRole} intern, ${Math.round(i.hoursCompleted/i.hoursTotal*100)}% through hours)`
@@ -4287,9 +5227,9 @@ Tone: Collegial, warm, confident. You're a trusted colleague, not a chatbot. Kee
     try {
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method:"POST",
-        headers:{"Content-Type":"application/json"},
+        headers:{"Content-Type":"application/json","x-api-key":window.__SUPTRACK_API_KEY||"","anthropic-dangerous-direct-browser-access":"true"},
         body:JSON.stringify({
-          model:"claude-sonnet-4-20250514",
+          model:"claude-sonnet-4-5",
           max_tokens:1000,
           system:systemPrompt,
           messages:newMessages.map(m=>({ role:m.role, content:m.content })),
@@ -4336,8 +5276,31 @@ Tone: Collegial, warm, confident. You're a trusted colleague, not a chatbot. Kee
             {consultIntern&&<span style={{marginLeft:8}}><Badge color={t.accentText} bg={t.accentLight}>Consulting re: {dn(consultIntern)}</Badge></span>}
           </p>
         </div>
-        {messages.length>0&&<Btn T={t} variant="secondary" small onClick={()=>setMessages([])}>Clear conversation</Btn>}
+        <div style={{display:"flex",gap:8,alignItems:"center"}}>
+          <button onClick={()=>setShowKeyInput(k=>!k)}
+            style={{background:apiKey?"none":t.accent,color:apiKey?t.muted:"#fff",border:`1px solid ${apiKey?t.border:t.accent}`,borderRadius:7,padding:"5px 12px",cursor:"pointer",fontSize:11,fontFamily:"'DM Mono',monospace"}}>
+            {apiKey?"🔑 Key set":"🔑 Set API key"}
+          </button>
+          {messages.length>0&&<Btn T={t} variant="secondary" small onClick={()=>setMessages([])}>Clear</Btn>}
+        </div>
       </div>
+
+      {/* API key setup */}
+      {showKeyInput&&<div style={{background:t.surfaceAlt,border:`1px solid ${t.border}`,borderRadius:10,padding:"12px 16px",marginBottom:12,flexShrink:0}}>
+        <div style={{fontSize:13,color:t.text,marginBottom:8}}>Enter your Anthropic API key to enable AI features. Get one at <span style={{color:t.accentText}}>console.anthropic.com</span>. Key is stored in this browser session only.</div>
+        <div style={{display:"flex",gap:8}}>
+          <input type="password" value={tempKey} onChange={e=>setTempKey(e.target.value)} placeholder="sk-ant-..." autoFocus
+            style={{flex:1,border:`1px solid ${t.border}`,borderRadius:7,padding:"7px 12px",fontSize:13,fontFamily:"'DM Mono',monospace",color:t.text,background:t.bg,outline:"none"}}/>
+          <button onClick={()=>{window.__SUPTRACK_API_KEY=tempKey;setApiKey(tempKey);setShowKeyInput(false);setTempKey("");}}
+            style={{background:t.accent,color:"#fff",border:"none",borderRadius:7,padding:"7px 16px",cursor:"pointer",fontSize:13,fontFamily:"inherit"}}>Save</button>
+          {apiKey&&<button onClick={()=>{window.__SUPTRACK_API_KEY="";setApiKey("");setShowKeyInput(false);setTempKey("");}}
+            style={{background:"none",border:`1px solid ${S.red}40`,borderRadius:7,padding:"7px 12px",cursor:"pointer",fontSize:12,color:S.red,fontFamily:"'DM Mono',monospace"}}>Clear key</button>}
+        </div>
+      </div>}
+
+      {!apiKey&&<div style={{background:S.amberLight,border:"1px solid #E8C98A",borderRadius:8,padding:"10px 14px",marginBottom:12,fontSize:13,color:"#7A5A00",flexShrink:0}}>
+        ⚠ AI features require an Anthropic API key. Click <strong>"Set API key"</strong> above to get started. Free trial keys available at <strong>console.anthropic.com</strong>.
+      </div>}
 
       {/* HIPAA reminder strip */}
       <div style={{background:S.amberLight,border:`1px solid #E8C98A`,borderRadius:8,padding:"8px 14px",marginBottom:16,fontSize:12,color:S.amber,flexShrink:0}}>
@@ -4857,7 +5820,7 @@ const ELEVENLABS_VOICES = [
 
 function SupervisionLabPage({T}) {
   const t = T||THEMES.sage;
-  const [phase, setPhase] = useState("select"); // select | briefing | session | debrief | history | review
+  const [phase, setPhase] = useState("select");
   const [scenario, setScenario] = useState(null);
   const [transcript, setTranscript] = useState([]);
   const [listening, setListening] = useState(false);
@@ -4871,6 +5834,9 @@ function SupervisionLabPage({T}) {
   const [audioPlaying, setAudioPlaying] = useState(false);
   const [useElevenLabs, setUseElevenLabs] = useState(false);
   const [elKey, setElKey] = useState("");
+  const [apiKey, setApiKey] = useState(()=>window.__SUPTRACK_API_KEY||"");
+  const [showApiSetup, setShowApiSetup] = useState(false);
+  const [tempApiKey, setTempApiKey] = useState("");
   const [filterLang, setFilterLang] = useState("all");
   // Session history
   const [sessionHistory, setSessionHistory] = useState([
@@ -4986,7 +5952,7 @@ function SupervisionLabPage({T}) {
     const hist = newTranscript.map(m=>`${m.role==="supervisor"?(isSpanish?"Supervisora":"Supervisor"):"You"}: ${m.text}`).join("\n");
     const systemPrompt = `${scenario.persona}\n\nYou are in a live supervision session. Stay fully in character. Do not break character or reveal you are an AI.\n${isSpanish?"IMPORTANTE: Responde SOLAMENTE en español natural. 2-5 oraciones máximo.":"Keep responses to 2-5 sentences of natural spoken dialogue."}\n\nConversation so far:\n${hist}\n\nRespond only with your character's next spoken words. No labels, no stage directions.`;
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:200,messages:[{role:"user",content:`[${isSpanish?"La supervisora dijo":"The supervisor said"}]: ${text}`}],system:systemPrompt})});
+      const res = await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":window.__SUPTRACK_API_KEY||"","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-sonnet-4-5",max_tokens:200,messages:[{role:"user",content:`[${isSpanish?"La supervisora dijo":"The supervisor said"}]: ${text}`}],system:systemPrompt})});
       const data = await res.json();
       const reply = data.content?.filter(c=>c.type==="text").map(c=>c.text).join("")||(isSpanish?"¿Puedes repetir eso?":"Could you repeat that?");
       const updated = [...newTranscript, { role:"supervisee", text:reply, ts: fmt(sessionTime) }];
@@ -5043,7 +6009,7 @@ Provide feedback in ${isSpanish?"Spanish (Español)":"English"} with these secti
 
 Be direct, clinical, encouraging. Under 400 words.`;
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:600,messages:[{role:"user",content:prompt}]})});
+      const res = await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":window.__SUPTRACK_API_KEY||"","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-sonnet-4-5",max_tokens:600,messages:[{role:"user",content:prompt}]})});
       const data = await res.json();
       const fb = data.content?.filter(c=>c.type==="text").map(c=>c.text).join("")||"";
       setFeedback(fb);
@@ -5067,16 +6033,39 @@ Be direct, clinical, encouraging. Under 400 words.`;
     <div style={{marginBottom:22}}>
       <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:4}}>
         <h1 style={{fontFamily:"inherit",fontSize:28,fontWeight:400,color:t.text,margin:0,letterSpacing:"-0.02em"}}>✦ Supervision Lab</h1>
-        {sessionHistory.length>0&&<button onClick={()=>setPhase("history")}
-          style={{background:t.accentLight,color:t.accentText,border:`1px solid ${t.accentMid}`,borderRadius:8,padding:"7px 14px",cursor:"pointer",fontSize:12,fontFamily:"'DM Mono',monospace",flexShrink:0}}>
-          Session history ({sessionHistory.length})
-        </button>}
+        <div style={{display:"flex",gap:8,alignItems:"center"}}>
+          <button onClick={()=>setShowApiSetup(k=>!k)}
+            style={{background:apiKey?"none":t.accent,color:apiKey?t.muted:"#fff",border:`1px solid ${apiKey?t.border:t.accent}`,borderRadius:7,padding:"5px 12px",cursor:"pointer",fontSize:11,fontFamily:"'DM Mono',monospace",flexShrink:0}}>
+            {apiKey?"🔑 AI key set":"🔑 Set AI key"}
+          </button>
+          {sessionHistory.length>0&&<button onClick={()=>setPhase("history")}
+            style={{background:t.accentLight,color:t.accentText,border:`1px solid ${t.accentMid}`,borderRadius:8,padding:"7px 14px",cursor:"pointer",fontSize:12,fontFamily:"'DM Mono',monospace",flexShrink:0}}>
+            Session history ({sessionHistory.length})
+          </button>}
+        </div>
       </div>
       <p style={{color:t.muted,fontSize:14,margin:"0 0 8px",lineHeight:1.6}}>Practice supervision with a voice-based AI simulated supervisee. Speak out loud — they respond in real time. End the session for clinical feedback on your approach.</p>
       <div style={{background:t.isGradient?(t.gradientSubtle||t.accentLight):t.accentLight,border:`1px solid ${t.isGradient?"transparent":t.accentMid}`,borderRadius:8,padding:"8px 14px",fontSize:12,color:t.accentText}}>
         🎙 Requires microphone · Chrome or Edge recommended for best voice recognition
       </div>
     </div>
+
+    {/* API key setup */}
+    {showApiSetup&&<div style={{background:t.surfaceAlt,border:`1px solid ${t.border}`,borderRadius:10,padding:"14px 16px",marginBottom:14}}>
+      <div style={{fontSize:13,color:t.text,marginBottom:8}}>Anthropic API key (powers the AI responses). Get one free at <strong>console.anthropic.com</strong>. Stored in this browser session only.</div>
+      <div style={{display:"flex",gap:8}}>
+        <input type="password" value={tempApiKey} onChange={e=>setTempApiKey(e.target.value)} placeholder="sk-ant-..."
+          style={{flex:1,border:`1px solid ${t.border}`,borderRadius:7,padding:"7px 12px",fontSize:13,fontFamily:"'DM Mono',monospace",color:t.text,background:t.bg,outline:"none"}}/>
+        <button onClick={()=>{window.__SUPTRACK_API_KEY=tempApiKey;setApiKey(tempApiKey);setShowApiSetup(false);setTempApiKey("");}}
+          style={{background:t.accent,color:"#fff",border:"none",borderRadius:7,padding:"7px 16px",cursor:"pointer",fontSize:13,fontFamily:"inherit"}}>Save</button>
+        {apiKey&&<button onClick={()=>{window.__SUPTRACK_API_KEY="";setApiKey("");setShowApiSetup(false);}}
+          style={{background:"none",border:`1px solid ${S.red}40`,borderRadius:7,padding:"7px 12px",cursor:"pointer",fontSize:12,color:S.red}}>Clear</button>}
+      </div>
+    </div>}
+
+    {!apiKey&&<div style={{background:S.amberLight,border:"1px solid #E8C98A",borderRadius:8,padding:"10px 14px",marginBottom:14,fontSize:13,color:"#7A5A00"}}>
+      ⚠ Add an Anthropic API key above to enable AI responses. Without it the lab scenarios won't respond.
+    </div>}
 
     {/* Voice settings */}
     <div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:14,padding:"18px 20px",marginBottom:18}}>
@@ -5281,7 +6270,7 @@ Write a professional Supervision of Supervision feedback letter that:
 
 Keep the tone warm, collegial, and clinically precise. Write in the voice of a senior LPC-S or LCSW-S writing to a newly credentialed supervisee-supervisor. 3-4 paragraphs.`;
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:700,messages:[{role:"user",content:prompt}]})});
+      const res = await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":window.__SUPTRACK_API_KEY||"","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-sonnet-4-5",max_tokens:700,messages:[{role:"user",content:prompt}]})});
       const data = await res.json();
       setReviewLetter(data.content?.filter(c=>c.type==="text").map(c=>c.text).join("")||"");
     } catch(e) { setReviewLetter("Unable to generate letter. Please write feedback manually above."); }
@@ -5461,6 +6450,241 @@ Keep the tone warm, collegial, and clinically precise. Write in the voice of a s
         </div>
       ))}
     </div>
+  </div>;
+}
+
+// ── DiscoverPage — marketplace for supervisors & interns to find each other ──
+const DEMO_INTERNS = [
+  { id:"di1", name:"Jordan Ellis", credential:"LPC-Intern", discipline:"counseling", pronouns:"they/them", location:"Reno, NV", photo:null, initials:"JE",
+    specialties:["Trauma / PTSD","DBT","Adolescent & Young Adult"], bio:"Motivated LPC-Intern seeking secondary supervision. I work at a community mental health center and specialize in trauma-informed care with adolescents. Passionate about MI and DBT.", lookingFor:"Secondary supervisor with SUD experience a plus.", availableHours:3000, completedHours:820, university:null, telehealth:true, inPerson:true },
+  { id:"di2", name:"Camille Oduya", credential:"Practicum Student", discipline:"student", pronouns:"she/her", location:"Reno, NV", photo:null, initials:"CO",
+    university:"University of Nevada, Reno", specialties:["LGBTQ+ Affirming","Multicultural / BIPOC","Anxiety & Depression"], bio:"Second-year MHC practicum student at UNR seeking clinical placement supervisor. Research focus on culturally responsive care.", lookingFor:"LGBTQ+-affirming supervisor, preferably with community mental health background.", availableHours:300, completedHours:40, telehealth:true, inPerson:true },
+  { id:"di3", name:"Marcus Webb", credential:"LMSW", discipline:"social_work", pronouns:"he/him", location:"Sparks, NV", photo:null, initials:"MW",
+    specialties:["Substance Use / SUD","Crisis Intervention","Behavioral Health"], bio:"LMSW working toward LCSW. Currently at a detox facility, looking for qualified LCSW-S supervisor. Strong interest in SUD and crisis work.", lookingFor:"LCSW-S with SUD or crisis background.", availableHours:3600, completedHours:1200, telehealth:false, inPerson:true },
+  { id:"di4", name:"Preet Kaur", credential:"AMFT", discipline:"mft", pronouns:"she/her", location:"Carson City, NV", photo:null, initials:"PK",
+    specialties:["Couples & Relationships","Perinatal Mental Health","Child & Family"], bio:"AMFT working in private practice with couples and families. Seeking AAMFT-approved supervisor for hours toward LMFT.", lookingFor:"AAMFT-approved supervisor, flexible schedule, telehealth OK.", availableHours:3000, completedHours:560, telehealth:true, inPerson:true },
+];
+
+function DiscoverPage({interns,onAddIntern,T}) {
+  const t=T||THEMES.sage;
+  const [tab,setTab]=useState("interns"); // "interns" | "supervisors"
+  const [search,setSearch]=useState("");
+  const [filterDiscipline,setFilterDiscipline]=useState("all");
+  const [filterMode,setFilterMode]=useState("all"); // all | telehealth | inPerson
+  const [selectedIntern,setSelectedIntern]=useState(null);
+  const [connecting,setConnecting]=useState(null);
+  const [connected,setConnected]=useState(new Set());
+
+  const DISCIPLINES=[
+    {id:"all",label:"All disciplines"},
+    {id:"counseling",label:"Counseling"},
+    {id:"social_work",label:"Social Work"},
+    {id:"mft",label:"MFT"},
+    {id:"substance_use",label:"Substance Use"},
+    {id:"student",label:"Practicum Student"},
+  ];
+
+  const filtered=DEMO_INTERNS.filter(i=>{
+    if(filterDiscipline!=="all"&&i.discipline!==filterDiscipline) return false;
+    if(filterMode==="telehealth"&&!i.telehealth) return false;
+    if(filterMode==="inPerson"&&!i.inPerson) return false;
+    if(search.trim()){
+      const q=search.toLowerCase();
+      if(!i.name.toLowerCase().includes(q)&&!i.credential.toLowerCase().includes(q)&&!i.location.toLowerCase().includes(q)&&!i.specialties.some(s=>s.toLowerCase().includes(q))) return false;
+    }
+    return true;
+  });
+
+  const connectIntern=(intern)=>{
+    // Auto-populate into supervisor's account
+    const initials=intern.name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
+    const newIntern={
+      id:Date.now(), name:intern.name, preferredName:"", initials,
+      pronouns:intern.pronouns||"", discipline:intern.discipline, internType:intern.discipline,
+      credential:intern.credential, credentialBody:intern.university?"University":"State Board",
+      university:intern.university||"", licenseGoal:"LPC",
+      location:intern.location, telehealth:intern.telehealth, inPerson:intern.inPerson,
+      specialties:intern.specialties||[], bio:intern.bio||"",
+      supervisorRole:"primary", status:"active", proBono:false,
+      groupIds:[], listIds:[], dob:"", photo:null, flags:[],
+      hoursCompleted:intern.completedHours||0,
+      hoursTotal:intern.availableHours||3000,
+      individualHours:0, groupHours:0,
+      hourLog:[], internHourLog:[], customHourCategories:[],
+      payments:[], paymentStatus:"current",
+      sessions:[], cases:[], documents:[], evaluations:[], sharedWith:[],
+    };
+    onAddIntern&&onAddIntern(newIntern);
+    setConnected(s=>new Set([...s,intern.id]));
+    setConnecting(null);
+    setSelectedIntern(null);
+  };
+
+  const InternCard=({intern,compact=false})=>{
+    const isConn=connected.has(intern.id);
+    const alreadyAdded=interns.some(i=>i.name===intern.name);
+    return <div style={{background:t.surface,border:`1px solid ${isConn?t.accentMid:t.border}`,borderRadius:14,padding:compact?"14px 16px":"18px 20px",boxShadow:"0 1px 4px rgba(0,0,0,0.04)",cursor:compact?"default":"pointer",transition:"box-shadow 0.1s"}}
+      onClick={compact?undefined:()=>setSelectedIntern(intern)}
+      onMouseEnter={e=>{if(!compact)e.currentTarget.style.boxShadow="0 4px 16px rgba(0,0,0,0.08)";}}
+      onMouseLeave={e=>{e.currentTarget.style.boxShadow="0 1px 4px rgba(0,0,0,0.04)";}}>
+      <div style={{display:"flex",alignItems:"flex-start",gap:12,marginBottom:10}}>
+        <Avatar initials={intern.initials} size={compact?36:44} T={t} photo={intern.photo}/>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+            <div style={{fontSize:15,color:t.text,fontWeight:500}}>{intern.name}</div>
+            {intern.pronouns&&<span style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace"}}>{intern.pronouns}</span>}
+            {isConn&&<Badge color={t.accentText} bg={t.accentLight}>✓ Added</Badge>}
+          </div>
+          <div style={{fontSize:12,color:t.muted,marginTop:2}}>
+            {intern.credential}{intern.university?` · ${intern.university}`:""}
+          </div>
+          <div style={{fontSize:11,color:t.faint,fontFamily:"'DM Mono',monospace",marginTop:1}}>
+            📍 {intern.location} · {intern.telehealth?"Telehealth":""}  {intern.telehealth&&intern.inPerson?"&":""} {intern.inPerson?"In-person":""}
+          </div>
+        </div>
+        <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4,flexShrink:0}}>
+          <div style={{fontSize:13,color:t.accent,fontFamily:"'DM Mono',monospace",fontWeight:600}}>{intern.completedHours} hrs</div>
+          <div style={{fontSize:10,color:t.faint,fontFamily:"'DM Mono',monospace"}}>of {intern.availableHours} req.</div>
+        </div>
+      </div>
+      <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:10}}>
+        {intern.specialties.slice(0,3).map(s=><span key={s} style={{background:t.accentLight,color:t.accentText,border:`1px solid ${t.accentMid}`,borderRadius:20,padding:"2px 10px",fontSize:11}}>{s}</span>)}
+        {intern.specialties.length>3&&<span style={{fontSize:11,color:t.faint}}>+{intern.specialties.length-3} more</span>}
+      </div>
+      {!compact&&<p style={{fontSize:12,color:t.muted,margin:"0 0 12px",lineHeight:1.6,display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}>{intern.bio}</p>}
+      <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
+        {!compact&&<button onClick={e=>{e.stopPropagation();setSelectedIntern(intern);}}
+          style={{background:t.surfaceAlt,border:`1px solid ${t.border}`,borderRadius:7,padding:"5px 12px",cursor:"pointer",fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace"}}>
+          View profile
+        </button>}
+        {!alreadyAdded&&!isConn
+          ? <button onClick={e=>{e.stopPropagation();setConnecting(intern);}}
+              style={{background:t.accent,color:"#fff",border:"none",borderRadius:7,padding:"5px 14px",cursor:"pointer",fontSize:12,fontFamily:"inherit",fontWeight:500}}>
+              Connect & add
+            </button>
+          : <span style={{fontSize:12,color:t.accentText,fontFamily:"'DM Mono',monospace",padding:"5px 0"}}>{alreadyAdded?"Already in your account":"✓ Added"}</span>}
+      </div>
+    </div>;
+  };
+
+  return <div>
+    {/* Connect confirmation modal */}
+    {connecting&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:20}} onClick={()=>setConnecting(null)}>
+      <div style={{background:t.surface,borderRadius:16,padding:"28px 32px",width:480,boxShadow:"0 24px 64px rgba(0,0,0,0.18)"}} onClick={e=>e.stopPropagation()}>
+        <div style={{fontSize:20,color:t.text,fontWeight:500,marginBottom:6}}>Connect with {connecting.name}?</div>
+        <div style={{fontSize:13,color:t.muted,marginBottom:16,lineHeight:1.7}}>
+          Their profile information will auto-populate into your SupTrack account as a new supervisee — name, pronouns, credential, location, and specialties. You can review and edit everything before your first session.
+        </div>
+        <div style={{background:t.surfaceAlt,borderRadius:10,padding:"12px 14px",marginBottom:20,fontSize:13,color:t.text,lineHeight:1.7}}>
+          <strong>{connecting.name}</strong><br/>
+          {connecting.credential}{connecting.university?` · ${connecting.university}`:""}<br/>
+          📍 {connecting.location}
+        </div>
+        <div style={{background:t.isGradient?(t.gradientSubtle||t.accentLight):t.accentLight,border:`1px solid ${t.accentMid}`,borderRadius:8,padding:"10px 14px",marginBottom:20,fontSize:12,color:t.accentText}}>
+          ✓ No double data entry — everything they've already entered transfers automatically.
+        </div>
+        <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
+          <Btn T={t} variant="secondary" onClick={()=>setConnecting(null)}>Cancel</Btn>
+          <Btn T={t} onClick={()=>connectIntern(connecting)}>✓ Connect & add to my account</Btn>
+        </div>
+      </div>
+    </div>}
+
+    {/* Intern detail modal */}
+    {selectedIntern&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:20}} onClick={()=>setSelectedIntern(null)}>
+      <div style={{background:t.surface,borderRadius:16,width:540,maxHeight:"88vh",overflowY:"auto",boxShadow:"0 24px 64px rgba(0,0,0,0.18)"}} onClick={e=>e.stopPropagation()}>
+        <div style={{padding:"22px 26px"}}>
+          <div style={{display:"flex",alignItems:"flex-start",gap:14,marginBottom:16}}>
+            <Avatar initials={selectedIntern.initials} size={60} T={t} photo={selectedIntern.photo}/>
+            <div style={{flex:1}}>
+              <div style={{fontSize:20,color:t.text,fontWeight:500,marginBottom:2}}>{selectedIntern.name}</div>
+              <div style={{fontSize:13,color:t.muted}}>{selectedIntern.pronouns} · {selectedIntern.credential}</div>
+              <div style={{fontSize:12,color:t.faint,marginTop:2}}>📍 {selectedIntern.location} · {selectedIntern.telehealth?"Telehealth":""}{selectedIntern.telehealth&&selectedIntern.inPerson?" & ":""}{selectedIntern.inPerson?"In-person":""}</div>
+            </div>
+            <button onClick={()=>setSelectedIntern(null)} style={{background:"none",border:"none",cursor:"pointer",fontSize:18,color:t.faint,padding:4}}>✕</button>
+          </div>
+          <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:6}}>About</div>
+          <p style={{fontSize:13,color:t.text,lineHeight:1.7,margin:"0 0 16px"}}>{selectedIntern.bio}</p>
+          <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:6}}>Looking for</div>
+          <p style={{fontSize:13,color:t.text,lineHeight:1.6,margin:"0 0 16px"}}>{selectedIntern.lookingFor}</p>
+          <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:8}}>Specialties</div>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:16}}>
+            {selectedIntern.specialties.map(s=><span key={s} style={{background:t.accentLight,color:t.accentText,border:`1px solid ${t.accentMid}`,borderRadius:20,padding:"3px 12px",fontSize:12}}>{s}</span>)}
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:20}}>
+            {[
+              ["Hours completed",selectedIntern.completedHours],
+              ["Hours required",selectedIntern.availableHours],
+              ["Discipline",selectedIntern.discipline?.replace("_"," ")],
+              selectedIntern.university&&["University",selectedIntern.university],
+            ].filter(Boolean).map(([label,val])=>(
+              <div key={label} style={{background:t.surfaceAlt,borderRadius:8,padding:"10px 12px"}}>
+                <div style={{fontSize:10,color:t.faint,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:3}}>{label}</div>
+                <div style={{fontSize:14,color:t.text}}>{val}</div>
+              </div>
+            ))}
+          </div>
+          {!interns.some(i=>i.name===selectedIntern.name)
+            ? <Btn T={t} onClick={()=>setConnecting(selectedIntern)} style={{width:"100%",textAlign:"center",justifyContent:"center"}}>Connect & add to my account</Btn>
+            : <div style={{textAlign:"center",fontSize:13,color:t.accentText,padding:"10px 0"}}>✓ Already in your SupTrack account</div>}
+        </div>
+      </div>
+    </div>}
+
+    <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:20}}>
+      <div>
+        <h1 style={{fontFamily:"inherit",fontSize:28,fontWeight:400,color:t.text,margin:"0 0 4px",letterSpacing:"-0.02em"}}>Discover</h1>
+        <p style={{color:t.muted,fontSize:14,margin:0}}>Find interns and supervisors that align with your values and practice</p>
+      </div>
+    </div>
+
+    {/* Tab toggle */}
+    <div style={{display:"flex",gap:0,border:`1px solid ${t.border}`,borderRadius:10,overflow:"hidden",marginBottom:20,width:"fit-content"}}>
+      {[["interns","Find supervisees"],["supervisors","Find supervisors"]].map(([id,label],i)=>(
+        <button key={id} onClick={()=>setTab(id)}
+          style={{background:tab===id?t.accentLight:"none",color:tab===id?t.accentText:t.muted,border:"none",borderRight:i<1?`1px solid ${t.border}`:"none",padding:"9px 22px",cursor:"pointer",fontSize:13,fontFamily:"inherit",fontWeight:tab===id?500:400,transition:"all 0.1s"}}>
+          {label}
+        </button>
+      ))}
+    </div>
+
+    {tab==="interns"&&<div>
+      {/* Search & filters */}
+      <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap",alignItems:"center"}}>
+        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search by name, specialty, location..."
+          style={{flex:1,minWidth:200,border:`1px solid ${t.border}`,borderRadius:9,padding:"8px 14px",fontSize:13,fontFamily:"inherit",color:t.text,background:t.bg,outline:"none"}}/>
+        <select value={filterDiscipline} onChange={e=>setFilterDiscipline(e.target.value)}
+          style={{border:`1px solid ${t.border}`,borderRadius:9,padding:"8px 12px",fontSize:13,color:t.text,background:t.bg,outline:"none",cursor:"pointer",fontFamily:"inherit"}}>
+          {DISCIPLINES.map(d=><option key={d.id} value={d.id}>{d.label}</option>)}
+        </select>
+        <div style={{display:"flex",gap:0,border:`1px solid ${t.border}`,borderRadius:8,overflow:"hidden"}}>
+          {[["all","Any"],["telehealth","Telehealth"],["inPerson","In-person"]].map(([id,label],i)=>(
+            <button key={id} onClick={()=>setFilterMode(id)}
+              style={{background:filterMode===id?t.accentLight:"none",color:filterMode===id?t.accentText:t.muted,border:"none",borderRight:i<2?`1px solid ${t.border}`:"none",padding:"7px 12px",cursor:"pointer",fontSize:12,fontFamily:"'DM Mono',monospace"}}>
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{fontSize:12,color:t.faint,marginBottom:14}}>{filtered.length} supervisee{filtered.length!==1?"s":""} available</div>
+
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+        {filtered.map(intern=><InternCard key={intern.id} intern={intern}/>)}
+        {filtered.length===0&&<div style={{gridColumn:"1/-1",textAlign:"center",padding:"40px 0",color:t.muted,fontSize:14}}>No matches found. Try adjusting your filters.</div>}
+      </div>
+    </div>}
+
+    {tab==="supervisors"&&<div style={{textAlign:"center",padding:"60px 20px"}}>
+      <div style={{fontSize:36,marginBottom:16}}>🔭</div>
+      <div style={{fontSize:18,color:t.text,fontWeight:500,marginBottom:8}}>Supervisor discovery coming soon</div>
+      <div style={{fontSize:14,color:t.muted,lineHeight:1.7,maxWidth:400,margin:"0 auto 24px"}}>
+        Interns will be able to browse supervisor profiles, filter by specialty, approach, and location, and request to be added to a supervisor's caseload — all without any double data entry.
+      </div>
+      <div style={{background:t.surfaceAlt,borderRadius:12,padding:"16px 20px",maxWidth:440,margin:"0 auto",fontSize:13,color:t.muted,lineHeight:1.7}}>
+        Your public profile at <span style={{color:t.accentText,fontFamily:"'DM Mono',monospace"}}>suptrack.io/supervisor/alyson-k</span> is already live — interns can view it now when they're browsing supervisors.
+      </div>
+    </div>}
   </div>;
 }
 
@@ -5745,8 +6969,8 @@ Replace all bracketed placeholders with appropriate values based on the supervis
 
     try {
       const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method:"POST", headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({ model:"claude-sonnet-4-20250514", max_tokens:2000, messages:[{role:"user",content:prompt}] })
+        method:"POST", headers:{"Content-Type":"application/json","x-api-key":window.__SUPTRACK_API_KEY||"","anthropic-dangerous-direct-browser-access":"true"},
+        body:JSON.stringify({ model:"claude-sonnet-4-5", max_tokens:2000, messages:[{role:"user",content:prompt}] })
       });
       const data = await res.json();
       setGeneratedAgreement(data.content?.filter(c=>c.type==="text").map(c=>c.text).join("")||"");
@@ -6349,9 +7573,140 @@ function SettingsPage({theme,setTheme,setCustomTheme,font,setFont,darkMode,setDa
 }
 
 // ── Intern Portal ──────────────────────────────────────────────────────────
+// ── InternPortalHours — intern's own hours view with reporting periods ────────
+function InternPortalHours({intern,onUpdate,T,F}) {
+  const t=T||THEMES.sage;
+  const f=F||FONTS.plus_jakarta;
+  const [view,setView]=useState("current"); // current | periods | download
+
+  const log      = intern.internHourLog || [];
+  const total    = sumHours(log);
+  const direct   = directHours(log);
+  const indirect = indirectHours(log);
+
+  // Simulated reporting periods — in production these would be board-defined
+  const PERIODS = [
+    { id:"p3", label:"Current period",      start:"Jan 1, 2026",  end:"Present",       hours:total,  direct, indirect },
+    { id:"p2", label:"Jul – Dec 2025",      start:"Jul 1, 2025",  end:"Dec 31, 2025",  hours:840,    direct:720, indirect:120 },
+    { id:"p1", label:"Jan – Jun 2025",      start:"Jan 1, 2025",  end:"Jun 30, 2025",  hours:622,    direct:540, indirect:82  },
+    { id:"p0", label:"Aug – Dec 2023",      start:"Aug 1, 2023",  end:"Dec 31, 2023",  hours:380,    direct:320, indirect:60  },
+  ];
+
+  const downloadCSV=()=>{
+    const customCats = intern.customHourCategories||[];
+    const allCats=[...DEFAULT_CATEGORIES,...customCats.map(c=>typeof c==="string"?{id:`custom_${c}`,label:c,type:"direct"}:c)];
+    const fullLog=allCats.map(cat=>{const e=log.find(x=>x.category===cat.id||x.label===cat.label);return e||{...cat,hours:0};});
+    const rows=[
+      [`Hours Report — ${dn(intern)}`],
+      [`Generated: ${TODAY()}`],
+      [`Credential: ${intern.credential} → ${intern.licenseGoal}`],
+      [`Credentialing body: ${intern.credentialBody}`],
+      [],
+      ["Category","Type","Hours"],
+      ...fullLog.map(e=>[e.label,e.type,e.hours]),
+      [],
+      ["","Grand Total",total],
+      ["","Direct",direct],
+      ["","Indirect",indirect],
+      ["","Remaining",Math.max(0,intern.hoursTotal-total)],
+    ];
+    const csv=rows.map(r=>r.join(",")).join("\n");
+    const blob=new Blob([csv],{type:"text/csv"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");
+    a.href=url;a.download=`${intern.name.replace(/\s+/g,"_")}_hours_report.csv`;a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return <div style={{display:"flex",flexDirection:"column",gap:16}}>
+    {/* Summary */}
+    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12}}>
+      <StatCard T={t} label="Total hours" value={total} color={t.accent}/>
+      <StatCard T={t} label="Direct" value={direct} color={t.accent}/>
+      <StatCard T={t} label="Indirect" value={indirect}/>
+      <StatCard T={t} label="Remaining" value={Math.max(0,intern.hoursTotal-total)} sub={`of ${intern.hoursTotal} required`}/>
+    </div>
+
+    {/* Progress */}
+    <div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:12,padding:"16px 18px"}}>
+      <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
+        <span style={{fontSize:13,color:t.text}}>Progress toward {intern.licenseGoal}</span>
+        <span style={{fontSize:13,color:t.accent,fontFamily:"'DM Mono',monospace"}}>{total} / {intern.hoursTotal} hrs</span>
+      </div>
+      <PBar value={Math.min(total,intern.hoursTotal)} total={intern.hoursTotal} T={t}/>
+    </div>
+
+    {/* View toggle */}
+    <div style={{display:"flex",gap:8,borderBottom:`1px solid ${t.border}`,marginBottom:4}}>
+      {[["current","My Hours"],["periods","Reporting Periods"],["download","Download"]].map(([id,label])=>(
+        <button key={id} onClick={()=>setView(id)}
+          style={{background:"none",border:"none",borderBottom:view===id?`2px solid ${t.accent}`:"2px solid transparent",padding:"8px 16px",cursor:"pointer",fontSize:13,color:view===id?t.accent:t.muted,fontFamily:"inherit",fontWeight:view===id?500:400,marginBottom:-1}}>
+          {label}
+        </button>
+      ))}
+    </div>
+
+    {/* Current hours editor */}
+    {view==="current"&&<InternHoursEditor key={intern.id} T={t} intern={intern} onUpdate={onUpdate}/>}
+
+    {/* Reporting periods */}
+    {view==="periods"&&<div>
+      <div style={{fontSize:13,color:t.muted,marginBottom:14,lineHeight:1.6}}>
+        Hours broken down by reporting period. Use these totals when submitting to your licensing board. Your current period updates as you log hours.
+      </div>
+      <div style={{display:"flex",flexDirection:"column",gap:10}}>
+        {PERIODS.map((period,i)=>(
+          <div key={period.id} style={{background:t.surface,border:`1px solid ${i===0?t.accentMid:t.border}`,borderRadius:12,padding:"16px 18px",boxShadow:"0 1px 3px rgba(0,0,0,0.04)"}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+              <div>
+                <div style={{fontSize:14,color:t.text,fontWeight:500}}>{period.label}</div>
+                <div style={{fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace",marginTop:2}}>{period.start} — {period.end}</div>
+              </div>
+              <div style={{textAlign:"right"}}>
+                <div style={{fontSize:20,color:t.accent,fontFamily:"'DM Mono',monospace",fontWeight:700}}>{period.hours}</div>
+                <div style={{fontSize:11,color:t.faint,fontFamily:"'DM Mono',monospace"}}>total hours</div>
+              </div>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+              <div style={{background:t.surfaceAlt,borderRadius:8,padding:"8px 12px"}}>
+                <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:3}}>Direct</div>
+                <div style={{fontSize:16,color:t.accent,fontFamily:"'DM Mono',monospace",fontWeight:600}}>{period.direct}</div>
+              </div>
+              <div style={{background:t.surfaceAlt,borderRadius:8,padding:"8px 12px"}}>
+                <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:3}}>Indirect</div>
+                <div style={{fontSize:16,color:t.muted,fontFamily:"'DM Mono',monospace",fontWeight:600}}>{period.indirect}</div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div style={{fontSize:12,color:t.faint,marginTop:10,lineHeight:1.6}}>
+        Reporting periods are set by your licensing board. Contact your supervisor if you believe any period totals are incorrect.
+      </div>
+    </div>}
+
+    {/* Download */}
+    {view==="download"&&<div>
+      <div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:12,padding:"24px",textAlign:"center"}}>
+        <div style={{fontSize:32,marginBottom:12}}>📊</div>
+        <div style={{fontSize:16,color:t.text,fontWeight:500,marginBottom:6}}>Your hours report</div>
+        <div style={{fontSize:13,color:t.muted,marginBottom:20,lineHeight:1.6,maxWidth:360,margin:"0 auto 20px"}}>
+          Download a CSV file with all your logged hours, categories, totals, and remaining hours. Keep this for your records or submit alongside your board application.
+        </div>
+        <button onClick={downloadCSV}
+          style={{background:t.isGradient?t.gradient:t.accent,backgroundSize:t.isGradient?"200% 200%":undefined,animation:t.isGradient?"gradientShift 5s ease infinite":undefined,color:"#fff",border:"none",borderRadius:10,padding:"12px 28px",cursor:"pointer",fontSize:14,fontWeight:500,fontFamily:"inherit"}}>
+          ⬇ Download hours report (.csv)
+        </button>
+        <div style={{fontSize:11,color:t.faint,marginTop:10}}>Includes all categories, direct/indirect breakdown, and running total</div>
+      </div>
+    </div>}
+  </div>;
+}
+
 function InternPortal({intern:initialIntern,groups,onExit,onUpdateIntern,supervisorPhoto,supervisorInitials,supervisorName:supervisorDisplayName,T,F}) {
   const t=T||THEMES.sage; const f=F||FONTS.fraunces;
   const [intern,setIntern]=useState(initialIntern);
+  const [editProfileOpen,setEditProfileOpen]=useState(false);
   const handleUpdate=(updated)=>{
     setIntern(updated);
     onUpdateIntern&&onUpdateIntern(updated);
@@ -6371,29 +7726,35 @@ function InternPortal({intern:initialIntern,groups,onExit,onUpdateIntern,supervi
 
   return <div style={{display:"flex",minHeight:"100vh",background:t.bg,fontFamily:f.body}}>
     <link href={f.url} rel="stylesheet"/>
+    {editProfileOpen&&<EditProfileModal T={t} intern={intern} onSave={handleUpdate} onClose={()=>setEditProfileOpen(false)}/>}
     <div style={{width:200,background:t.surface,borderRight:`1px solid ${t.border}`,display:"flex",flexDirection:"column",padding:"24px 0",position:"sticky",top:0,height:"100vh",flexShrink:0}}>
       <div style={{padding:"0 20px 24px"}}><div style={{fontFamily:f.display,fontSize:20,color:t.accent,letterSpacing:"-0.02em"}}>SupTrack</div><div style={{fontSize:10,color:t.muted,fontFamily:"'DM Mono',monospace",marginTop:2,letterSpacing:"0.06em"}}>SUPERVISEE PORTAL</div></div>
       <nav style={{flex:1}}>{tabs.map(tt=><button key={tt} onClick={()=>setTab(tt)} style={{width:"100%",background:tab===tt?t.accentLight:"none",border:"none",borderLeft:tab===tt?`3px solid ${t.accent}`:"3px solid transparent",padding:"11px 20px",cursor:"pointer",textAlign:"left",fontSize:13,color:tab===tt?t.accent:t.text,fontFamily:f.body,fontWeight:tab===tt?500:400}}>{tabLabel[tt]}</button>)}</nav>
       <div style={{padding:"14px 20px",borderTop:`1px solid ${t.border}`}}>
-        <button onClick={onExit} style={{background:"none",border:"none",cursor:"pointer",color:t.muted,fontSize:12,fontFamily:"'DM Mono',monospace",padding:0,marginBottom:12}}>← Supervisor view</button>
-        <div style={{display:"flex",alignItems:"center",gap:8}}><Avatar initials={intern.initials} size={30} T={t}/><div><div style={{fontSize:13,color:t.text,fontWeight:500}}>{dn(intern)}</div><div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace"}}>{intern.pronouns||intern.credential}</div></div></div>
+        <button onClick={onExit} style={{background:"none",border:"none",cursor:"pointer",color:t.muted,fontSize:12,fontFamily:"'DM Mono',monospace",padding:0,marginBottom:10}}>← Supervisor view</button>
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+          <Avatar initials={intern.initials} size={30} T={t}/>
+          <div>
+            <div style={{fontSize:13,color:t.text,fontWeight:500}}>{dn(intern)}</div>
+            <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace"}}>{intern.pronouns||intern.credential}</div>
+          </div>
+        </div>
+        <button onClick={()=>setEditProfileOpen(true)}
+          style={{background:t.surfaceAlt,border:`1px solid ${t.border}`,borderRadius:6,padding:"5px 12px",cursor:"pointer",fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",width:"100%",textAlign:"center"}}>
+          ✎ Edit my info
+        </button>
       </div>
     </div>
     <div style={{flex:1,padding:"36px 40px",maxWidth:800,overflowY:"auto"}}>
       <h1 style={{fontFamily:f.display,fontSize:26,fontWeight:400,color:t.text,margin:"0 0 4px",letterSpacing:"-0.01em"}}>Welcome, {dn(intern)}</h1>
       <p style={{color:t.muted,fontSize:14,margin:"0 0 28px"}}>Your supervision hub</p>
-      {tab==="hours"&&<InternHoursEditor key={intern.id} T={t} intern={intern} onUpdate={handleUpdate}/>}
+      {tab==="hours"&&<InternPortalHours intern={intern} onUpdate={handleUpdate} T={t} F={f}/>}
       {tab==="sessions"&&<div>
         {intern.sessions.map((s,i)=><div key={i} style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:12,padding:"16px 18px",marginBottom:12}}><div style={{display:"flex",gap:8,marginBottom:8}}><Badge color={t.muted} bg={t.surfaceAlt}>{s.date}</Badge><Badge color={t.accentText} bg={t.accentLight}>{s.type}</Badge></div><p style={{fontSize:14,color:t.text,margin:0,lineHeight:1.7}}>{s.notes}</p></div>)}
         {memberGroups.map(g=>g.sessions.map((s,i)=><div key={`${g.id}-${i}`} style={{background:t.surface,borderLeft:`3px solid ${g.color}`,borderRadius:12,padding:"16px 18px",marginBottom:10,border:`1px solid ${g.color}40`}}><div style={{display:"flex",gap:8,marginBottom:8}}><Badge color={t.muted} bg={t.surfaceAlt}>{s.date}</Badge><Badge color={g.color} bg={g.colorLight}>{g.name}</Badge></div><p style={{fontSize:14,color:t.text,margin:0,lineHeight:1.7}}>{s.notes}</p></div>))}
+        {intern.sessions.length===0&&memberGroups.every(g=>g.sessions.length===0)&&<div style={{fontSize:14,color:t.faint,textAlign:"center",padding:"32px 0"}}>No sessions logged yet.</div>}
       </div>}
-      {tab==="documents"&&<div><div style={{display:"flex",justifyContent:"flex-end",marginBottom:14}}><Btn T={t}>+ Upload Document</Btn></div>
-        {intern.documents.map((d,i)=>{const [bg,color]=docTC(d.type);return <div key={i} style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:12,padding:"14px 18px",display:"flex",alignItems:"center",gap:14,marginBottom:10}}>
-          <div style={{width:36,height:36,borderRadius:8,background:bg,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,color,fontFamily:"'DM Mono',monospace",fontWeight:600}}>{d.type.slice(0,3).toUpperCase()}</div>
-          <div style={{flex:1}}><div style={{fontSize:14,color:t.text}}>{d.name}</div><div style={{fontSize:12,color:t.muted,marginTop:2}}>Uploaded {d.date}</div></div>
-          <Badge color={color} bg={bg}>{d.type}</Badge><Btn T={t} variant="secondary" small>View</Btn>
-        </div>;})}
-      </div>}
+      {tab==="documents"&&<DocumentsTab key={intern.id} intern={intern} onUpdateIntern={handleUpdate} T={t}/>}
       {tab==="supervisor"&&<div>
         <div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:14,padding:"24px",marginBottom:16,boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
           <div style={{display:"flex",gap:18,marginBottom:20}}>
@@ -6609,6 +7970,7 @@ export default function SupTrack() {
     {id:"lab",        label:"✦ Supervision Lab"},
     {id:"resources",  label:"Resources"},
     {id:"agreements", label:"Agreements"},
+    {id:"discover",   label:"🔭 Discover"},
     {id:"profile",    label:"My Profile"},
     {id:"billing",    label:"Plan & Billing"},
     {id:"support",    label:"Support"},
@@ -6738,35 +8100,23 @@ export default function SupTrack() {
             </button>;
           })}</nav>}
 
-      {/* Theme swatches + dark mode toggle */}
+      {/* Controls: HC + dark mode only — themes are in Settings */}
       <div style={{padding:"12px 24px",borderTop:`1px solid ${t.borderLight}`}}>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
-          <div style={{fontSize:10,color:t.faint,fontFamily:"'DM Mono',monospace",letterSpacing:"0.06em",textTransform:"uppercase"}}>Theme</div>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+          <button onClick={()=>setPage("settings")}
+            style={{background:"none",border:"none",cursor:"pointer",fontSize:11,color:t.faint,fontFamily:"'DM Mono',monospace",padding:0,letterSpacing:"0.04em"}}>
+            🎨 {THEMES[theme]?.name||"Theme"}
+          </button>
           <div style={{display:"flex",gap:6,alignItems:"center"}}>
-            {/* High contrast toggle */}
-            <button onClick={()=>setHighContrast(h=>!h)} title={highContrast?"High contrast on — click to turn off":"High contrast off — click for accessibility mode"}
-              style={{background:highContrast?t.accent:t.surfaceAlt,border:`1px solid ${t.border}`,borderRadius:6,padding:"2px 7px",cursor:"pointer",fontSize:10,color:highContrast?"#fff":t.faint,fontFamily:"'DM Mono',monospace",transition:"all 0.2s",letterSpacing:"0.04em"}}>
+            <button onClick={()=>setHighContrast(h=>!h)} title={highContrast?"High contrast on":"High contrast off"}
+              style={{background:highContrast?t.accent:t.surfaceAlt,border:`1px solid ${t.border}`,borderRadius:6,padding:"2px 7px",cursor:"pointer",fontSize:10,color:highContrast?"#fff":t.faint,fontFamily:"'DM Mono',monospace",transition:"all 0.2s"}}>
               HC
             </button>
-            {/* Dark mode toggle */}
-            <button onClick={()=>setDarkMode(d=>!d)} title={darkMode?"Switch to light mode":"Switch to dark mode"}
+            <button onClick={()=>setDarkMode(d=>!d)} title={darkMode?"Light mode":"Dark mode"}
               style={{background:darkMode?t.accent:t.surfaceAlt,border:`1px solid ${t.border}`,borderRadius:20,width:44,height:24,cursor:"pointer",position:"relative",transition:"background 0.2s",flexShrink:0}}>
               <span style={{position:"absolute",top:3,left:darkMode?22:2,width:18,height:18,borderRadius:"50%",background:darkMode?"#fff":t.muted,transition:"left 0.2s",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10}}>{darkMode?"🌙":"☀️"}</span>
             </button>
           </div>
-        </div>
-        <div style={{display:"flex",gap:7,flexWrap:"wrap",alignItems:"center"}}>
-          {Object.entries(THEMES).map(([key,th])=>{
-            const swatchBg = key==="rainbow"
-              ? "linear-gradient(135deg,#F87171,#FB923C,#FBBF24,#4ADE80,#60A5FA,#C084FC)"
-              : key==="mono"
-              ? "linear-gradient(135deg,#111 50%,#fff 50%)"
-              : th.swatch;
-            return <button key={key} title={th.name} onClick={()=>setTheme(key)} style={{width:20,height:20,borderRadius:"50%",background:swatchBg,border:theme===key?`3px solid ${t.text}`:"2px solid transparent",cursor:"pointer",padding:0}}/>;
-          })}
-          {/* Custom color — opens settings */}
-          <button title="Custom color" onClick={()=>setPage("settings")}
-            style={{width:20,height:20,borderRadius:"50%",background:theme==="custom"&&customTheme?customTheme.accent:"conic-gradient(#9B6FD4,#C88AC8,#F4A0C0,#4DBDBD,#9B6FD4,#9B6FD4)",border:theme==="custom"?`3px solid ${t.text}`:"2px solid transparent",cursor:"pointer",padding:0}}/>
         </div>
       </div>
 
@@ -6807,6 +8157,8 @@ export default function SupTrack() {
       />}
       {page==="intern-profile"&&selectedIntern&&<InternProfile T={t} intern={selectedIntern} groups={groups} lists={lists} onBack={()=>{setSelectedInternId_sv(null);setPage("interns");}} onUpdateIntern={updateIntern} onConsult={i=>{setConsultIntern(i);setPage("consult");}} onOpenLab={()=>setPage("lab")}/>}
       {page==="interns"&&(()=>{
+        const [showMode,setShowMode]=useState("active"); // "active" | "inactive" | "both"
+
         const filterFn = {
           primary:   i => i.supervisorRole==="primary",
           secondary: i => i.supervisorRole==="secondary",
@@ -6815,8 +8167,16 @@ export default function SupTrack() {
           sos:       i => i.discipline==="sos",
           flagged:   i => activeFlags(i).length>0,
         }[internFilter] || (() => true);
-        const filtered = interns.filter(filterFn);
+
+        const statusFiltered = interns.filter(i =>
+          showMode==="active"   ? i.status==="active" :
+          showMode==="inactive" ? i.status==="inactive" :
+          true
+        );
+        const filtered = statusFiltered.filter(filterFn);
         const filterLabel = {primary:"Primary Interns",secondary:"Secondary Interns",student:"Student Interns",licensed:"State Licensed",sos:"Supervision of Supervision",flagged:"Flagged"}[internFilter];
+        const activeCount   = interns.filter(i=>i.status==="active").length;
+        const inactiveCount = interns.filter(i=>i.status==="inactive").length;
 
         const SORT_OPTIONS = [
           { id:"group",          label:"By group"                          },
@@ -6956,6 +8316,19 @@ export default function SupTrack() {
 
           {/* Toolbar */}
           <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:24,flexWrap:"wrap"}}>
+            {/* Active / Inactive / Both toggle */}
+            <div style={{display:"flex",border:`1px solid ${t.border}`,borderRadius:8,overflow:"hidden",flexShrink:0}}>
+              {[
+                {id:"active",   label:`Active (${activeCount})`},
+                {id:"both",     label:"Both"},
+                {id:"inactive", label:`Inactive (${inactiveCount})`},
+              ].map((opt,i)=>(
+                <button key={opt.id} onClick={()=>setShowMode(opt.id)}
+                  style={{background:showMode===opt.id?t.accentLight:"none",color:showMode===opt.id?t.accentText:t.muted,border:"none",borderRight:i<2?`1px solid ${t.border}`:"none",padding:"6px 12px",cursor:"pointer",fontSize:12,fontFamily:"'DM Mono',monospace",whiteSpace:"nowrap",transition:"all 0.1s"}}>
+                  {opt.label}
+                </button>
+              ))}
+            </div>
             <div style={{display:"flex",alignItems:"center",gap:8,flex:1}}>
               <span style={{fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace",whiteSpace:"nowrap"}}>Sort by</span>
               <select value={internSort} onChange={e=>setInternSort(e.target.value)}
@@ -7088,30 +8461,47 @@ export default function SupTrack() {
       {page==="groups"&&<GroupsPage T={t} groups={groups} interns={interns} setGroups={setGroups} initialGroupId={selectedGroupId} updateInterns={addSessionCharge} updateIntern={updateIntern} onSelectIntern={i=>{setSelectedInternId_sv(i.id);setPage("intern-profile");}}/>}
       {page==="lists"&&<div>
         <h1 style={{fontFamily:f.display,fontSize:28,fontWeight:400,color:t.text,margin:"0 0 24px",letterSpacing:"-0.02em"}}>My Lists</h1>
-        {lists.map(l=><div key={l.id} style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:14,padding:"18px 22px",marginBottom:14,boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
-          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:14}}><div style={{width:10,height:10,borderRadius:"50%",background:l.color}}/><span style={{fontFamily:f.display,fontSize:18,color:t.text}}>{l.name}</span><Badge color={l.color} bg={l.colorLight}>{interns.filter(i=>i.listIds.includes(l.id)).length} supervisees</Badge></div>
-          {interns.filter(i=>i.listIds.includes(l.id)).map(intern=>(
-            <div key={intern.id} onClick={()=>{setSelectedInternId_sv(intern.id);setPage("intern-profile");}}
-              style={{display:"flex",alignItems:"center",gap:10,padding:"10px 8px",borderTop:`1px solid ${t.borderLight}`,cursor:"pointer",borderRadius:8,transition:"background 0.1s"}}
-              onMouseEnter={e=>e.currentTarget.style.background=t.surfaceAlt}
-              onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-              <Avatar initials={intern.initials} size={30} T={t}/>
-              <span style={{fontSize:14,color:t.text,flex:1,fontWeight:500}}>{dn(intern)}</span>
-              {intern.pronouns&&<span style={{fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace"}}>{intern.pronouns}</span>}
-              <RoleBadge role={intern.supervisorRole}/><TypeBadge type={intern.discipline||intern.internType}/>
-              {activeFlags(intern).length>0&&<FlagDots intern={intern}/>}
-              <span style={{fontSize:12,color:t.faint,fontFamily:"'DM Mono',monospace"}}>→</span>
+        {lists.length===0&&<div style={{fontSize:14,color:t.faint,textAlign:"center",padding:"40px 0"}}>No lists yet — create one from any supervisee's profile.</div>}
+        {lists.map(l=>{
+          const members=interns.filter(i=>i.listIds.includes(l.id));
+          return <div key={l.id} style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:14,padding:"18px 22px",marginBottom:14,boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
+            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:members.length>0?12:0}}>
+              <div style={{width:10,height:10,borderRadius:"50%",background:l.color,flexShrink:0}}/>
+              <span style={{fontFamily:"inherit",fontSize:17,color:t.text,fontWeight:500}}>{l.name}</span>
+              <Badge color={l.color} bg={l.colorLight}>{members.length} supervisee{members.length!==1?"s":""}</Badge>
             </div>
-          ))}
-        </div>)}
+            {members.length===0&&<div style={{fontSize:13,color:t.faint,paddingTop:4}}>No supervisees in this list yet.</div>}
+            <div style={{display:"flex",flexDirection:"column",gap:0}}>
+              {members.map((intern,i)=>(
+                <div key={intern.id} onClick={()=>{setSelectedInternId_sv(intern.id);setPage("intern-profile");}}
+                  style={{display:"flex",alignItems:"center",gap:12,padding:"10px 10px",borderTop:i>0?`1px solid ${t.borderLight}`:"none",cursor:"pointer",borderRadius:8,transition:"background 0.1s",margin:"0 -10px"}}
+                  onMouseEnter={e=>e.currentTarget.style.background=t.surfaceAlt}
+                  onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                  <Avatar initials={intern.initials} size={30} T={t} photo={intern.photo}/>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:14,color:t.text,fontWeight:500,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{dn(intern)}</div>
+                    <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",marginTop:1}}>{intern.credential} · {intern.startDate}</div>
+                  </div>
+                  <div style={{display:"flex",gap:5,flexShrink:0,alignItems:"center"}}>
+                    <RoleBadge role={intern.supervisorRole}/>
+                    {activeFlags(intern).length>0&&<FlagDots intern={intern}/>}
+                    {intern.paymentStatus==="overdue"&&!intern.proBono&&<span style={{fontSize:11,color:t.accentText}} title="Payment overdue">⚠</span>}
+                  </div>
+                  <span style={{fontSize:12,color:t.faint}}>›</span>
+                </div>
+              ))}
+            </div>
+          </div>;
+        })}
       </div>}
-      {page==="payments"&&<PaymentsPage T={t} interns={interns} onSelectIntern={i=>{setSelectedInternId_sv(i.id);setPage("intern-profile");}}/>}
+      {page==="payments"&&<PaymentsPage T={t} interns={interns} groups={groups} onSelectIntern={i=>{setSelectedInternId_sv(i.id);setPage("intern-profile");}}/>}
       {page==="billing"&&<BillingPage T={t} F={f} billing={billing} setBilling={setBilling} interns={interns}/>}
       {page==="ce"&&<CETrackerPage T={t} ceData={ceData} setCeData={setCeData}/>}
       {page==="calendar"&&<CalendarPage T={t}/>}
       {page==="consult"&&<ConsultPage T={t} interns={interns} consultIntern={consultIntern}/>}
       {page==="lab"&&<SupervisionLabPage T={t}/>}
       {page==="resources"&&<ResourcesPage T={t}/>}
+      {page==="discover"&&<DiscoverPage T={t} interns={interns} onAddIntern={newIntern=>setInterns(p=>[...p,newIntern])}/>}
       {page==="agreements"&&<AgreementsPage T={t} interns={interns} supervisorName={supervisorName}/>}
       {page==="support"&&<SupportPage T={t} supervisorName={supervisorName} supervisorEmail={`${(supervisorName||"Alyson K.").toLowerCase().replace(/[^a-z0-9]/g,".")}@questcounseling.org`} tickets={tickets} setTickets={setTickets}/>}
       {page==="admin"&&isAdmin&&<AdminInboxPage T={t} tickets={tickets} setTickets={setTickets}/>}
