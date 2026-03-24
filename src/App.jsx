@@ -3298,6 +3298,426 @@ function SessionLogForm({T,ag,members,newNotes,setNewNotes,setGroups,selected,se
   </div>;
 }
 
+
+function SessionLogForm({T,ag,members,newNotes,setNewNotes,setGroups,selected,setShowNewSess,updateInterns}) {
+  const t=T||THEMES.sage;
+  const [attendees,setAttendees]=useState(members.map(m=>m.id));
+  // Per-intern charge amounts — pre-populated from group rate, individually editable
+  const [charges,setCharges]=useState(()=>{
+    const init={};
+    members.forEach(m=>{ init[m.id]=ag.sessionRate||0; });
+    return init;
+  });
+
+  const toggleAll=()=>{
+    if(attendees.length===members.length) setAttendees([]);
+    else setAttendees(members.map(m=>m.id));
+  };
+
+  const totalCharge=attendees.reduce((s,id)=>s+(Number(charges[id])||0),0);
+
+  const save=()=>{
+    const date=TODAY();
+    const session={date,notes:newNotes,author:"Alyson",attendees:[...attendees],chargedPerSession:ag.chargePerSession,chargeAmount:ag.sessionRate||0};
+    // Charge all attendees at their individual rate in one shot
+    if(ag.chargePerSession){
+      attendees.forEach(internId=>{
+        const intern=members.find(m=>m.id===internId);
+        const amount=Number(charges[internId])||0;
+        if(intern&&updateInterns&&amount>0){
+          const charge={month:date,amount,status:"overdue",description:`${ag.name} — group session`,groupId:ag.id};
+          updateInterns(internId,charge);
+        }
+      });
+    }
+    setGroups(p=>p.map(g=>g.id!==selected?g:{...g,sessions:[session,...g.sessions]}));
+    setShowNewSess(false);setNewNotes("");
+  };
+
+  return <div style={{background:t.surface,border:`1px solid ${ag.color}60`,borderLeft:`3px solid ${ag.color}`,borderRadius:12,padding:"18px 20px",marginBottom:14}}>
+
+    {/* Attendance + charge table */}
+    <div style={{marginBottom:14}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+        <div style={{fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em"}}>Attendance{ag.chargePerSession?" & charges":""}</div>
+        <button onClick={toggleAll}
+          style={{background:"none",border:`1px solid ${t.border}`,borderRadius:6,padding:"3px 10px",cursor:"pointer",fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace"}}>
+          {attendees.length===members.length?"Deselect all":"Select all"}
+        </button>
+      </div>
+
+      {/* Header row if charging */}
+      {ag.chargePerSession&&<div style={{display:"grid",gridTemplateColumns:"1fr auto auto",gap:8,padding:"6px 10px",background:t.surfaceAlt,borderRadius:"8px 8px 0 0",marginBottom:0}}>
+        <div style={{fontSize:10,color:t.faint,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.05em"}}>Intern</div>
+        <div style={{fontSize:10,color:t.faint,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.05em",minWidth:80,textAlign:"right"}}>Charge</div>
+        <div style={{width:24}}/>
+      </div>}
+
+      <div style={{border:`1px solid ${t.border}`,borderRadius:ag.chargePerSession?"0 0 10px 10px":"10px",overflow:"hidden"}}>
+        {members.map((m,i)=>{
+          const present=attendees.includes(m.id);
+          return <div key={m.id}
+            style={{display:"grid",gridTemplateColumns:ag.chargePerSession?"1fr auto auto":"1fr auto",gap:8,padding:"10px 14px",borderTop:i>0?`1px solid ${t.borderLight}`:"none",background:present?`${t.accentLight}80`:"transparent",alignItems:"center",transition:"background 0.1s"}}>
+            {/* Name + toggle */}
+            <button onClick={()=>setAttendees(p=>present?p.filter(id=>id!==m.id):[...p,m.id])}
+              style={{display:"flex",alignItems:"center",gap:8,background:"none",border:"none",cursor:"pointer",padding:0,textAlign:"left"}}>
+              <div style={{width:20,height:20,borderRadius:4,border:`2px solid ${present?t.accent:t.border}`,background:present?t.accent:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"all 0.1s"}}>
+                {present&&<span style={{color:"#fff",fontSize:12,lineHeight:1}}>✓</span>}
+              </div>
+              <Avatar initials={m.initials} size={24} T={t} photo={m.photo}/>
+              <span style={{fontSize:13,color:present?t.text:t.muted,fontWeight:present?500:400}}>{dn(m)}</span>
+            </button>
+
+            {/* Editable charge amount */}
+            {ag.chargePerSession&&<div style={{display:"flex",alignItems:"center",gap:4}}>
+              <span style={{fontSize:12,color:t.muted}}>$</span>
+              <input type="number" min="0" value={charges[m.id]||0}
+                onChange={e=>setCharges(p=>({...p,[m.id]:Math.max(0,Number(e.target.value)||0)}))}
+                disabled={!present}
+                style={{width:72,border:`1px solid ${present?t.accentMid:t.border}`,borderRadius:6,padding:"4px 8px",fontSize:13,fontFamily:"'DM Mono',monospace",color:present?t.text:t.faint,background:present?t.bg:t.surfaceAlt,outline:"none",textAlign:"right",opacity:present?1:0.5}}/>
+            </div>}
+
+            {ag.chargePerSession&&<div style={{width:24,fontSize:11,color:present&&charges[m.id]>0?t.accentText:t.faint,fontFamily:"'DM Mono',monospace",textAlign:"center"}}>
+              {present&&charges[m.id]>0?"💳":""}
+            </div>}
+          </div>;
+        })}
+      </div>
+
+      {/* Total row */}
+      {ag.chargePerSession&&attendees.length>0&&<div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 14px",background:t.accentLight,borderRadius:"0 0 10px 10px",marginTop:-1}}>
+        <span style={{fontSize:13,color:t.accentText,fontFamily:"'DM Mono',monospace"}}>
+          {attendees.length} attending · total charge
+        </span>
+        <span style={{fontSize:16,color:t.accentText,fontFamily:"'DM Mono',monospace",fontWeight:700}}>
+          ${totalCharge.toFixed(2)}
+        </span>
+      </div>}
+    </div>
+
+    <textarea value={newNotes} onChange={e=>setNewNotes(e.target.value)} placeholder="Session notes..." style={{width:"100%",minHeight:90,border:`1px solid ${t.border}`,borderRadius:8,padding:"10px 14px",fontSize:14,fontFamily:"'DM Sans',system-ui,sans-serif",color:t.text,background:t.bg,resize:"vertical",boxSizing:"border-box",outline:"none",marginBottom:12}}/>
+
+    <div style={{display:"flex",gap:10,alignItems:"center"}}>
+      <Btn T={t} onClick={save}>
+        {ag.chargePerSession&&attendees.length>0&&totalCharge>0
+          ? `Save & charge all — $${totalCharge.toFixed(2)}`
+          : "Save session"}
+      </Btn>
+      <Btn T={t} variant="secondary" onClick={()=>{setShowNewSess(false);setNewNotes("");}}>Cancel</Btn>
+      {ag.chargePerSession&&attendees.length>0&&<span style={{fontSize:11,color:t.faint,fontFamily:"'DM Mono',monospace",marginLeft:4}}>
+        {attendees.length} intern{attendees.length!==1?"s":""} will be charged
+      </span>}
+    </div>
+  </div>;
+}
+
+// ── InterneesPage — supervisees list, extracted from IIFE to fix hooks violation ──
+function InterneesPage({interns,groups,lists,internFilter,setInternFilter,internSort,setInternSort,internViewMode,setInternViewMode,onSelectIntern,onGroupClick,onAddIntern,onOpenOnboarding,T}) {
+  const t=T||THEMES.sage;
+  const [showMode,setShowMode]=useState("active");
+
+        const [showMode,setShowMode]=useState("active"); // "active" | "inactive" | "both"
+
+        const filterFn = {
+          primary:   i => i.supervisorRole==="primary",
+          secondary: i => i.supervisorRole==="secondary",
+          student:   i => i.discipline==="student",
+          licensed:  i => i.discipline!=="student" && i.discipline!=="sos",
+          sos:       i => i.discipline==="sos",
+          flagged:   i => activeFlags(i).length>0,
+        }[internFilter] || (() => true);
+
+        const statusFiltered = interns.filter(i =>
+          showMode==="active"   ? i.status==="active" :
+          showMode==="inactive" ? i.status==="inactive" :
+          true
+        );
+        const filtered = statusFiltered.filter(filterFn);
+        const filterLabel = {primary:"Primary Interns",secondary:"Secondary Interns",student:"Student Interns",licensed:"State Licensed",sos:"Supervision of Supervision",flagged:"Flagged"}[internFilter];
+        const activeCount   = interns.filter(i=>i.status==="active").length;
+        const inactiveCount = interns.filter(i=>i.status==="inactive").length;
+
+        const SORT_OPTIONS = [
+          { id:"group",          label:"By group"                          },
+          { id:"alpha_az",       label:"Alphabetical A → Z"                },
+          { id:"alpha_za",       label:"Alphabetical Z → A"                },
+          { id:"discipline",     label:"By discipline / intern type"        },
+          { id:"role",           label:"By supervisory role"               },
+          { id:"hours_most",     label:"Hours — most to least"             },
+          { id:"hours_least",    label:"Hours — least to most"             },
+          { id:"hours_pct_most", label:"% complete — highest first"        },
+          { id:"hours_pct_least",label:"% complete — lowest first"         },
+          { id:"start_newest",   label:"Start date — newest first"         },
+          { id:"start_oldest",   label:"Start date — oldest first"         },
+          { id:"payment",        label:"Payment status — overdue first"    },
+          { id:"flags",          label:"Flagged — most flags first"        },
+          { id:"list",           label:"By list"                           },
+        ];
+
+        // Build sections based on sort mode
+        let sections = [];
+
+        const makeSection = (name, color, colorLight, internList) => ({
+          name, color: color||t.faint, colorLight: colorLight||t.surfaceAlt,
+          interns: internList.sort((a,b)=>dn(a).localeCompare(dn(b)))
+        });
+
+        if (internSort === "group") {
+          const map = {};
+          filtered.forEach(i => {
+            const g = groups.find(g=>i.groupIds?.includes(g.id));
+            const key = g ? g.name : "No Group";
+            if (!map[key]) map[key] = { name:key, color:g?.color||t.faint, colorLight:g?.colorLight||t.surfaceAlt, interns:[] };
+            map[key].interns.push(i);
+          });
+          Object.values(map).forEach(s=>s.interns.sort((a,b)=>dn(a).localeCompare(dn(b))));
+          sections = Object.values(map).sort((a,b)=>a.name==="No Group"?1:b.name==="No Group"?-1:a.name.localeCompare(b.name));
+
+        } else if (internSort === "alpha_az") {
+          sections = [{ name:null, interns:[...filtered].sort((a,b)=>dn(a).localeCompare(dn(b))) }];
+
+        } else if (internSort === "alpha_za") {
+          sections = [{ name:null, interns:[...filtered].sort((a,b)=>dn(b).localeCompare(dn(a))) }];
+
+        } else if (internSort === "discipline") {
+          const map = {};
+          filtered.forEach(i => {
+            const disc = discStyle(i.discipline||i.internType);
+            const key = disc.label;
+            if (!map[key]) map[key] = { name:key, color:disc.color, colorLight:disc.bg, interns:[] };
+            map[key].interns.push(i);
+          });
+          Object.values(map).forEach(s=>s.interns.sort((a,b)=>dn(a).localeCompare(dn(b))));
+          sections = Object.values(map).sort((a,b)=>a.name.localeCompare(b.name));
+
+        } else if (internSort === "role") {
+          const roleOrder = ["primary","secondary"];
+          const roleLabels = { primary:"Primary Interns", secondary:"Secondary Interns" };
+          const map = {};
+          filtered.forEach(i => {
+            const key = i.supervisorRole;
+            if (!map[key]) map[key] = { name:roleLabels[key]||key, color:key==="primary"?"#B87D2A":S.coral, colorLight:key==="primary"?"#FAF2E0":S.coralLight, interns:[] };
+            map[key].interns.push(i);
+          });
+          Object.values(map).forEach(s=>s.interns.sort((a,b)=>dn(a).localeCompare(dn(b))));
+          sections = roleOrder.filter(r=>map[r]).map(r=>map[r]);
+
+        } else if (internSort === "hours_most") {
+          sections = [{ name:null, interns:[...filtered].sort((a,b)=>b.hoursCompleted-a.hoursCompleted) }];
+
+        } else if (internSort === "hours_least") {
+          sections = [{ name:null, interns:[...filtered].sort((a,b)=>a.hoursCompleted-b.hoursCompleted) }];
+
+        } else if (internSort === "hours_pct_most") {
+          sections = [{ name:null, interns:[...filtered].sort((a,b)=>(b.hoursCompleted/b.hoursTotal)-(a.hoursCompleted/a.hoursTotal)) }];
+
+        } else if (internSort === "hours_pct_least") {
+          sections = [{ name:null, interns:[...filtered].sort((a,b)=>(a.hoursCompleted/a.hoursTotal)-(b.hoursCompleted/b.hoursTotal)) }];
+
+        } else if (internSort === "start_newest") {
+          sections = [{ name:null, interns:[...filtered].sort((a,b)=>new Date(b.startDate)-new Date(a.startDate)) }];
+
+        } else if (internSort === "start_oldest") {
+          sections = [{ name:null, interns:[...filtered].sort((a,b)=>new Date(a.startDate)-new Date(b.startDate)) }];
+
+        } else if (internSort === "payment") {
+          const overdue = filtered.filter(i=>!i.proBono && i.paymentStatus==="overdue").sort((a,b)=>dn(a).localeCompare(dn(b)));
+          const current = filtered.filter(i=>i.proBono || i.paymentStatus!=="overdue").sort((a,b)=>dn(a).localeCompare(dn(b)));
+          sections = [
+            ...(overdue.length ? [{ name:"Overdue", color:S.red, colorLight:S.redLight, interns:overdue }] : []),
+            ...(current.length ? [{ name:"Current / Pro Bono", color:S.green, colorLight:S.greenLight, interns:current }] : []),
+          ];
+
+        } else if (internSort === "flags") {
+          const flagged = filtered.filter(i=>activeFlags(i).length>0).sort((a,b)=>activeFlags(b).length-activeFlags(a).length);
+          const clean   = filtered.filter(i=>activeFlags(i).length===0).sort((a,b)=>dn(a).localeCompare(dn(b)));
+          sections = [
+            ...(flagged.length ? [{ name:"Has open flags", color:S.amber, colorLight:S.amberLight, interns:flagged }] : []),
+            ...(clean.length   ? [{ name:"No flags", color:t.faint, colorLight:t.surfaceAlt, interns:clean }] : []),
+          ];
+
+        } else if (internSort === "list") {
+          const map = {};
+          filtered.forEach(i => {
+            const memberLists = lists.filter(l=>i.listIds?.includes(l.id));
+            if (memberLists.length === 0) {
+              if (!map["No List"]) map["No List"] = { name:"No List", color:t.faint, colorLight:t.surfaceAlt, interns:[] };
+              map["No List"].interns.push(i);
+            } else {
+              memberLists.forEach(l => {
+                if (!map[l.name]) map[l.name] = { name:l.name, color:l.color, colorLight:l.colorLight, interns:[] };
+                if (!map[l.name].interns.find(x=>x.id===i.id)) map[l.name].interns.push(i);
+              });
+            }
+          });
+          Object.values(map).forEach(s=>s.interns.sort((a,b)=>dn(a).localeCompare(dn(b))));
+          sections = Object.values(map).sort((a,b)=>a.name==="No List"?1:b.name==="No List"?-1:a.name.localeCompare(b.name));
+        }
+
+        const showHeaders = sections.length > 1 || (sections.length === 1 && sections[0].name);
+
+        return <div>
+          <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:16}}>
+            <h1 style={{fontFamily:f.display,fontSize:28,fontWeight:400,color:t.text,margin:0,letterSpacing:"-0.02em"}}>Supervisees</h1>
+            <div style={{display:"flex",gap:8}}>
+              <button onClick={()=>setOnboardingOpen(true)}
+                style={{background:t.surfaceAlt,color:t.muted,border:`1px solid ${t.border}`,borderRadius:10,padding:"9px 16px",cursor:"pointer",fontSize:13,fontFamily:"'DM Mono',monospace"}}>
+                Send onboarding link
+              </button>
+              <button onClick={()=>setAddInternOpen(true)}
+                style={{background:t.accent,color:"#fff",border:"none",borderRadius:10,padding:"9px 20px",cursor:"pointer",fontSize:14,fontWeight:600,fontFamily:"inherit",boxShadow:`0 2px 8px ${t.accent}40`,transition:"all 0.15s"}}
+                onMouseEnter={e=>{e.currentTarget.style.opacity="0.9";}}
+                onMouseLeave={e=>{e.currentTarget.style.opacity="1";}}>
+                + Add supervisee
+              </button>
+            </div>
+          </div>
+
+          {/* Toolbar */}
+          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:24,flexWrap:"wrap"}}>
+            {/* Active / Inactive / Both toggle */}
+            <div style={{display:"flex",border:`1px solid ${t.border}`,borderRadius:8,overflow:"hidden",flexShrink:0}}>
+              {[
+                {id:"active",   label:`Active (${activeCount})`},
+                {id:"both",     label:"Both"},
+                {id:"inactive", label:`Inactive (${inactiveCount})`},
+              ].map((opt,i)=>(
+                <button key={opt.id} onClick={()=>setShowMode(opt.id)}
+                  style={{background:showMode===opt.id?t.accentLight:"none",color:showMode===opt.id?t.accentText:t.muted,border:"none",borderRight:i<2?`1px solid ${t.border}`:"none",padding:"6px 12px",cursor:"pointer",fontSize:12,fontFamily:"'DM Mono',monospace",whiteSpace:"nowrap",transition:"all 0.1s"}}>
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            <div style={{display:"flex",alignItems:"center",gap:8,flex:1}}>
+              <span style={{fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace",whiteSpace:"nowrap"}}>Sort by</span>
+              <select value={internSort} onChange={e=>setInternSort(e.target.value)}
+                style={{border:`1px solid ${t.border}`,borderRadius:8,padding:"6px 12px",fontSize:13,color:t.text,background:t.surface,outline:"none",cursor:"pointer",fontFamily:"'DM Sans',system-ui,sans-serif"}}>
+                {SORT_OPTIONS.map(opt=><option key={opt.id} value={opt.id}>{opt.label}</option>)}
+              </select>
+            </div>
+            {filterLabel
+              ? <div style={{display:"flex",alignItems:"center",gap:6}}>
+                  <span style={{fontSize:13,color:t.muted}}>Showing:</span>
+                  <Badge color={t.accentText} bg={t.accentLight}>{filterLabel}</Badge>
+                  <button onClick={()=>setInternFilter(null)} style={{background:"none",border:"none",cursor:"pointer",fontSize:13,color:t.muted,fontFamily:"'DM Mono',monospace"}}>✕ clear</button>
+                </div>
+              : <span style={{fontSize:13,color:t.faint}}>{filtered.length} supervisee{filtered.length!==1?"s":""}</span>}
+            {/* View mode toggle */}
+            <div style={{display:"flex",border:`1px solid ${t.border}`,borderRadius:8,overflow:"hidden",flexShrink:0}}>
+              {[
+                {id:"list",    icon:"☰", title:"List view"},
+                {id:"grid",    icon:"⊞", title:"Grid view"},
+                {id:"compact", icon:"≡", title:"Compact view"},
+                {id:"table",   icon:"⊟", title:"Table view"},
+              ].map(v=>(
+                <button key={v.id} onClick={()=>setInternViewMode(v.id)} title={v.title}
+                  style={{background:internViewMode===v.id?t.accentLight:"none",color:internViewMode===v.id?t.accentText:t.muted,border:"none",borderRight:`1px solid ${t.border}`,padding:"6px 11px",cursor:"pointer",fontSize:14,lineHeight:1,transition:"all 0.1s",lastChild:{borderRight:"none"}}}>
+                  {v.icon}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {sections.map((section, si) => (
+            <div key={section.name||si} style={{marginBottom: showHeaders ? 28 : 0}}>
+              {showHeaders && section.name && (
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12,paddingBottom:8,borderBottom:`2px solid ${section.color}30`}}>
+                  <div style={{width:10,height:10,borderRadius:"50%",background:section.color,flexShrink:0}}/>
+                  <span style={{fontSize:12,color:section.color,fontFamily:"'DM Mono',monospace",fontWeight:600,textTransform:"uppercase",letterSpacing:"0.06em"}}>{section.name}</span>
+                  <span style={{fontSize:12,color:t.faint,fontFamily:"'DM Mono',monospace"}}>{section.interns.length} supervisee{section.interns.length!==1?"s":""}</span>
+                </div>
+              )}
+
+              {/* LIST view — default full cards */}
+              {internViewMode==="list"&&section.interns.map(intern=>(
+                <div key={intern.id} style={{marginBottom:10}}>
+                  <InternCard intern={intern} lists={lists} groups={groups} T={t} onClick={()=>{setSelectedInternId_sv(intern.id);setPage("intern-profile");}}/>
+                </div>
+              ))}
+
+              {/* GRID view — 2-column photo cards */}
+              {internViewMode==="grid"&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:4}}>
+                {section.interns.map(intern=>{
+                  const pct=Math.round(intern.hoursCompleted/intern.hoursTotal*100);
+                  const af=activeFlags(intern);
+                  return <div key={intern.id} onClick={()=>{setSelectedInternId_sv(intern.id);setPage("intern-profile");}}
+                    style={{background:t.surface,border:`1px solid ${af.length?t.accentMid:t.border}`,borderRadius:14,padding:"20px 20px 16px",cursor:"pointer",boxShadow:"0 1px 4px rgba(0,0,0,0.04)",transition:"all 0.15s",textAlign:"center"}}
+                    onMouseEnter={e=>{e.currentTarget.style.boxShadow="0 6px 20px rgba(0,0,0,0.1)";e.currentTarget.style.borderColor=t.accentMid;}}
+                    onMouseLeave={e=>{e.currentTarget.style.boxShadow="0 1px 4px rgba(0,0,0,0.04)";e.currentTarget.style.borderColor=af.length?t.accentMid:t.border;}}>
+                    <Avatar initials={intern.initials} size={56} T={t} photo={intern.photo} style={{margin:"0 auto 10px"}}/>
+                    <div style={{fontSize:15,color:t.text,fontWeight:500,marginBottom:2}}>{dn(intern)}</div>
+                    <div style={{fontSize:12,color:t.muted,marginBottom:10}}>{intern.credential} · {intern.licenseGoal}</div>
+                    <div style={{height:5,background:t.borderLight,borderRadius:999,marginBottom:6,overflow:"hidden"}}>
+                      <div style={{height:"100%",width:`${Math.min(100,pct)}%`,background:t.isGradient?t.gradient:t.accent,backgroundSize:"200% 200%",animation:t.isGradient?"gradientShift 5s ease infinite":undefined,borderRadius:999}}/>
+                    </div>
+                    <div style={{fontSize:11,color:t.faint,fontFamily:"'DM Mono',monospace"}}>{pct}% · {intern.hoursCompleted}/{intern.hoursTotal} hrs</div>
+                    {af.length>0&&<div style={{marginTop:6,fontSize:11,color:t.accentText}}>⚑ {af.length} flag{af.length>1?"s":""}</div>}
+                    {intern.paymentStatus==="overdue"&&!intern.proBono&&<div style={{marginTop:4,fontSize:11,color:t.accentText}}>⚠ Payment overdue</div>}
+                  </div>;
+                })}
+              </div>}
+
+              {/* COMPACT view — single-line rows */}
+              {internViewMode==="compact"&&<div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:12,overflow:"hidden",boxShadow:"0 1px 4px rgba(0,0,0,0.04)",marginBottom:4}}>
+                {section.interns.map((intern,i)=>{
+                  const pct=Math.round(intern.hoursCompleted/intern.hoursTotal*100);
+                  const af=activeFlags(intern);
+                  return <div key={intern.id} onClick={()=>{setSelectedInternId_sv(intern.id);setPage("intern-profile");}}
+                    style={{display:"flex",alignItems:"center",gap:12,padding:"10px 16px",borderTop:i>0?`1px solid ${t.borderLight}`:"none",cursor:"pointer",transition:"background 0.1s"}}
+                    onMouseEnter={e=>e.currentTarget.style.background=t.surfaceAlt}
+                    onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                    <Avatar initials={intern.initials} size={28} T={t} photo={intern.photo}/>
+                    <div style={{flex:1,minWidth:0}}>
+                      <span style={{fontSize:13,color:t.text,fontWeight:500}}>{dn(intern)}</span>
+                      <span style={{fontSize:12,color:t.faint,marginLeft:8,fontFamily:"'DM Mono',monospace"}}>{intern.credential}</span>
+                    </div>
+                    {/* Progress bar */}
+                    <div style={{width:80,height:4,background:t.borderLight,borderRadius:999,flexShrink:0}}>
+                      <div style={{height:"100%",width:`${Math.min(100,pct)}%`,background:t.isGradient?t.gradient:t.accent,backgroundSize:"200% 200%",animation:t.isGradient?"gradientShift 5s ease infinite":undefined,borderRadius:999}}/>
+                    </div>
+                    <span style={{fontSize:11,color:t.faint,fontFamily:"'DM Mono',monospace",minWidth:36,textAlign:"right"}}>{pct}%</span>
+                    {af.length>0&&<span style={{fontSize:11,color:t.accentText}}>⚑</span>}
+                    {intern.paymentStatus==="overdue"&&!intern.proBono&&<span style={{fontSize:11,color:t.accentText}}>⚠</span>}
+                    <span style={{color:t.faint,fontSize:12}}>›</span>
+                  </div>;
+                })}
+              </div>}
+
+              {/* TABLE view — spreadsheet-style */}
+              {internViewMode==="table"&&<div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:12,overflow:"hidden",boxShadow:"0 1px 4px rgba(0,0,0,0.04)",marginBottom:4}}>
+                <div style={{display:"grid",gridTemplateColumns:"2fr 1.2fr 1fr 1fr 1fr 0.8fr",gap:0,background:t.surfaceAlt,padding:"8px 16px",borderBottom:`1px solid ${t.border}`}}>
+                  {["Name","Credential","Hours","Progress","Role","Status"].map(h=><div key={h} style={{fontSize:10,color:t.faint,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.05em"}}>{h}</div>)}
+                </div>
+                {section.interns.map((intern,i)=>{
+                  const pct=Math.round(intern.hoursCompleted/intern.hoursTotal*100);
+                  return <div key={intern.id} onClick={()=>{setSelectedInternId_sv(intern.id);setPage("intern-profile");}}
+                    style={{display:"grid",gridTemplateColumns:"2fr 1.2fr 1fr 1fr 1fr 0.8fr",gap:0,padding:"10px 16px",borderTop:i>0?`1px solid ${t.borderLight}`:"none",cursor:"pointer",alignItems:"center",transition:"background 0.1s"}}
+                    onMouseEnter={e=>e.currentTarget.style.background=t.surfaceAlt}
+                    onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                    <div style={{display:"flex",alignItems:"center",gap:8}}><Avatar initials={intern.initials} size={22} T={t} photo={intern.photo}/><span style={{fontSize:13,color:t.text,fontWeight:500}}>{dn(intern)}</span></div>
+                    <div style={{fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace"}}>{intern.credential}</div>
+                    <div style={{fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace"}}>{intern.hoursCompleted}/{intern.hoursTotal}</div>
+                    <div>
+                      <div style={{height:4,background:t.borderLight,borderRadius:999,overflow:"hidden",width:60}}>
+                        <div style={{height:"100%",width:`${Math.min(100,pct)}%`,background:t.isGradient?t.gradient:t.accent,backgroundSize:"200% 200%",animation:t.isGradient?"gradientShift 5s ease infinite":undefined,borderRadius:999}}/>
+                      </div>
+                      <div style={{fontSize:10,color:t.faint,marginTop:2,fontFamily:"'DM Mono',monospace"}}>{pct}%</div>
+                    </div>
+                    <div><RoleBadge role={intern.supervisorRole}/></div>
+                    <div style={{display:"flex",gap:4}}>
+                      {intern.paymentStatus==="overdue"&&!intern.proBono&&<span style={{fontSize:11,color:t.accentText}} title="Payment overdue">⚠</span>}
+                      {activeFlags(intern).length>0&&<span style={{fontSize:11,color:t.accentText}} title={`${activeFlags(intern).length} open flags`}>⚑</span>}
+                      {intern.proBono&&<Badge color="#6B3FA0" bg="#F2EDFB" style={{fontSize:9}}>Pro bono</Badge>}
+                    </div>
+                  </div>;
+                })}
+              </div>}
+
+            </div>
+          ))}
+        </div>;
+}
+
 function GroupsPage({groups,interns,setGroups,onSelectIntern,initialGroupId,updateInterns,updateIntern,T}) {
   const t=T||THEMES.sage;
   const [selected,setSelected]=useState(initialGroupId||groups[0]?.id||null);
@@ -8154,308 +8574,7 @@ export default function SupTrack() {
         }}
       />}
       {page==="intern-profile"&&selectedIntern&&<InternProfile T={t} intern={selectedIntern} groups={groups} lists={lists} onBack={()=>{setSelectedInternId_sv(null);setPage("interns");}} onUpdateIntern={updateIntern} onConsult={i=>{setConsultIntern(i);setPage("consult");}} onOpenLab={()=>setPage("lab")}/>}
-      {page==="interns"&&(()=>{
-        const [showMode,setShowMode]=useState("active"); // "active" | "inactive" | "both"
-
-        const filterFn = {
-          primary:   i => i.supervisorRole==="primary",
-          secondary: i => i.supervisorRole==="secondary",
-          student:   i => i.discipline==="student",
-          licensed:  i => i.discipline!=="student" && i.discipline!=="sos",
-          sos:       i => i.discipline==="sos",
-          flagged:   i => activeFlags(i).length>0,
-        }[internFilter] || (() => true);
-
-        const statusFiltered = interns.filter(i =>
-          showMode==="active"   ? i.status==="active" :
-          showMode==="inactive" ? i.status==="inactive" :
-          true
-        );
-        const filtered = statusFiltered.filter(filterFn);
-        const filterLabel = {primary:"Primary Interns",secondary:"Secondary Interns",student:"Student Interns",licensed:"State Licensed",sos:"Supervision of Supervision",flagged:"Flagged"}[internFilter];
-        const activeCount   = interns.filter(i=>i.status==="active").length;
-        const inactiveCount = interns.filter(i=>i.status==="inactive").length;
-
-        const SORT_OPTIONS = [
-          { id:"group",          label:"By group"                          },
-          { id:"alpha_az",       label:"Alphabetical A → Z"                },
-          { id:"alpha_za",       label:"Alphabetical Z → A"                },
-          { id:"discipline",     label:"By discipline / intern type"        },
-          { id:"role",           label:"By supervisory role"               },
-          { id:"hours_most",     label:"Hours — most to least"             },
-          { id:"hours_least",    label:"Hours — least to most"             },
-          { id:"hours_pct_most", label:"% complete — highest first"        },
-          { id:"hours_pct_least",label:"% complete — lowest first"         },
-          { id:"start_newest",   label:"Start date — newest first"         },
-          { id:"start_oldest",   label:"Start date — oldest first"         },
-          { id:"payment",        label:"Payment status — overdue first"    },
-          { id:"flags",          label:"Flagged — most flags first"        },
-          { id:"list",           label:"By list"                           },
-        ];
-
-        // Build sections based on sort mode
-        let sections = [];
-
-        const makeSection = (name, color, colorLight, internList) => ({
-          name, color: color||t.faint, colorLight: colorLight||t.surfaceAlt,
-          interns: internList.sort((a,b)=>dn(a).localeCompare(dn(b)))
-        });
-
-        if (internSort === "group") {
-          const map = {};
-          filtered.forEach(i => {
-            const g = groups.find(g=>i.groupIds?.includes(g.id));
-            const key = g ? g.name : "No Group";
-            if (!map[key]) map[key] = { name:key, color:g?.color||t.faint, colorLight:g?.colorLight||t.surfaceAlt, interns:[] };
-            map[key].interns.push(i);
-          });
-          Object.values(map).forEach(s=>s.interns.sort((a,b)=>dn(a).localeCompare(dn(b))));
-          sections = Object.values(map).sort((a,b)=>a.name==="No Group"?1:b.name==="No Group"?-1:a.name.localeCompare(b.name));
-
-        } else if (internSort === "alpha_az") {
-          sections = [{ name:null, interns:[...filtered].sort((a,b)=>dn(a).localeCompare(dn(b))) }];
-
-        } else if (internSort === "alpha_za") {
-          sections = [{ name:null, interns:[...filtered].sort((a,b)=>dn(b).localeCompare(dn(a))) }];
-
-        } else if (internSort === "discipline") {
-          const map = {};
-          filtered.forEach(i => {
-            const disc = discStyle(i.discipline||i.internType);
-            const key = disc.label;
-            if (!map[key]) map[key] = { name:key, color:disc.color, colorLight:disc.bg, interns:[] };
-            map[key].interns.push(i);
-          });
-          Object.values(map).forEach(s=>s.interns.sort((a,b)=>dn(a).localeCompare(dn(b))));
-          sections = Object.values(map).sort((a,b)=>a.name.localeCompare(b.name));
-
-        } else if (internSort === "role") {
-          const roleOrder = ["primary","secondary"];
-          const roleLabels = { primary:"Primary Interns", secondary:"Secondary Interns" };
-          const map = {};
-          filtered.forEach(i => {
-            const key = i.supervisorRole;
-            if (!map[key]) map[key] = { name:roleLabels[key]||key, color:key==="primary"?"#B87D2A":S.coral, colorLight:key==="primary"?"#FAF2E0":S.coralLight, interns:[] };
-            map[key].interns.push(i);
-          });
-          Object.values(map).forEach(s=>s.interns.sort((a,b)=>dn(a).localeCompare(dn(b))));
-          sections = roleOrder.filter(r=>map[r]).map(r=>map[r]);
-
-        } else if (internSort === "hours_most") {
-          sections = [{ name:null, interns:[...filtered].sort((a,b)=>b.hoursCompleted-a.hoursCompleted) }];
-
-        } else if (internSort === "hours_least") {
-          sections = [{ name:null, interns:[...filtered].sort((a,b)=>a.hoursCompleted-b.hoursCompleted) }];
-
-        } else if (internSort === "hours_pct_most") {
-          sections = [{ name:null, interns:[...filtered].sort((a,b)=>(b.hoursCompleted/b.hoursTotal)-(a.hoursCompleted/a.hoursTotal)) }];
-
-        } else if (internSort === "hours_pct_least") {
-          sections = [{ name:null, interns:[...filtered].sort((a,b)=>(a.hoursCompleted/a.hoursTotal)-(b.hoursCompleted/b.hoursTotal)) }];
-
-        } else if (internSort === "start_newest") {
-          sections = [{ name:null, interns:[...filtered].sort((a,b)=>new Date(b.startDate)-new Date(a.startDate)) }];
-
-        } else if (internSort === "start_oldest") {
-          sections = [{ name:null, interns:[...filtered].sort((a,b)=>new Date(a.startDate)-new Date(b.startDate)) }];
-
-        } else if (internSort === "payment") {
-          const overdue = filtered.filter(i=>!i.proBono && i.paymentStatus==="overdue").sort((a,b)=>dn(a).localeCompare(dn(b)));
-          const current = filtered.filter(i=>i.proBono || i.paymentStatus!=="overdue").sort((a,b)=>dn(a).localeCompare(dn(b)));
-          sections = [
-            ...(overdue.length ? [{ name:"Overdue", color:S.red, colorLight:S.redLight, interns:overdue }] : []),
-            ...(current.length ? [{ name:"Current / Pro Bono", color:S.green, colorLight:S.greenLight, interns:current }] : []),
-          ];
-
-        } else if (internSort === "flags") {
-          const flagged = filtered.filter(i=>activeFlags(i).length>0).sort((a,b)=>activeFlags(b).length-activeFlags(a).length);
-          const clean   = filtered.filter(i=>activeFlags(i).length===0).sort((a,b)=>dn(a).localeCompare(dn(b)));
-          sections = [
-            ...(flagged.length ? [{ name:"Has open flags", color:S.amber, colorLight:S.amberLight, interns:flagged }] : []),
-            ...(clean.length   ? [{ name:"No flags", color:t.faint, colorLight:t.surfaceAlt, interns:clean }] : []),
-          ];
-
-        } else if (internSort === "list") {
-          const map = {};
-          filtered.forEach(i => {
-            const memberLists = lists.filter(l=>i.listIds?.includes(l.id));
-            if (memberLists.length === 0) {
-              if (!map["No List"]) map["No List"] = { name:"No List", color:t.faint, colorLight:t.surfaceAlt, interns:[] };
-              map["No List"].interns.push(i);
-            } else {
-              memberLists.forEach(l => {
-                if (!map[l.name]) map[l.name] = { name:l.name, color:l.color, colorLight:l.colorLight, interns:[] };
-                if (!map[l.name].interns.find(x=>x.id===i.id)) map[l.name].interns.push(i);
-              });
-            }
-          });
-          Object.values(map).forEach(s=>s.interns.sort((a,b)=>dn(a).localeCompare(dn(b))));
-          sections = Object.values(map).sort((a,b)=>a.name==="No List"?1:b.name==="No List"?-1:a.name.localeCompare(b.name));
-        }
-
-        const showHeaders = sections.length > 1 || (sections.length === 1 && sections[0].name);
-
-        return <div>
-          <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:16}}>
-            <h1 style={{fontFamily:f.display,fontSize:28,fontWeight:400,color:t.text,margin:0,letterSpacing:"-0.02em"}}>Supervisees</h1>
-            <div style={{display:"flex",gap:8}}>
-              <button onClick={()=>setOnboardingOpen(true)}
-                style={{background:t.surfaceAlt,color:t.muted,border:`1px solid ${t.border}`,borderRadius:10,padding:"9px 16px",cursor:"pointer",fontSize:13,fontFamily:"'DM Mono',monospace"}}>
-                Send onboarding link
-              </button>
-              <button onClick={()=>setAddInternOpen(true)}
-                style={{background:t.accent,color:"#fff",border:"none",borderRadius:10,padding:"9px 20px",cursor:"pointer",fontSize:14,fontWeight:600,fontFamily:"inherit",boxShadow:`0 2px 8px ${t.accent}40`,transition:"all 0.15s"}}
-                onMouseEnter={e=>{e.currentTarget.style.opacity="0.9";}}
-                onMouseLeave={e=>{e.currentTarget.style.opacity="1";}}>
-                + Add supervisee
-              </button>
-            </div>
-          </div>
-
-          {/* Toolbar */}
-          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:24,flexWrap:"wrap"}}>
-            {/* Active / Inactive / Both toggle */}
-            <div style={{display:"flex",border:`1px solid ${t.border}`,borderRadius:8,overflow:"hidden",flexShrink:0}}>
-              {[
-                {id:"active",   label:`Active (${activeCount})`},
-                {id:"both",     label:"Both"},
-                {id:"inactive", label:`Inactive (${inactiveCount})`},
-              ].map((opt,i)=>(
-                <button key={opt.id} onClick={()=>setShowMode(opt.id)}
-                  style={{background:showMode===opt.id?t.accentLight:"none",color:showMode===opt.id?t.accentText:t.muted,border:"none",borderRight:i<2?`1px solid ${t.border}`:"none",padding:"6px 12px",cursor:"pointer",fontSize:12,fontFamily:"'DM Mono',monospace",whiteSpace:"nowrap",transition:"all 0.1s"}}>
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-            <div style={{display:"flex",alignItems:"center",gap:8,flex:1}}>
-              <span style={{fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace",whiteSpace:"nowrap"}}>Sort by</span>
-              <select value={internSort} onChange={e=>setInternSort(e.target.value)}
-                style={{border:`1px solid ${t.border}`,borderRadius:8,padding:"6px 12px",fontSize:13,color:t.text,background:t.surface,outline:"none",cursor:"pointer",fontFamily:"'DM Sans',system-ui,sans-serif"}}>
-                {SORT_OPTIONS.map(opt=><option key={opt.id} value={opt.id}>{opt.label}</option>)}
-              </select>
-            </div>
-            {filterLabel
-              ? <div style={{display:"flex",alignItems:"center",gap:6}}>
-                  <span style={{fontSize:13,color:t.muted}}>Showing:</span>
-                  <Badge color={t.accentText} bg={t.accentLight}>{filterLabel}</Badge>
-                  <button onClick={()=>setInternFilter(null)} style={{background:"none",border:"none",cursor:"pointer",fontSize:13,color:t.muted,fontFamily:"'DM Mono',monospace"}}>✕ clear</button>
-                </div>
-              : <span style={{fontSize:13,color:t.faint}}>{filtered.length} supervisee{filtered.length!==1?"s":""}</span>}
-            {/* View mode toggle */}
-            <div style={{display:"flex",border:`1px solid ${t.border}`,borderRadius:8,overflow:"hidden",flexShrink:0}}>
-              {[
-                {id:"list",    icon:"☰", title:"List view"},
-                {id:"grid",    icon:"⊞", title:"Grid view"},
-                {id:"compact", icon:"≡", title:"Compact view"},
-                {id:"table",   icon:"⊟", title:"Table view"},
-              ].map(v=>(
-                <button key={v.id} onClick={()=>setInternViewMode(v.id)} title={v.title}
-                  style={{background:internViewMode===v.id?t.accentLight:"none",color:internViewMode===v.id?t.accentText:t.muted,border:"none",borderRight:`1px solid ${t.border}`,padding:"6px 11px",cursor:"pointer",fontSize:14,lineHeight:1,transition:"all 0.1s",lastChild:{borderRight:"none"}}}>
-                  {v.icon}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {sections.map((section, si) => (
-            <div key={section.name||si} style={{marginBottom: showHeaders ? 28 : 0}}>
-              {showHeaders && section.name && (
-                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12,paddingBottom:8,borderBottom:`2px solid ${section.color}30`}}>
-                  <div style={{width:10,height:10,borderRadius:"50%",background:section.color,flexShrink:0}}/>
-                  <span style={{fontSize:12,color:section.color,fontFamily:"'DM Mono',monospace",fontWeight:600,textTransform:"uppercase",letterSpacing:"0.06em"}}>{section.name}</span>
-                  <span style={{fontSize:12,color:t.faint,fontFamily:"'DM Mono',monospace"}}>{section.interns.length} supervisee{section.interns.length!==1?"s":""}</span>
-                </div>
-              )}
-
-              {/* LIST view — default full cards */}
-              {internViewMode==="list"&&section.interns.map(intern=>(
-                <div key={intern.id} style={{marginBottom:10}}>
-                  <InternCard intern={intern} lists={lists} groups={groups} T={t} onClick={()=>{setSelectedInternId_sv(intern.id);setPage("intern-profile");}}/>
-                </div>
-              ))}
-
-              {/* GRID view — 2-column photo cards */}
-              {internViewMode==="grid"&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:4}}>
-                {section.interns.map(intern=>{
-                  const pct=Math.round(intern.hoursCompleted/intern.hoursTotal*100);
-                  const af=activeFlags(intern);
-                  return <div key={intern.id} onClick={()=>{setSelectedInternId_sv(intern.id);setPage("intern-profile");}}
-                    style={{background:t.surface,border:`1px solid ${af.length?t.accentMid:t.border}`,borderRadius:14,padding:"20px 20px 16px",cursor:"pointer",boxShadow:"0 1px 4px rgba(0,0,0,0.04)",transition:"all 0.15s",textAlign:"center"}}
-                    onMouseEnter={e=>{e.currentTarget.style.boxShadow="0 6px 20px rgba(0,0,0,0.1)";e.currentTarget.style.borderColor=t.accentMid;}}
-                    onMouseLeave={e=>{e.currentTarget.style.boxShadow="0 1px 4px rgba(0,0,0,0.04)";e.currentTarget.style.borderColor=af.length?t.accentMid:t.border;}}>
-                    <Avatar initials={intern.initials} size={56} T={t} photo={intern.photo} style={{margin:"0 auto 10px"}}/>
-                    <div style={{fontSize:15,color:t.text,fontWeight:500,marginBottom:2}}>{dn(intern)}</div>
-                    <div style={{fontSize:12,color:t.muted,marginBottom:10}}>{intern.credential} · {intern.licenseGoal}</div>
-                    <div style={{height:5,background:t.borderLight,borderRadius:999,marginBottom:6,overflow:"hidden"}}>
-                      <div style={{height:"100%",width:`${Math.min(100,pct)}%`,background:t.isGradient?t.gradient:t.accent,backgroundSize:"200% 200%",animation:t.isGradient?"gradientShift 5s ease infinite":undefined,borderRadius:999}}/>
-                    </div>
-                    <div style={{fontSize:11,color:t.faint,fontFamily:"'DM Mono',monospace"}}>{pct}% · {intern.hoursCompleted}/{intern.hoursTotal} hrs</div>
-                    {af.length>0&&<div style={{marginTop:6,fontSize:11,color:t.accentText}}>⚑ {af.length} flag{af.length>1?"s":""}</div>}
-                    {intern.paymentStatus==="overdue"&&!intern.proBono&&<div style={{marginTop:4,fontSize:11,color:t.accentText}}>⚠ Payment overdue</div>}
-                  </div>;
-                })}
-              </div>}
-
-              {/* COMPACT view — single-line rows */}
-              {internViewMode==="compact"&&<div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:12,overflow:"hidden",boxShadow:"0 1px 4px rgba(0,0,0,0.04)",marginBottom:4}}>
-                {section.interns.map((intern,i)=>{
-                  const pct=Math.round(intern.hoursCompleted/intern.hoursTotal*100);
-                  const af=activeFlags(intern);
-                  return <div key={intern.id} onClick={()=>{setSelectedInternId_sv(intern.id);setPage("intern-profile");}}
-                    style={{display:"flex",alignItems:"center",gap:12,padding:"10px 16px",borderTop:i>0?`1px solid ${t.borderLight}`:"none",cursor:"pointer",transition:"background 0.1s"}}
-                    onMouseEnter={e=>e.currentTarget.style.background=t.surfaceAlt}
-                    onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                    <Avatar initials={intern.initials} size={28} T={t} photo={intern.photo}/>
-                    <div style={{flex:1,minWidth:0}}>
-                      <span style={{fontSize:13,color:t.text,fontWeight:500}}>{dn(intern)}</span>
-                      <span style={{fontSize:12,color:t.faint,marginLeft:8,fontFamily:"'DM Mono',monospace"}}>{intern.credential}</span>
-                    </div>
-                    {/* Progress bar */}
-                    <div style={{width:80,height:4,background:t.borderLight,borderRadius:999,flexShrink:0}}>
-                      <div style={{height:"100%",width:`${Math.min(100,pct)}%`,background:t.isGradient?t.gradient:t.accent,backgroundSize:"200% 200%",animation:t.isGradient?"gradientShift 5s ease infinite":undefined,borderRadius:999}}/>
-                    </div>
-                    <span style={{fontSize:11,color:t.faint,fontFamily:"'DM Mono',monospace",minWidth:36,textAlign:"right"}}>{pct}%</span>
-                    {af.length>0&&<span style={{fontSize:11,color:t.accentText}}>⚑</span>}
-                    {intern.paymentStatus==="overdue"&&!intern.proBono&&<span style={{fontSize:11,color:t.accentText}}>⚠</span>}
-                    <span style={{color:t.faint,fontSize:12}}>›</span>
-                  </div>;
-                })}
-              </div>}
-
-              {/* TABLE view — spreadsheet-style */}
-              {internViewMode==="table"&&<div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:12,overflow:"hidden",boxShadow:"0 1px 4px rgba(0,0,0,0.04)",marginBottom:4}}>
-                <div style={{display:"grid",gridTemplateColumns:"2fr 1.2fr 1fr 1fr 1fr 0.8fr",gap:0,background:t.surfaceAlt,padding:"8px 16px",borderBottom:`1px solid ${t.border}`}}>
-                  {["Name","Credential","Hours","Progress","Role","Status"].map(h=><div key={h} style={{fontSize:10,color:t.faint,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.05em"}}>{h}</div>)}
-                </div>
-                {section.interns.map((intern,i)=>{
-                  const pct=Math.round(intern.hoursCompleted/intern.hoursTotal*100);
-                  return <div key={intern.id} onClick={()=>{setSelectedInternId_sv(intern.id);setPage("intern-profile");}}
-                    style={{display:"grid",gridTemplateColumns:"2fr 1.2fr 1fr 1fr 1fr 0.8fr",gap:0,padding:"10px 16px",borderTop:i>0?`1px solid ${t.borderLight}`:"none",cursor:"pointer",alignItems:"center",transition:"background 0.1s"}}
-                    onMouseEnter={e=>e.currentTarget.style.background=t.surfaceAlt}
-                    onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                    <div style={{display:"flex",alignItems:"center",gap:8}}><Avatar initials={intern.initials} size={22} T={t} photo={intern.photo}/><span style={{fontSize:13,color:t.text,fontWeight:500}}>{dn(intern)}</span></div>
-                    <div style={{fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace"}}>{intern.credential}</div>
-                    <div style={{fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace"}}>{intern.hoursCompleted}/{intern.hoursTotal}</div>
-                    <div>
-                      <div style={{height:4,background:t.borderLight,borderRadius:999,overflow:"hidden",width:60}}>
-                        <div style={{height:"100%",width:`${Math.min(100,pct)}%`,background:t.isGradient?t.gradient:t.accent,backgroundSize:"200% 200%",animation:t.isGradient?"gradientShift 5s ease infinite":undefined,borderRadius:999}}/>
-                      </div>
-                      <div style={{fontSize:10,color:t.faint,marginTop:2,fontFamily:"'DM Mono',monospace"}}>{pct}%</div>
-                    </div>
-                    <div><RoleBadge role={intern.supervisorRole}/></div>
-                    <div style={{display:"flex",gap:4}}>
-                      {intern.paymentStatus==="overdue"&&!intern.proBono&&<span style={{fontSize:11,color:t.accentText}} title="Payment overdue">⚠</span>}
-                      {activeFlags(intern).length>0&&<span style={{fontSize:11,color:t.accentText}} title={`${activeFlags(intern).length} open flags`}>⚑</span>}
-                      {intern.proBono&&<Badge color="#6B3FA0" bg="#F2EDFB" style={{fontSize:9}}>Pro bono</Badge>}
-                    </div>
-                  </div>;
-                })}
-              </div>}
-
-            </div>
-          ))}
-        </div>;
-      })()}
+      {page==="interns"&&<InterneesPage T={t} interns={interns} groups={groups} lists={lists} internFilter={internFilter} setInternFilter={setInternFilter} internSort={internSort} setInternSort={setInternSort} internViewMode={internViewMode} setInternViewMode={setInternViewMode} onSelectIntern={i=>{setSelectedInternId_sv(i.id);setPage("intern-profile");}} onGroupClick={(gid)=>{setSelectedGroupId(gid);setPage("groups");}} onAddIntern={()=>setAddInternOpen(true)} onOpenOnboarding={()=>setOnboardingOpen(true)}/>}
       {page==="groups"&&<GroupsPage T={t} groups={groups} interns={interns} setGroups={setGroups} initialGroupId={selectedGroupId} updateInterns={addSessionCharge} updateIntern={updateIntern} onSelectIntern={i=>{setSelectedInternId_sv(i.id);setPage("intern-profile");}}/>}
       {page==="lists"&&<div>
         <h1 style={{fontFamily:f.display,fontSize:28,fontWeight:400,color:t.text,margin:"0 0 24px",letterSpacing:"-0.02em"}}>My Lists</h1>
