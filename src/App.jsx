@@ -3357,6 +3357,8 @@ function GroupsPage({groups,interns,setGroups,onSelectIntern,initialGroupId,upda
     setGroups(arr);
     setGroupDragIdx(null);setGroupDragOver(null);
   };
+
+  const toggleMember=(internId)=>{
     const intern=interns.find(i=>i.id===internId);
     if(!intern||!updateIntern) return;
     const inGroup=intern.groupIds?.includes(selected);
@@ -3644,6 +3646,7 @@ function GroupsPage({groups,interns,setGroups,onSelectIntern,initialGroupId,upda
       </div>}
     </div>
   </div>;
+}
 
 // ── Alert engine ───────────────────────────────────────────────────────────
 const generateAlerts = (interns) => {
