@@ -1117,9 +1117,9 @@ function QuickActionModal({action, interns, groups, onClose, onUpdateIntern, T})
 
 function AISessionModal({intern,groupContext,onSave,onClose,T}) {
   const t=T||THEMES.sage;
-  const [step,setStep]=useState("input"); // input | generating | result
+  const [step,setStep]=useState("input");
   const [form,setForm]=useState({
-    date: "Mar 21, 2026",
+    date: TODAY(),
     duration: "60",
     sessionType: groupContext ? "Group" : "Individual",
     summary:"",
@@ -1128,12 +1128,14 @@ function AISessionModal({intern,groupContext,onSave,onClose,T}) {
   const [result,setResult]=useState("");
   const [editing,setEditing]=useState(false);
   const [error,setError]=useState("");
+  const apiKey = window.__SUPTRACK_API_KEY||"";
 
   const internName = intern ? (intern.preferredName || intern.name.split(" ")[0]) : "";
   const fullName   = intern ? intern.name : groupContext?.name || "Group";
 
   const generate = async () => {
     if (!form.summary.trim()) { setError("Please enter at least a brief summary."); return; }
+    if (!apiKey) { setError("No API key set — go to ✦ Consult AI or ✦ Supervision Lab and click 'Set API key' first."); return; }
     setError("");
     setStep("generating");
 
@@ -1175,7 +1177,7 @@ Use professional clinical language appropriate for licensure documentation. Be s
       setResult(text);
       setStep("result");
     } catch(e) {
-      setError("Something went wrong generating the note. Please try again.");
+      setError(`Generation failed: ${e.message||"Unknown error"}. Check your API key and try again.`);
       setStep("input");
     }
   };
@@ -2347,8 +2349,8 @@ function Dashboard({interns,groups,lists,onSelectIntern,onNavigate,onOpenOnboard
       <Btn T={t} variant="secondary" onClick={()=>setCustomizing(c=>!c)}>{customizing?"Done":"Customize"}</Btn>
     </div>
 
-    {/* Add Intern shortcut card — always visible under greeting */}
-    <div style={{marginBottom:26}}>
+    {/* Add Intern shortcut — left aligned */}
+    <div style={{marginBottom:26,display:"flex",justifyContent:"flex-start"}}>
       <button onClick={()=>onAddIntern&&onAddIntern()}
         style={{background:t.isGradient?t.gradient:t.accent,backgroundSize:t.isGradient?"200% 200%":undefined,animation:t.isGradient?"gradientShift 5s ease infinite":undefined,color:"#fff",border:"none",borderRadius:12,padding:"12px 22px",fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:"inherit",boxShadow:`0 2px 10px ${t.accent}40`,transition:"opacity 0.15s",display:"inline-flex",alignItems:"center",gap:8}}
         onMouseEnter={e=>e.currentTarget.style.opacity="0.88"}
@@ -3984,57 +3986,188 @@ const INITIAL_CE = {
 function CETrackerPage({ceData,setCeData,T}) {
   const t=T||THEMES.sage;
   const [showAdd,setShowAdd]=useState(false);
-  const [form,setForm]=useState({title:"",provider:"",hours:"",date:"",category:"Supervision",certificate:false});
+  const [form,setForm]=useState({title:"",provider:"",hours:"",date:"",category:"Supervision",certFile:null,certName:""});
+  const [viewingCert,setViewingCert]=useState(null);
   const hoursLeft=ceData.myLicense.renewalHoursRequired-ceData.myLicense.renewalHoursCompleted;
   const pct=Math.round((ceData.myLicense.renewalHoursCompleted/ceData.myLicense.renewalHoursRequired)*100);
   const cats=["Supervision","Ethics","Clinical","Diversity","Cultural Competency","Trauma","Other"];
-  const addCE=()=>{
-    if(!form.title.trim()||!form.hours)return;
-    setCeData(p=>({...p,ceLog:[{id:`ce${Date.now()}`,...form,hours:Number(form.hours)},...p.ceLog],myLicense:{...p.myLicense,renewalHoursCompleted:p.myLicense.renewalHoursCompleted+Number(form.hours)}}));
-    setForm({title:"",provider:"",hours:"",date:"",category:"Supervision",certificate:false});setShowAdd(false);
+
+  const handleCertUpload=(e)=>{
+    const file=e.target.files?.[0];
+    if(!file) return;
+    const reader=new FileReader();
+    reader.onload=ev=>setForm(p=>({...p,certFile:ev.target.result,certName:file.name,certMime:file.type}));
+    reader.readAsDataURL(file);
   };
+
+  const addCE=()=>{
+    if(!form.title.trim()||!form.hours) return;
+    setCeData(p=>({...p,
+      ceLog:[{id:`ce${Date.now()}`,...form,hours:Number(form.hours)},...p.ceLog],
+      myLicense:{...p.myLicense,renewalHoursCompleted:p.myLicense.renewalHoursCompleted+Number(form.hours)}
+    }));
+    setForm({title:"",provider:"",hours:"",date:"",category:"Supervision",certFile:null,certName:""});
+    setShowAdd(false);
+  };
+
+  const downloadAll=()=>{
+    // Download all CE certificates that have files attached
+    const withCerts=ceData.ceLog.filter(e=>e.certFile);
+    if(withCerts.length===0){alert("No certificates uploaded yet.");return;}
+    withCerts.forEach((e,i)=>{
+      setTimeout(()=>{
+        const a=document.createElement("a");
+        a.href=e.certFile;
+        a.download=e.certName||`${e.title.replace(/\s+/g,"_")}_certificate`;
+        a.click();
+      },i*300);
+    });
+  };
+
+  const downloadCSV=()=>{
+    const rows=[["Title","Provider","Hours","Category","Date","Certificate"],
+      ...ceData.ceLog.map(e=>[e.title,e.provider||"",e.hours,e.category,e.date||"",e.certName?"Yes":"No"])];
+    const csv=rows.map(r=>r.join(",")).join("\n");
+    const blob=new Blob([csv],{type:"text/csv"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");
+    a.href=url;a.download="CE_log.csv";a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const iStyle={width:"100%",border:`1px solid ${t.border}`,borderRadius:8,padding:"8px 12px",fontSize:13,fontFamily:"inherit",color:t.text,background:t.bg,outline:"none",boxSizing:"border-box"};
+
   return <div>
-    <h1 style={{fontFamily:"inherit",fontSize:28,fontWeight:400,color:t.text,margin:"0 0 4px",letterSpacing:"-0.02em"}}>CE & License Renewal</h1>
-    <p style={{color:t.muted,fontSize:14,margin:"0 0 24px"}}>Track your own continuing education and license renewal requirements</p>
+    {/* Certificate viewer modal */}
+    {viewingCert&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000}} onClick={()=>setViewingCert(null)}>
+      <div style={{background:t.surface,borderRadius:16,width:"80vw",maxWidth:860,maxHeight:"90vh",overflow:"hidden",display:"flex",flexDirection:"column"}} onClick={e=>e.stopPropagation()}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 20px",borderBottom:`1px solid ${t.border}`}}>
+          <div style={{fontSize:14,color:t.text,fontWeight:500}}>{viewingCert.certName}</div>
+          <div style={{display:"flex",gap:8}}>
+            <a href={viewingCert.certFile} download={viewingCert.certName}
+              style={{background:t.surfaceAlt,border:`1px solid ${t.border}`,borderRadius:7,padding:"5px 12px",cursor:"pointer",fontSize:12,color:t.text,fontFamily:"'DM Mono',monospace",textDecoration:"none"}}>⬇ Download</a>
+            <button onClick={()=>setViewingCert(null)} style={{background:"none",border:"none",cursor:"pointer",fontSize:18,color:t.muted}}>✕</button>
+          </div>
+        </div>
+        <div style={{flex:1,overflow:"auto",padding:16,display:"flex",justifyContent:"center"}}>
+          {viewingCert.certMime==="application/pdf"
+            ? <iframe src={viewingCert.certFile} title={viewingCert.certName} style={{width:"100%",height:"70vh",border:"none"}}/>
+            : viewingCert.certMime?.startsWith("image/")
+              ? <img src={viewingCert.certFile} alt={viewingCert.certName} style={{maxWidth:"100%"}}/>
+              : <div style={{color:t.muted,padding:40,textAlign:"center"}}>Preview not available — use Download button above.</div>}
+        </div>
+      </div>
+    </div>}
+
+    <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:20}}>
+      <div>
+        <h1 style={{fontFamily:"inherit",fontSize:28,fontWeight:400,color:t.text,margin:"0 0 4px",letterSpacing:"-0.02em"}}>CE & License Renewal</h1>
+        <p style={{color:t.muted,fontSize:14,margin:0}}>Track your continuing education and attach certificates for renewal</p>
+      </div>
+      <div style={{display:"flex",gap:8}}>
+        <Btn T={t} variant="secondary" small onClick={downloadCSV}>⬇ Log (.csv)</Btn>
+        <Btn T={t} variant="secondary" small onClick={downloadAll}>⬇ All certificates</Btn>
+        <Btn T={t} small onClick={()=>setShowAdd(true)}>+ Log CE hours</Btn>
+      </div>
+    </div>
+
+    {/* License progress card */}
     <div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:14,padding:"22px 24px",marginBottom:18,boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
       <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:18}}>
         <div>
           <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:6}}>My license</div>
-          <div style={{fontFamily:"inherit",fontSize:22,color:t.text,marginBottom:4}}>{ceData.myLicense.type} <span style={{fontSize:14,color:t.muted,fontFamily:"'DM Mono',monospace"}}>#{ceData.myLicense.number}</span></div>
+          <div style={{fontSize:22,color:t.text,marginBottom:4}}>{ceData.myLicense.type} <span style={{fontSize:14,color:t.muted,fontFamily:"'DM Mono',monospace"}}>#{ceData.myLicense.number}</span></div>
           <div style={{fontSize:13,color:hoursLeft<=8?t.accent:t.muted}}>Expires {ceData.myLicense.expires} · {hoursLeft} CE hours remaining</div>
         </div>
-        <div style={{textAlign:"right"}}><div style={{fontFamily:"inherit",fontSize:28,color:pct>=75?t.accent:S.amber,lineHeight:1}}>{pct}%</div><div style={{fontSize:12,color:t.muted}}>of renewal completed</div></div>
+        <div style={{textAlign:"right"}}>
+          <div style={{fontSize:28,color:pct>=75?t.accent:S.amber,lineHeight:1,fontFamily:"'DM Mono',monospace",fontWeight:700}}>{pct}%</div>
+          <div style={{fontSize:12,color:t.muted}}>of renewal completed</div>
+        </div>
       </div>
-      <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}><span style={{fontSize:13,color:t.text}}>CE hours toward renewal</span><span style={{fontSize:13,fontFamily:"'DM Mono',monospace",color:t.accent}}>{ceData.myLicense.renewalHoursCompleted} / {ceData.myLicense.renewalHoursRequired}</span></div>
-      <div style={{height:8,background:t.borderLight,borderRadius:999,overflow:"hidden"}}><div style={{height:"100%",width:`${pct}%`,background:t.isGradient?t.gradient:t.accent,backgroundSize:"200% 200%",animation:t.isGradient?"gradientShift 5s ease infinite":undefined,borderRadius:999}}/></div>
+      <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+        <span style={{fontSize:13,color:t.text}}>CE hours toward renewal</span>
+        <span style={{fontSize:13,fontFamily:"'DM Mono',monospace",color:t.accent}}>{ceData.myLicense.renewalHoursCompleted} / {ceData.myLicense.renewalHoursRequired}</span>
+      </div>
+      <div style={{height:8,background:t.borderLight,borderRadius:999,overflow:"hidden"}}>
+        <div style={{height:"100%",width:`${pct}%`,background:t.isGradient?t.gradient:t.accent,backgroundSize:"200% 200%",animation:t.isGradient?"gradientShift 5s ease infinite":undefined,borderRadius:999}}/>
+      </div>
       {hoursLeft<=8&&<div style={{fontSize:12,color:t.accentText,marginTop:8}}>⚠ Renewal deadline approaching — {hoursLeft} hours still needed before {ceData.myLicense.expires}</div>}
     </div>
-    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
-      <div style={{fontFamily:"inherit",fontSize:18,color:t.text}}>CE log</div>
-      <Btn T={t} small onClick={()=>setShowAdd(true)}>+ Log CE hours</Btn>
-    </div>
+
+    {/* Add form */}
     {showAdd&&<div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:12,padding:"20px 22px",marginBottom:16}}>
+      <div style={{fontSize:14,color:t.text,fontWeight:500,marginBottom:14}}>Log CE hours</div>
       <div style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr",gap:12,marginBottom:12}}>
-        {[["Course / training title","text",form.title,v=>setForm(p=>({...p,title:v})),"e.g. Ethics in Clinical Supervision"],["Provider","text",form.provider,v=>setForm(p=>({...p,provider:v})),"NBCC, ACA..."],["Hours","number",form.hours,v=>setForm(p=>({...p,hours:v})),"3"]].map(([label,type,val,setter,ph])=>(
-          <div key={label}><div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:6}}>{label}</div>
-            <input type={type} value={val} onChange={e=>setter(e.target.value)} placeholder={ph} style={{width:"100%",border:`1px solid ${t.border}`,borderRadius:8,padding:"8px 12px",fontSize:14,fontFamily:"'DM Sans',system-ui,sans-serif",color:t.text,background:t.bg,outline:"none",boxSizing:"border-box"}}/></div>
+        <div>
+          <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:5}}>Course / training title *</div>
+          <input value={form.title} onChange={e=>setForm(p=>({...p,title:e.target.value}))} placeholder="e.g. Ethics in Clinical Supervision" style={iStyle}/>
+        </div>
+        <div>
+          <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:5}}>Provider</div>
+          <input value={form.provider} onChange={e=>setForm(p=>({...p,provider:e.target.value}))} placeholder="NBCC, ACA..." style={iStyle}/>
+        </div>
+        <div>
+          <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:5}}>Hours *</div>
+          <input type="number" value={form.hours} onChange={e=>setForm(p=>({...p,hours:e.target.value}))} placeholder="3" style={iStyle}/>
+        </div>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
+        <div>
+          <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:5}}>Date</div>
+          <input type="date" value={form.date} onChange={e=>setForm(p=>({...p,date:e.target.value}))} style={iStyle}/>
+        </div>
+        <div>
+          <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:5}}>Category</div>
+          <select value={form.category} onChange={e=>setForm(p=>({...p,category:e.target.value}))} style={{...iStyle,cursor:"pointer"}}>
+            {cats.map(c=><option key={c}>{c}</option>)}
+          </select>
+        </div>
+      </div>
+      {/* Certificate upload */}
+      <div style={{marginBottom:14}}>
+        <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:6}}>Certificate (optional)</div>
+        {form.certFile
+          ? <div style={{display:"flex",alignItems:"center",gap:10,background:t.surfaceAlt,borderRadius:8,padding:"8px 14px"}}>
+              <span style={{fontSize:13,color:t.accentText}}>📄 {form.certName}</span>
+              <button onClick={()=>setForm(p=>({...p,certFile:null,certName:""}))}
+                style={{background:"none",border:"none",cursor:"pointer",fontSize:12,color:S.red,marginLeft:"auto",fontFamily:"'DM Mono',monospace"}}>Remove</button>
+            </div>
+          : <label style={{display:"flex",alignItems:"center",gap:10,background:t.surfaceAlt,border:`1px dashed ${t.border}`,borderRadius:8,padding:"10px 16px",cursor:"pointer"}}>
+              <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={handleCertUpload} style={{display:"none"}}/>
+              <span style={{fontSize:13,color:t.muted}}>📎 Upload certificate (PDF or image)</span>
+            </label>}
+      </div>
+      <div style={{display:"flex",gap:8}}>
+        <Btn T={t} small onClick={addCE}>Save CE entry</Btn>
+        <Btn T={t} variant="secondary" small onClick={()=>setShowAdd(false)}>Cancel</Btn>
+      </div>
+    </div>}
+
+    {/* CE log table */}
+    <div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:14,overflow:"hidden",boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
+      <div style={{display:"grid",gridTemplateColumns:"2.5fr 1fr .7fr 1fr .8fr .6fr",background:t.surfaceAlt,padding:"10px 18px",gap:8}}>
+        {["Course","Provider","Hours","Category","Date","Cert"].map(h=>(
+          <div key={h} style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em"}}>{h}</div>
         ))}
       </div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:14}}>
-        <div><div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:6}}>Date</div><input type="date" value={form.date} onChange={e=>setForm(p=>({...p,date:e.target.value}))} style={{width:"100%",border:`1px solid ${t.border}`,borderRadius:8,padding:"8px 12px",fontSize:14,color:t.text,background:t.bg,outline:"none",boxSizing:"border-box"}}/></div>
-        <div><div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:6}}>Category</div><select value={form.category} onChange={e=>setForm(p=>({...p,category:e.target.value}))} style={{width:"100%",border:`1px solid ${t.border}`,borderRadius:8,padding:"8px 12px",fontSize:14,color:t.text,background:t.surface,outline:"none"}}>{cats.map(c=><option key={c}>{c}</option>)}</select></div>
-        <div style={{display:"flex",alignItems:"flex-end",paddingBottom:2}}><label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",fontSize:13,color:t.text}}><input type="checkbox" checked={form.certificate} onChange={e=>setForm(p=>({...p,certificate:e.target.checked}))} style={{width:16,height:16}}/>Certificate on file</label></div>
-      </div>
-      <div style={{display:"flex",gap:8}}><Btn T={t} small onClick={addCE}>Save</Btn><Btn T={t} variant="secondary" small onClick={()=>setShowAdd(false)}>Cancel</Btn></div>
-    </div>}
-    <div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:14,overflow:"hidden",boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
-      <div style={{display:"grid",gridTemplateColumns:"2.5fr 1fr .8fr 1fr .6fr",background:t.surfaceAlt,padding:"10px 18px",gap:8}}>{["Course","Provider","Hours","Category","Cert"].map(h=><div key={h} style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em"}}>{h}</div>)}</div>
-      {ceData.ceLog.map(e=><div key={e.id} style={{display:"grid",gridTemplateColumns:"2.5fr 1fr .8fr 1fr .6fr",padding:"12px 18px",gap:8,borderTop:`1px solid ${t.borderLight}`,alignItems:"center"}}>
-        <div style={{fontSize:14,color:t.text}}>{e.title}</div><div style={{fontSize:13,color:t.muted}}>{e.provider}</div>
-        <div style={{fontSize:13,color:t.accent,fontFamily:"'DM Mono',monospace",fontWeight:600}}>{e.hours} hrs</div>
-        <div><Badge color={t.muted} bg={t.surfaceAlt}>{e.category}</Badge></div>
-        <div style={{fontSize:13,color:e.certificate?S.green:t.faint}}>{e.certificate?"✓":"—"}</div>
-      </div>)}
+      {ceData.ceLog.length===0&&<div style={{padding:"32px",textAlign:"center",color:t.muted,fontSize:14}}>No CE entries yet — click "+ Log CE hours" to add one.</div>}
+      {ceData.ceLog.map(e=>(
+        <div key={e.id} style={{display:"grid",gridTemplateColumns:"2.5fr 1fr .7fr 1fr .8fr .6fr",padding:"12px 18px",gap:8,borderTop:`1px solid ${t.borderLight}`,alignItems:"center"}}>
+          <div style={{fontSize:13,color:t.text,fontWeight:500}}>{e.title}</div>
+          <div style={{fontSize:12,color:t.muted}}>{e.provider}</div>
+          <div style={{fontSize:13,color:t.accent,fontFamily:"'DM Mono',monospace",fontWeight:600}}>{e.hours} hrs</div>
+          <div><Badge color={t.muted} bg={t.surfaceAlt}>{e.category}</Badge></div>
+          <div style={{fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace"}}>{e.date||"—"}</div>
+          <div>
+            {e.certFile
+              ? <button onClick={()=>setViewingCert(e)}
+                  style={{background:t.accentLight,border:`1px solid ${t.accentMid}`,borderRadius:6,padding:"3px 8px",cursor:"pointer",fontSize:11,color:t.accentText,fontFamily:"'DM Mono',monospace"}}>
+                  📄 View
+                </button>
+              : <span style={{fontSize:12,color:t.faint}}>—</span>}
+          </div>
+        </div>
+      ))}
     </div>
   </div>;
 }
@@ -5501,6 +5634,11 @@ Tone: Collegial, warm, confident. You're a trusted colleague, not a chatbot. Kee
   const send = async (text) => {
     const userText = (text || input).trim();
     if (!userText || loading) return;
+    if (!apiKey) {
+      setMessages(p=>[...p,{role:"user",content:userText},{role:"assistant",content:"⚠ No API key set. Click **'Set API key'** above and enter your Anthropic API key to enable AI consultation."}]);
+      setInput("");
+      return;
+    }
     setInput("");
     const newMessages = [...messages, { role:"user", content:userText }];
     setMessages(newMessages);
@@ -6116,10 +6254,20 @@ function SupervisionLabPage({T}) {
   const [audioPlaying, setAudioPlaying] = useState(false);
   const [useElevenLabs, setUseElevenLabs] = useState(false);
   const [elKey, setElKey] = useState("");
+  const [elKeyInput, setElKeyInput] = useState("");
+  const [elKeySaved, setElKeySaved] = useState(false);
   const [apiKey, setApiKey] = useState(()=>window.__SUPTRACK_API_KEY||"");
   const [showApiSetup, setShowApiSetup] = useState(false);
   const [tempApiKey, setTempApiKey] = useState("");
   const [filterLang, setFilterLang] = useState("all");
+  // Pre-load browser voices async (Chrome loads them lazily)
+  const [browserVoices, setBrowserVoices] = useState([]);
+  React.useEffect(()=>{
+    const load=()=>setBrowserVoices(window.speechSynthesis.getVoices());
+    load();
+    window.speechSynthesis.addEventListener("voiceschanged",load);
+    return ()=>window.speechSynthesis.removeEventListener("voiceschanged",load);
+  },[]);
   // Session history
   const [sessionHistory, setSessionHistory] = useState([
     {
@@ -6159,10 +6307,17 @@ function SupervisionLabPage({T}) {
     synthRef.current.cancel();
     const utt = new SpeechSynthesisUtterance(text);
     utt.lang = lang||"en-US";
-    const vv = synthRef.current.getVoices().filter(v=>v.lang.startsWith((lang||"en-US").slice(0,2)));
-    const preferred = vv.find(v=>v.name.includes("Samantha")||v.name.includes("Karen")||v.name.includes("Moira")||v.name.includes("Conchita")||v.name.includes("Monica"))||vv[0];
+    // Use pre-loaded voices (fixes Chrome async loading bug)
+    const voices = browserVoices.length ? browserVoices : synthRef.current.getVoices();
+    const langVoices = voices.filter(v=>v.lang.startsWith((lang||"en").slice(0,2)));
+    const qualityNames = ["Samantha","Karen","Moira","Daniel","Serena","Nicky","Ava","Aria","Jenny","Sonia","Libby","Natasha","Zoe","Isha","Allison","Ting-Ting"];
+    const preferred = langVoices.find(v=>qualityNames.some(n=>v.name.includes(n)))
+      || langVoices.find(v=>v.localService&&!v.name.toLowerCase().includes("compact"))
+      || langVoices.find(v=>!v.name.toLowerCase().includes("compact"))
+      || langVoices[0]
+      || voices[0];
     if(preferred) utt.voice=preferred;
-    utt.rate=0.9; utt.pitch=1.0;
+    utt.rate=0.88; utt.pitch=1.0; utt.volume=1.0;
     utt.onstart=()=>setSpeaking(true);
     utt.onend=()=>{setSpeaking(false);if(onEnd)onEnd();};
     utt.onerror=()=>{setSpeaking(false);if(onEnd)onEnd();};
@@ -6328,7 +6483,7 @@ Be direct, clinical, encouraging. Under 400 words.`;
       </div>
       <p style={{color:t.muted,fontSize:14,margin:"0 0 8px",lineHeight:1.6}}>Practice supervision with a voice-based AI simulated supervisee. Speak out loud — they respond in real time. End the session for clinical feedback on your approach.</p>
       <div style={{background:t.isGradient?(t.gradientSubtle||t.accentLight):t.accentLight,border:`1px solid ${t.isGradient?"transparent":t.accentMid}`,borderRadius:8,padding:"8px 14px",fontSize:12,color:t.accentText}}>
-        🎙 Requires microphone · Chrome or Edge recommended for best voice recognition
+        🎙 Requires microphone · Chrome or Edge recommended · <strong>For realistic voices: enable ElevenLabs below</strong> (free tier available at elevenlabs.io)
       </div>
     </div>
 
@@ -6351,22 +6506,58 @@ Be direct, clinical, encouraging. Under 400 words.`;
 
     {/* Voice settings */}
     <div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:14,padding:"18px 20px",marginBottom:18}}>
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
-        <div style={{fontSize:14,color:t.text,fontWeight:500}}>Supervisee voice</div>
-        <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",fontSize:13,color:t.muted}}>
-          <input type="checkbox" checked={useElevenLabs} onChange={e=>setUseElevenLabs(e.target.checked)} style={{width:14,height:14}}/>
-          Use ElevenLabs (realistic voices)
-        </label>
-      </div>
+      <div style={{fontSize:14,color:t.text,fontWeight:500,marginBottom:4}}>Supervisee voice</div>
 
-      {useElevenLabs&&<div style={{marginBottom:12}}>
-        <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:6}}>ElevenLabs API key <span style={{color:t.faint}}>(stored in session only, never sent to SupTrack)</span></div>
-        <input type="password" value={elKey} onChange={e=>setElKey(e.target.value)} placeholder="sk-..."
-          style={{width:"100%",border:`1px solid ${t.border}`,borderRadius:8,padding:"8px 12px",fontSize:13,fontFamily:"'DM Mono',monospace",color:t.text,background:t.bg,outline:"none",boxSizing:"border-box",marginBottom:10}}/>
-        <div style={{fontSize:11,color:t.faint}}>Get a free API key at elevenlabs.io → Profile → API Keys. Without a key, the browser's built-in voice is used.</div>
+      {/* ElevenLabs — primary recommended path */}
+      {!elKey
+        ? <div style={{background:t.isGradient?(t.gradientSubtle||t.accentLight):t.accentLight,border:`1px solid ${t.accentMid}`,borderRadius:10,padding:"14px 16px",marginBottom:14}}>
+            <div style={{fontSize:13,color:t.accentText,fontWeight:600,marginBottom:4}}>
+              🎙 Get realistic voices free — takes 60 seconds
+            </div>
+            <div style={{fontSize:12,color:t.accentText,opacity:0.85,marginBottom:10,lineHeight:1.6}}>
+              Browser voices sound robotic. ElevenLabs gives you natural-sounding voices at no cost — 10,000 characters/month free, no credit card needed.
+            </div>
+            <div style={{display:"flex",gap:8,marginBottom:8}}>
+              <input
+                value={elKeyInput}
+                onChange={e=>setElKeyInput(e.target.value)}
+                onKeyDown={e=>{if(e.key==="Enter"&&elKeyInput.trim()){setElKey(elKeyInput.trim());setUseElevenLabs(true);setElKeySaved(true);}}}
+                placeholder="Paste your ElevenLabs API key here..."
+                type="password"
+                style={{flex:1,border:`1px solid ${t.accentMid}`,borderRadius:8,padding:"8px 12px",fontSize:13,fontFamily:"'DM Mono',monospace",color:t.text,background:t.surface,outline:"none"}}
+              />
+              <button
+                onClick={()=>{if(elKeyInput.trim()){setElKey(elKeyInput.trim());setUseElevenLabs(true);setElKeySaved(true);}}}
+                style={{background:t.accent,color:"#fff",border:"none",borderRadius:8,padding:"8px 16px",cursor:"pointer",fontSize:13,fontWeight:500,fontFamily:"inherit",whiteSpace:"nowrap"}}>
+                Save key
+              </button>
+            </div>
+            <a href="https://elevenlabs.io" target="_blank" rel="noopener noreferrer"
+              style={{fontSize:11,color:t.accentText,fontFamily:"'DM Mono',monospace",opacity:0.75}}>
+              → elevenlabs.io → Sign up free → Profile → API Keys
+            </a>
+          </div>
+        : <div style={{display:"flex",alignItems:"center",gap:10,background:t.surfaceAlt,borderRadius:8,padding:"8px 14px",marginBottom:14}}>
+            <span style={{fontSize:13,color:t.accentText}}>✓ ElevenLabs connected</span>
+            <span style={{fontSize:11,color:t.faint,fontFamily:"'DM Mono',monospace",flex:1}}>{elKey.slice(0,8)}···</span>
+            <label style={{display:"flex",alignItems:"center",gap:6,cursor:"pointer",fontSize:12,color:t.muted}}>
+              <input type="checkbox" checked={useElevenLabs} onChange={e=>setUseElevenLabs(e.target.checked)} style={{width:13,height:13}}/>
+              Enabled
+            </label>
+            <button onClick={()=>{setElKey("");setElKeyInput("");setUseElevenLabs(false);setElKeySaved(false);}}
+              style={{background:"none",border:"none",cursor:"pointer",fontSize:11,color:S.red,fontFamily:"'DM Mono',monospace",padding:0}}>
+              Remove
+            </button>
+          </div>}
+
+      {/* Browser voice fallback note */}
+      {!elKey&&<div style={{fontSize:11,color:t.faint,marginBottom:12,fontFamily:"'DM Mono',monospace"}}>
+        Without ElevenLabs: using best available browser voice (quality varies by device — usually mediocre)
       </div>}
 
-      <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:10}}>
+      {/* Voice picker */}
+      <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:8}}>Choose voice</div>
+      <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:12}}>
         {ELEVENLABS_VOICES.filter(v=>filterLang==="es"?v.lang==="es":filterLang==="en"?v.lang==="en":true).map(v=>(
           <button key={v.id} onClick={()=>setSelectedVoice(v)}
             style={{background:selectedVoice.id===v.id?t.accentLight:t.surfaceAlt,color:selectedVoice.id===v.id?t.accentText:t.muted,border:`1px solid ${selectedVoice.id===v.id?t.accentMid:t.border}`,borderRadius:10,padding:"8px 14px",cursor:"pointer",textAlign:"left",transition:"all 0.1s"}}>
@@ -6375,7 +6566,7 @@ Be direct, clinical, encouraging. Under 400 words.`;
           </button>
         ))}
       </div>
-      <button onClick={()=>speak(selectedVoice.lang==="es"?"Hola, soy tu supervisado simulado. ¿Cómo suena mi voz?":"Hi, I'm your simulated supervisee. How does my voice sound?")}
+      <button onClick={()=>speak(selectedVoice.lang==="es"?"Hola, soy tu supervisado simulado. ¿Cómo suena mi voz?":"Hi, I'm your simulated supervisee — listening carefully to how you respond.")}
         style={{background:"none",border:`1px solid ${t.border}`,borderRadius:8,padding:"6px 14px",fontSize:12,cursor:"pointer",color:t.muted,fontFamily:"'DM Mono',monospace"}}>
         🔊 Preview {selectedVoice.name}'s voice
       </button>
@@ -6734,28 +6925,74 @@ Keep the tone warm, collegial, and clinically precise. Write in the voice of a s
     </div>
   </div>;
 }
+// ── DiscoverPage — two separate actions: Connect (reach out) vs Add (import) ──
+// InternCard is defined at module scope (outside DiscoverPage) to avoid React
+// seeing it as a new component type every render, which broke button handlers.
 
-// ── DiscoverPage — marketplace for supervisors & interns to find each other ──
-const DEMO_INTERNS = [
-  { id:"di1", name:"Jordan Ellis", credential:"LPC-Intern", discipline:"counseling", pronouns:"they/them", location:"Reno, NV", photo:null, initials:"JE",
-    specialties:["Trauma / PTSD","DBT","Adolescent & Young Adult"], bio:"Motivated LPC-Intern seeking secondary supervision. I work at a community mental health center and specialize in trauma-informed care with adolescents. Passionate about MI and DBT.", lookingFor:"Secondary supervisor with SUD experience a plus.", availableHours:3000, completedHours:820, university:null, telehealth:true, inPerson:true },
-  { id:"di2", name:"Camille Oduya", credential:"Practicum Student", discipline:"student", pronouns:"she/her", location:"Reno, NV", photo:null, initials:"CO",
-    university:"University of Nevada, Reno", specialties:["LGBTQ+ Affirming","Multicultural / BIPOC","Anxiety & Depression"], bio:"Second-year MHC practicum student at UNR seeking clinical placement supervisor. Research focus on culturally responsive care.", lookingFor:"LGBTQ+-affirming supervisor, preferably with community mental health background.", availableHours:300, completedHours:40, telehealth:true, inPerson:true },
-  { id:"di3", name:"Marcus Webb", credential:"LMSW", discipline:"social_work", pronouns:"he/him", location:"Sparks, NV", photo:null, initials:"MW",
-    specialties:["Substance Use / SUD","Crisis Intervention","Behavioral Health"], bio:"LMSW working toward LCSW. Currently at a detox facility, looking for qualified LCSW-S supervisor. Strong interest in SUD and crisis work.", lookingFor:"LCSW-S with SUD or crisis background.", availableHours:3600, completedHours:1200, telehealth:false, inPerson:true },
-  { id:"di4", name:"Preet Kaur", credential:"AMFT", discipline:"mft", pronouns:"she/her", location:"Carson City, NV", photo:null, initials:"PK",
-    specialties:["Couples & Relationships","Perinatal Mental Health","Child & Family"], bio:"AMFT working in private practice with couples and families. Seeking AAMFT-approved supervisor for hours toward LMFT.", lookingFor:"AAMFT-approved supervisor, flexible schedule, telehealth OK.", availableHours:3000, completedHours:560, telehealth:true, inPerson:true },
-];
+function DiscoverInternCard({intern,t,status,onConnect,onAdd,onView}) {
+  // status: null | "requested" | "added"
+  const isRequested = status==="requested";
+  const isAdded     = status==="added";
+  return (
+    <div style={{background:t.surface,border:`1px solid ${isAdded?t.accentMid:t.border}`,borderRadius:14,padding:"18px 20px",boxShadow:"0 1px 4px rgba(0,0,0,0.04)",cursor:"pointer",transition:"box-shadow 0.1s"}}
+      onClick={()=>onView(intern)}
+      onMouseEnter={e=>e.currentTarget.style.boxShadow="0 4px 16px rgba(0,0,0,0.08)"}
+      onMouseLeave={e=>e.currentTarget.style.boxShadow="0 1px 4px rgba(0,0,0,0.04)"}>
+      <div style={{display:"flex",alignItems:"flex-start",gap:12,marginBottom:10}}>
+        <Avatar initials={intern.initials} size={44} T={{accent:t.accent,accentLight:t.accentLight,accentText:t.accentText,bg:t.surfaceAlt,text:t.text}} photo={intern.photo}/>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+            <div style={{fontSize:15,color:t.text,fontWeight:500}}>{intern.name}</div>
+            {intern.pronouns&&<span style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace"}}>{intern.pronouns}</span>}
+            {isAdded&&<Badge color={t.accentText} bg={t.accentLight}>✓ In your account</Badge>}
+            {isRequested&&!isAdded&&<Badge color="#7C3AED" bg="#F3EEFF">Request sent</Badge>}
+          </div>
+          <div style={{fontSize:12,color:t.muted,marginTop:2}}>{intern.credential}{intern.university?` · ${intern.university}`:""}</div>
+          <div style={{fontSize:11,color:t.faint,fontFamily:"'DM Mono',monospace",marginTop:1}}>
+            📍 {intern.location} · {[intern.telehealth&&"Telehealth",intern.inPerson&&"In-person"].filter(Boolean).join(" & ")}
+          </div>
+        </div>
+        <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:2,flexShrink:0}}>
+          <div style={{fontSize:13,color:t.accent,fontFamily:"'DM Mono',monospace",fontWeight:600}}>{intern.completedHours} hrs</div>
+          <div style={{fontSize:10,color:t.faint,fontFamily:"'DM Mono',monospace"}}>of {intern.availableHours} req.</div>
+        </div>
+      </div>
+      <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:10}}>
+        {intern.specialties.slice(0,3).map(s=><span key={s} style={{background:t.accentLight,color:t.accentText,border:`1px solid ${t.accentMid}`,borderRadius:20,padding:"2px 10px",fontSize:11}}>{s}</span>)}
+        {intern.specialties.length>3&&<span style={{fontSize:11,color:t.faint}}>+{intern.specialties.length-3} more</span>}
+      </div>
+      <p style={{fontSize:12,color:t.muted,margin:"0 0 12px",lineHeight:1.6,display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}>{intern.bio}</p>
+      <div style={{display:"flex",gap:8,justifyContent:"flex-end"}} onClick={e=>e.stopPropagation()}>
+        <button onClick={()=>onView(intern)}
+          style={{background:t.surfaceAlt,border:`1px solid ${t.border}`,borderRadius:7,padding:"5px 12px",cursor:"pointer",fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace"}}>
+          View profile
+        </button>
+        {isAdded
+          ? <span style={{fontSize:12,color:t.accentText,fontFamily:"'DM Mono',monospace",alignSelf:"center"}}>✓ Added</span>
+          : isRequested
+            ? <button onClick={()=>onAdd(intern)}
+                style={{background:t.accent,color:"#fff",border:"none",borderRadius:7,padding:"5px 14px",cursor:"pointer",fontSize:12,fontFamily:"inherit",fontWeight:500}}>
+                Add to account
+              </button>
+            : <button onClick={()=>onConnect(intern)}
+                style={{background:"none",color:t.accent,border:`1px solid ${t.accent}`,borderRadius:7,padding:"5px 14px",cursor:"pointer",fontSize:12,fontFamily:"inherit",fontWeight:500}}>
+                Connect
+              </button>}
+      </div>
+    </div>
+  );
+}
 
 function DiscoverPage({interns,onAddIntern,T}) {
   const t=T||THEMES.sage;
-  const [tab,setTab]=useState("interns"); // "interns" | "supervisors"
+  const [tab,setTab]=useState("interns");
   const [search,setSearch]=useState("");
   const [filterDiscipline,setFilterDiscipline]=useState("all");
-  const [filterMode,setFilterMode]=useState("all"); // all | telehealth | inPerson
+  const [filterMode,setFilterMode]=useState("all");
   const [selectedIntern,setSelectedIntern]=useState(null);
-  const [connecting,setConnecting]=useState(null);
-  const [connected,setConnected]=useState(new Set());
+  // Separate state for connect (expressed interest) vs add (imported to account)
+  const [requested,setRequested]=useState(new Set()); // "connected" — request sent
+  const [added,setAdded]=useState(new Set());         // "added" — in account
 
   const DISCIPLINES=[
     {id:"all",label:"All disciplines"},
@@ -6777,8 +7014,11 @@ function DiscoverPage({interns,onAddIntern,T}) {
     return true;
   });
 
-  const connectIntern=(intern)=>{
-    // Auto-populate into supervisor's account
+  const handleConnect=(intern)=>{
+    setRequested(s=>new Set([...s,intern.id]));
+  };
+
+  const handleAdd=(intern)=>{
     const initials=intern.name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
     const newIntern={
       id:Date.now(), name:intern.name, preferredName:"", initials,
@@ -6789,126 +7029,93 @@ function DiscoverPage({interns,onAddIntern,T}) {
       specialties:intern.specialties||[], bio:intern.bio||"",
       supervisorRole:"primary", status:"active", proBono:false,
       groupIds:[], listIds:[], dob:"", photo:null, flags:[],
-      hoursCompleted:intern.completedHours||0,
-      hoursTotal:intern.availableHours||3000,
+      hoursCompleted:intern.completedHours||0, hoursTotal:intern.availableHours||3000,
       individualHours:0, groupHours:0,
       hourLog:[], internHourLog:[], customHourCategories:[],
       payments:[], paymentStatus:"current",
       sessions:[], cases:[], documents:[], evaluations:[], sharedWith:[],
+      startDate:TODAY(),
     };
-    onAddIntern&&onAddIntern(newIntern);
-    setConnected(s=>new Set([...s,intern.id]));
-    setConnecting(null);
+    onAddIntern(newIntern);
+    setAdded(s=>new Set([...s,intern.id]));
     setSelectedIntern(null);
   };
 
-  const InternCard=({intern,compact=false})=>{
-    const isConn=connected.has(intern.id);
-    const alreadyAdded=interns.some(i=>i.name===intern.name);
-    return <div style={{background:t.surface,border:`1px solid ${isConn?t.accentMid:t.border}`,borderRadius:14,padding:compact?"14px 16px":"18px 20px",boxShadow:"0 1px 4px rgba(0,0,0,0.04)",cursor:compact?"default":"pointer",transition:"box-shadow 0.1s"}}
-      onClick={compact?undefined:()=>setSelectedIntern(intern)}
-      onMouseEnter={e=>{if(!compact)e.currentTarget.style.boxShadow="0 4px 16px rgba(0,0,0,0.08)";}}
-      onMouseLeave={e=>{e.currentTarget.style.boxShadow="0 1px 4px rgba(0,0,0,0.04)";}}>
-      <div style={{display:"flex",alignItems:"flex-start",gap:12,marginBottom:10}}>
-        <Avatar initials={intern.initials} size={compact?36:44} T={t} photo={intern.photo}/>
-        <div style={{flex:1,minWidth:0}}>
-          <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
-            <div style={{fontSize:15,color:t.text,fontWeight:500}}>{intern.name}</div>
-            {intern.pronouns&&<span style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace"}}>{intern.pronouns}</span>}
-            {isConn&&<Badge color={t.accentText} bg={t.accentLight}>✓ Added</Badge>}
-          </div>
-          <div style={{fontSize:12,color:t.muted,marginTop:2}}>
-            {intern.credential}{intern.university?` · ${intern.university}`:""}
-          </div>
-          <div style={{fontSize:11,color:t.faint,fontFamily:"'DM Mono',monospace",marginTop:1}}>
-            📍 {intern.location} · {intern.telehealth?"Telehealth":""}  {intern.telehealth&&intern.inPerson?"&":""} {intern.inPerson?"In-person":""}
-          </div>
-        </div>
-        <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4,flexShrink:0}}>
-          <div style={{fontSize:13,color:t.accent,fontFamily:"'DM Mono',monospace",fontWeight:600}}>{intern.completedHours} hrs</div>
-          <div style={{fontSize:10,color:t.faint,fontFamily:"'DM Mono',monospace"}}>of {intern.availableHours} req.</div>
-        </div>
-      </div>
-      <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:10}}>
-        {intern.specialties.slice(0,3).map(s=><span key={s} style={{background:t.accentLight,color:t.accentText,border:`1px solid ${t.accentMid}`,borderRadius:20,padding:"2px 10px",fontSize:11}}>{s}</span>)}
-        {intern.specialties.length>3&&<span style={{fontSize:11,color:t.faint}}>+{intern.specialties.length-3} more</span>}
-      </div>
-      {!compact&&<p style={{fontSize:12,color:t.muted,margin:"0 0 12px",lineHeight:1.6,display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}>{intern.bio}</p>}
-      <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
-        {!compact&&<button onClick={e=>{e.stopPropagation();setSelectedIntern(intern);}}
-          style={{background:t.surfaceAlt,border:`1px solid ${t.border}`,borderRadius:7,padding:"5px 12px",cursor:"pointer",fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace"}}>
-          View profile
-        </button>}
-        {!alreadyAdded&&!isConn
-          ? <button onClick={e=>{e.stopPropagation();setConnecting(intern);}}
-              style={{background:t.accent,color:"#fff",border:"none",borderRadius:7,padding:"5px 14px",cursor:"pointer",fontSize:12,fontFamily:"inherit",fontWeight:500}}>
-              Connect & add
-            </button>
-          : <span style={{fontSize:12,color:t.accentText,fontFamily:"'DM Mono',monospace",padding:"5px 0"}}>{alreadyAdded?"Already in your account":"✓ Added"}</span>}
-      </div>
-    </div>;
+  const getStatus=(intern)=>{
+    const alreadyInAccount=interns.some(i=>i.name===intern.name);
+    if(added.has(intern.id)||alreadyInAccount) return "added";
+    if(requested.has(intern.id)) return "requested";
+    return null;
   };
 
   return <div>
-    {/* Connect confirmation modal */}
-    {connecting&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:20}} onClick={()=>setConnecting(null)}>
-      <div style={{background:t.surface,borderRadius:16,padding:"28px 32px",width:480,boxShadow:"0 24px 64px rgba(0,0,0,0.18)"}} onClick={e=>e.stopPropagation()}>
-        <div style={{fontSize:20,color:t.text,fontWeight:500,marginBottom:6}}>Connect with {connecting.name}?</div>
-        <div style={{fontSize:13,color:t.muted,marginBottom:16,lineHeight:1.7}}>
-          Their profile information will auto-populate into your SupTrack account as a new supervisee — name, pronouns, credential, location, and specialties. You can review and edit everything before your first session.
-        </div>
-        <div style={{background:t.surfaceAlt,borderRadius:10,padding:"12px 14px",marginBottom:20,fontSize:13,color:t.text,lineHeight:1.7}}>
-          <strong>{connecting.name}</strong><br/>
-          {connecting.credential}{connecting.university?` · ${connecting.university}`:""}<br/>
-          📍 {connecting.location}
-        </div>
-        <div style={{background:t.isGradient?(t.gradientSubtle||t.accentLight):t.accentLight,border:`1px solid ${t.accentMid}`,borderRadius:8,padding:"10px 14px",marginBottom:20,fontSize:12,color:t.accentText}}>
-          ✓ No double data entry — everything they've already entered transfers automatically.
-        </div>
-        <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
-          <Btn T={t} variant="secondary" onClick={()=>setConnecting(null)}>Cancel</Btn>
-          <Btn T={t} onClick={()=>connectIntern(connecting)}>✓ Connect & add to my account</Btn>
-        </div>
-      </div>
-    </div>}
-
     {/* Intern detail modal */}
     {selectedIntern&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:20}} onClick={()=>setSelectedIntern(null)}>
-      <div style={{background:t.surface,borderRadius:16,width:540,maxHeight:"88vh",overflowY:"auto",boxShadow:"0 24px 64px rgba(0,0,0,0.18)"}} onClick={e=>e.stopPropagation()}>
-        <div style={{padding:"22px 26px"}}>
-          <div style={{display:"flex",alignItems:"flex-start",gap:14,marginBottom:16}}>
+      <div style={{background:t.surface,borderRadius:16,width:540,maxHeight:"90vh",overflowY:"auto",boxShadow:"0 24px 64px rgba(0,0,0,0.18)"}} onClick={e=>e.stopPropagation()}>
+        <div style={{padding:"24px 28px"}}>
+          <div style={{display:"flex",alignItems:"flex-start",gap:14,marginBottom:18}}>
             <Avatar initials={selectedIntern.initials} size={60} T={t} photo={selectedIntern.photo}/>
             <div style={{flex:1}}>
               <div style={{fontSize:20,color:t.text,fontWeight:500,marginBottom:2}}>{selectedIntern.name}</div>
               <div style={{fontSize:13,color:t.muted}}>{selectedIntern.pronouns} · {selectedIntern.credential}</div>
-              <div style={{fontSize:12,color:t.faint,marginTop:2}}>📍 {selectedIntern.location} · {selectedIntern.telehealth?"Telehealth":""}{selectedIntern.telehealth&&selectedIntern.inPerson?" & ":""}{selectedIntern.inPerson?"In-person":""}</div>
+              <div style={{fontSize:12,color:t.faint,marginTop:2}}>📍 {selectedIntern.location}</div>
             </div>
-            <button onClick={()=>setSelectedIntern(null)} style={{background:"none",border:"none",cursor:"pointer",fontSize:18,color:t.faint,padding:4}}>✕</button>
+            <button onClick={()=>setSelectedIntern(null)} style={{background:"none",border:"none",cursor:"pointer",fontSize:20,color:t.faint,padding:4,lineHeight:1}}>✕</button>
           </div>
-          <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:6}}>About</div>
-          <p style={{fontSize:13,color:t.text,lineHeight:1.7,margin:"0 0 16px"}}>{selectedIntern.bio}</p>
-          <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:6}}>Looking for</div>
-          <p style={{fontSize:13,color:t.text,lineHeight:1.6,margin:"0 0 16px"}}>{selectedIntern.lookingFor}</p>
+
+          <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:5}}>About</div>
+          <p style={{fontSize:13,color:t.text,lineHeight:1.7,margin:"0 0 14px"}}>{selectedIntern.bio}</p>
+          <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:5}}>Looking for</div>
+          <p style={{fontSize:13,color:t.text,lineHeight:1.6,margin:"0 0 14px"}}>{selectedIntern.lookingFor}</p>
           <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:8}}>Specialties</div>
-          <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:16}}>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:18}}>
             {selectedIntern.specialties.map(s=><span key={s} style={{background:t.accentLight,color:t.accentText,border:`1px solid ${t.accentMid}`,borderRadius:20,padding:"3px 12px",fontSize:12}}>{s}</span>)}
           </div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:20}}>
-            {[
-              ["Hours completed",selectedIntern.completedHours],
-              ["Hours required",selectedIntern.availableHours],
-              ["Discipline",selectedIntern.discipline?.replace("_"," ")],
-              selectedIntern.university&&["University",selectedIntern.university],
-            ].filter(Boolean).map(([label,val])=>(
+            {[["Hours completed",selectedIntern.completedHours],["Hours required",selectedIntern.availableHours],["Discipline",selectedIntern.discipline?.replace("_"," ")],selectedIntern.university&&["University",selectedIntern.university]].filter(Boolean).map(([label,val])=>(
               <div key={label} style={{background:t.surfaceAlt,borderRadius:8,padding:"10px 12px"}}>
                 <div style={{fontSize:10,color:t.faint,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:3}}>{label}</div>
                 <div style={{fontSize:14,color:t.text}}>{val}</div>
               </div>
             ))}
           </div>
-          {!interns.some(i=>i.name===selectedIntern.name)
-            ? <Btn T={t} onClick={()=>setConnecting(selectedIntern)} style={{width:"100%",textAlign:"center",justifyContent:"center"}}>Connect & add to my account</Btn>
-            : <div style={{textAlign:"center",fontSize:13,color:t.accentText,padding:"10px 0"}}>✓ Already in your SupTrack account</div>}
+
+          {/* Action area — Connect vs Add clearly explained */}
+          {(()=>{
+            const status=getStatus(selectedIntern);
+            if(status==="added") return <div style={{textAlign:"center",padding:"12px 0",fontSize:13,color:t.accentText,fontWeight:500}}>✓ {selectedIntern.name} is in your SupTrack account</div>;
+            if(status==="requested") return <div style={{display:"flex",flexDirection:"column",gap:10}}>
+              <div style={{background:"#F3EEFF",border:"1px solid #DDD0FA",borderRadius:10,padding:"12px 14px",fontSize:13,color:"#5B21B6",lineHeight:1.6}}>
+                ✓ Connection request sent to {selectedIntern.name}. Once they confirm, you can add them to your account.
+              </div>
+              <button onClick={()=>handleAdd(selectedIntern)}
+                style={{background:t.accent,color:"#fff",border:"none",borderRadius:9,padding:"11px",cursor:"pointer",fontSize:14,fontWeight:600,fontFamily:"inherit"}}>
+                Add to my account (skip waiting)
+              </button>
+              <div style={{fontSize:11,color:t.faint,textAlign:"center",fontFamily:"'DM Mono',monospace"}}>Their info will auto-populate — no double data entry</div>
+            </div>;
+            return <div style={{display:"flex",flexDirection:"column",gap:10}}>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                <div style={{background:t.surfaceAlt,border:`1px solid ${t.border}`,borderRadius:10,padding:"14px 16px"}}>
+                  <div style={{fontSize:13,color:t.text,fontWeight:500,marginBottom:4}}>Connect</div>
+                  <div style={{fontSize:12,color:t.muted,lineHeight:1.6,marginBottom:10}}>Express interest — send {selectedIntern.name} a notification that you'd like to work together. No commitment yet.</div>
+                  <button onClick={()=>handleConnect(selectedIntern)}
+                    style={{width:"100%",background:"none",color:t.accent,border:`1px solid ${t.accent}`,borderRadius:8,padding:"8px",cursor:"pointer",fontSize:13,fontWeight:500,fontFamily:"inherit"}}>
+                    Send connection request
+                  </button>
+                </div>
+                <div style={{background:t.accentLight,border:`1px solid ${t.accentMid}`,borderRadius:10,padding:"14px 16px"}}>
+                  <div style={{fontSize:13,color:t.accentText,fontWeight:500,marginBottom:4}}>Add to account</div>
+                  <div style={{fontSize:12,color:t.accentText,lineHeight:1.6,marginBottom:10,opacity:0.85}}>You've agreed to work together — import their profile into your SupTrack account. No double data entry.</div>
+                  <button onClick={()=>handleAdd(selectedIntern)}
+                    style={{width:"100%",background:t.accent,color:"#fff",border:"none",borderRadius:8,padding:"8px",cursor:"pointer",fontSize:13,fontWeight:500,fontFamily:"inherit"}}>
+                    Add to my account
+                  </button>
+                </div>
+              </div>
+              <div style={{fontSize:11,color:t.faint,textAlign:"center",fontFamily:"'DM Mono',monospace"}}>Connect = express interest · Add = they're officially your supervisee</div>
+            </div>;
+          })()}
         </div>
       </div>
     </div>}
@@ -6916,11 +7123,10 @@ function DiscoverPage({interns,onAddIntern,T}) {
     <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:20}}>
       <div>
         <h1 style={{fontFamily:"inherit",fontSize:28,fontWeight:400,color:t.text,margin:"0 0 4px",letterSpacing:"-0.02em"}}>Discover</h1>
-        <p style={{color:t.muted,fontSize:14,margin:0}}>Find interns and supervisors that align with your values and practice</p>
+        <p style={{color:t.muted,fontSize:14,margin:0}}>Find supervisees and supervisors that align with your values and practice</p>
       </div>
     </div>
 
-    {/* Tab toggle */}
     <div style={{display:"flex",gap:0,border:`1px solid ${t.border}`,borderRadius:10,overflow:"hidden",marginBottom:20,width:"fit-content"}}>
       {[["interns","Find supervisees"],["supervisors","Find supervisors"]].map(([id,label],i)=>(
         <button key={id} onClick={()=>setTab(id)}
@@ -6931,7 +7137,6 @@ function DiscoverPage({interns,onAddIntern,T}) {
     </div>
 
     {tab==="interns"&&<div>
-      {/* Search & filters */}
       <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap",alignItems:"center"}}>
         <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search by name, specialty, location..."
           style={{flex:1,minWidth:200,border:`1px solid ${t.border}`,borderRadius:9,padding:"8px 14px",fontSize:13,fontFamily:"inherit",color:t.text,background:t.bg,outline:"none"}}/>
@@ -6949,10 +7154,26 @@ function DiscoverPage({interns,onAddIntern,T}) {
         </div>
       </div>
 
-      <div style={{fontSize:12,color:t.faint,marginBottom:14}}>{filtered.length} supervisee{filtered.length!==1?"s":""} available</div>
+      {/* Legend */}
+      <div style={{display:"flex",gap:16,marginBottom:14,fontSize:12,color:t.muted}}>
+        <span><span style={{color:t.accent,fontWeight:500}}>Connect</span> = send interest, no commitment</span>
+        <span style={{color:t.faint}}>·</span>
+        <span><span style={{color:t.accentText,fontWeight:500}}>Add to account</span> = import their profile, start supervision</span>
+      </div>
 
+      <div style={{fontSize:12,color:t.faint,marginBottom:14}}>{filtered.length} supervisee{filtered.length!==1?"s":""} available</div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
-        {filtered.map(intern=><InternCard key={intern.id} intern={intern}/>)}
+        {filtered.map(intern=>(
+          <DiscoverInternCard
+            key={intern.id}
+            intern={intern}
+            t={t}
+            status={getStatus(intern)}
+            onConnect={handleConnect}
+            onAdd={handleAdd}
+            onView={setSelectedIntern}
+          />
+        ))}
         {filtered.length===0&&<div style={{gridColumn:"1/-1",textAlign:"center",padding:"40px 0",color:t.muted,fontSize:14}}>No matches found. Try adjusting your filters.</div>}
       </div>
     </div>}
@@ -6961,14 +7182,16 @@ function DiscoverPage({interns,onAddIntern,T}) {
       <div style={{fontSize:36,marginBottom:16}}>🔭</div>
       <div style={{fontSize:18,color:t.text,fontWeight:500,marginBottom:8}}>Supervisor discovery coming soon</div>
       <div style={{fontSize:14,color:t.muted,lineHeight:1.7,maxWidth:400,margin:"0 auto 24px"}}>
-        Interns will be able to browse supervisor profiles, filter by specialty, approach, and location, and request to be added to a supervisor's caseload — all without any double data entry.
+        Interns will be able to browse supervisor profiles, filter by specialty, approach, and location, and request to connect — all without double data entry.
       </div>
       <div style={{background:t.surfaceAlt,borderRadius:12,padding:"16px 20px",maxWidth:440,margin:"0 auto",fontSize:13,color:t.muted,lineHeight:1.7}}>
-        Your public profile at <span style={{color:t.accentText,fontFamily:"'DM Mono',monospace"}}>suptrack.io/supervisor/alyson-k</span> is already live — interns can view it now when they're browsing supervisors.
+        Your public profile at <span style={{color:t.accentText,fontFamily:"'DM Mono',monospace"}}>suptrack.io/supervisor/alyson-k</span> is already live for interns to find you.
       </div>
     </div>}
   </div>;
 }
+
+
 
 function ResourcesPage({T}) {
   const t=T||THEMES.sage;
@@ -7777,7 +8000,8 @@ function SettingsPage({theme,setTheme,setCustomTheme,font,setFont,darkMode,setDa
       {/* Color wheel builder */}
       <div style={{background:t.surfaceAlt,border:`1px solid ${t.border}`,borderRadius:12,padding:"20px 22px"}}>
         <div style={{fontSize:14,color:t.text,fontWeight:500,marginBottom:4}}>🎨 Custom color builder</div>
-        <p style={{fontSize:13,color:t.muted,marginBottom:16}}>Pick any color and SupTrack builds a full matching palette automatically</p>
+        <p style={{fontSize:13,color:t.muted,marginBottom:4}}>Don't like any of the preset themes? Build your own. Pick a base color and SupTrack automatically generates a full coordinated palette — accent, light, borders, text — so everything still looks polished.</p>
+        <p style={{fontSize:12,color:t.faint,marginBottom:16,fontFamily:"'DM Mono',monospace"}}>Pick a color below → preview updates live → click "Apply custom theme" to use it</p>
 
         <div style={{display:"grid",gridTemplateColumns:"auto 1fr",gap:20,alignItems:"start",marginBottom:18}}>
           {/* Color wheel */}
@@ -8250,7 +8474,6 @@ export default function SupTrack() {
     {id:"ce",         label:"CE Tracker"},
     {id:"consult",    label:"✦ Consult AI"},
     {id:"lab",        label:"✦ Supervision Lab"},
-    {id:"resources",  label:"Resources"},
     {id:"agreements", label:"Agreements"},
     {id:"discover",   label:"🔭 Discover"},
     {id:"profile",    label:"My Profile"},
@@ -8288,7 +8511,10 @@ export default function SupTrack() {
 
   return <div style={{display:"flex",minHeight:"100vh",background:t.bg,fontFamily:f.body}}>
     <link href={f.url} rel="stylesheet"/>
-    <style>{`* { font-family: ${f.body}; } h1,h2,h3,.serif { font-family: ${f.display} !important; }
+    <style>{`
+    *, *::before, *::after { box-sizing: border-box; }
+    body, button, input, select, textarea { font-family: ${f.body} !important; }
+    h1, h2, h3 { font-family: ${f.display} !important; }
     ${t.isRainbow ? `
       @keyframes rainbowShift { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
       .rainbow-active { background: linear-gradient(90deg,#9B6FD4,#C88AC8,#F4A0C0,#4DBDBD,#9B6FD4) !important; background-size: 300% 300% !important; animation: rainbowShift 4s ease infinite !important; -webkit-background-clip: text !important; -webkit-text-fill-color: transparent !important; background-clip: text !important; }
@@ -8435,7 +8661,10 @@ export default function SupTrack() {
       {page==="interns"&&<InterneesPage T={t} interns={interns} groups={groups} lists={lists} internFilter={internFilter} setInternFilter={setInternFilter} internSort={internSort} setInternSort={setInternSort} internViewMode={internViewMode} setInternViewMode={setInternViewMode} onSelectIntern={i=>{setSelectedInternId_sv(i.id);setPage("intern-profile");}} onGroupClick={(gid)=>{setSelectedGroupId(gid);setPage("groups");}} onAddIntern={()=>setAddInternOpen(true)} onOpenOnboarding={()=>setOnboardingOpen(true)}/>}
       {page==="groups"&&<GroupsPage T={t} groups={groups} interns={interns} setGroups={setGroups} initialGroupId={selectedGroupId} updateInterns={addSessionCharge} updateIntern={updateIntern} onSelectIntern={i=>{setSelectedInternId_sv(i.id);setPage("intern-profile");}}/>}
       {page==="lists"&&<div>
-        <h1 style={{fontFamily:f.display,fontSize:28,fontWeight:400,color:t.text,margin:"0 0 24px",letterSpacing:"-0.02em"}}>My Lists</h1>
+        <h1 style={{fontFamily:f.display,fontSize:28,fontWeight:400,color:t.text,margin:"0 0 8px",letterSpacing:"-0.02em"}}>My Lists</h1>
+        <div style={{background:t.surfaceAlt,border:`1px solid ${t.border}`,borderRadius:10,padding:"12px 16px",marginBottom:24,fontSize:13,color:t.muted,lineHeight:1.7}}>
+          <strong style={{color:t.text}}>Lists vs Groups:</strong> <strong>Groups</strong> are for supervision sessions — you log group notes, take attendance, and charge members together. <strong>Lists</strong> are personal organizational tags — like "Needs follow-up", "High priority", or "Sliding scale" — that help you filter and view supervisees your way. One supervisee can be in multiple lists; lists don't affect billing or session logs.
+        </div>
         {lists.length===0&&<div style={{fontSize:14,color:t.faint,textAlign:"center",padding:"40px 0"}}>No lists yet — create one from any supervisee's profile.</div>}
         {lists.map(l=>{
           const members=interns.filter(i=>i.listIds.includes(l.id));
