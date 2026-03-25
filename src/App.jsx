@@ -8610,6 +8610,28 @@ function SettingsPage({theme,setTheme,setCustomTheme,font,setFont,darkMode,setDa
         </button>)}
       </div>
     </div>
+
+    <div style={{background:t.surface,border:`1px solid ${S.red}30`,borderRadius:14,padding:"22px 24px",boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
+      <div style={{fontFamily:"inherit",fontSize:18,color:t.text,marginBottom:4}}>Reset prototype data</div>
+      <p style={{fontSize:13,color:t.muted,marginBottom:16,lineHeight:1.6}}>
+        Clears all saved changes (profiles, tags, hours, sessions, etc.) and restores the original demo data. Use this if you want to start fresh or if something seems broken.
+      </p>
+      <button
+        onClick={()=>{
+          if(window.confirm("Reset all data to the original demo? This cannot be undone.")){
+            localStorage.removeItem("suptrack_interns");
+            localStorage.removeItem("suptrack_groups");
+            localStorage.removeItem("suptrack_lists");
+            localStorage.removeItem("suptrack_theme");
+            localStorage.removeItem("suptrack_font");
+            localStorage.removeItem("suptrack_dark");
+            window.location.reload();
+          }
+        }}
+        style={{background:"none",border:`1px solid ${S.red}`,borderRadius:8,padding:"8px 20px",cursor:"pointer",fontSize:13,color:S.red,fontFamily:"'DM Mono',monospace"}}>
+        Reset to demo data
+      </button>
+    </div>
   </div>;
 }
 
@@ -8881,14 +8903,34 @@ function InternPortal({intern:initialIntern,groups,onExit,onUpdateIntern,supervi
 
 // ── App Shell ──────────────────────────────────────────────────────────────
 export default function SupTrack() {
-  const [theme,setTheme]=useState("suptrack");
-  const [darkMode,setDarkMode]=useState(false);
+  const [theme,setTheme]=useState(()=>{try{return localStorage.getItem("suptrack_theme")||"suptrack";}catch{return "suptrack";}});
+  const [darkMode,setDarkMode]=useState(()=>{try{return localStorage.getItem("suptrack_dark")==="true";}catch{return false;}});
   const [highContrast,setHighContrast]=useState(true);
-  const [fontKey,setFontKey]=useState("plus_jakarta");
+  const [fontKey,setFontKey]=useState(()=>{try{return localStorage.getItem("suptrack_font")||"plus_jakarta";}catch{return "plus_jakarta";}});
   const [customTheme,setCustomTheme]=useState(null);
-  const [interns,setInterns]=useState(INITIAL_INTERNS);
-  const [groups,setGroups]=useState(INITIAL_GROUPS);
-  const [lists,setLists]=useState(INITIAL_LISTS);
+
+  // Persist preferences
+  React.useEffect(()=>{try{localStorage.setItem("suptrack_theme",theme);}catch{}},[theme]);
+  React.useEffect(()=>{try{localStorage.setItem("suptrack_dark",darkMode);}catch{}},[darkMode]);
+  React.useEffect(()=>{try{localStorage.setItem("suptrack_font",fontKey);}catch{}},[fontKey]);
+  // ── Persistent state — survives page refresh via localStorage ──
+  const [interns,setInterns]=useState(()=>{
+    try{const s=localStorage.getItem("suptrack_interns");return s?JSON.parse(s):INITIAL_INTERNS;}
+    catch{return INITIAL_INTERNS;}
+  });
+  const [groups,setGroups]=useState(()=>{
+    try{const s=localStorage.getItem("suptrack_groups");return s?JSON.parse(s):INITIAL_GROUPS;}
+    catch{return INITIAL_GROUPS;}
+  });
+  const [lists,setLists]=useState(()=>{
+    try{const s=localStorage.getItem("suptrack_lists");return s?JSON.parse(s):INITIAL_LISTS;}
+    catch{return INITIAL_LISTS;}
+  });
+
+  // Save to localStorage whenever state changes
+  React.useEffect(()=>{try{localStorage.setItem("suptrack_interns",JSON.stringify(interns));}catch{}},[interns]);
+  React.useEffect(()=>{try{localStorage.setItem("suptrack_groups",JSON.stringify(groups));}catch{}},[groups]);
+  React.useEffect(()=>{try{localStorage.setItem("suptrack_lists",JSON.stringify(lists));}catch{}},[lists]);
   const [page,setPage]=useState("dashboard");
   const [selectedInternId_sv,setSelectedInternId_sv]=useState(null);
   const selectedIntern = interns.find(i=>i.id===selectedInternId_sv)||null;
