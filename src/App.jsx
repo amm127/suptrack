@@ -198,17 +198,18 @@ const INITIAL_INTERNS = [
     groupIds:["g1"], listIds:["l2"], proBono:false, paymentStatus:"current",
     hoursTotal:3000, hoursCompleted:1842, individualHours:920, groupHours:922,
     hourLog: [
-      { id:"h1", category:"individual",          type:"direct",   hours:920, label:"Individual Supervision" },
-      { id:"h2", category:"group",               type:"direct",   hours:482, label:"Group Supervision" },
-      { id:"h3", category:"primary_supervision", type:"direct",   hours:440, label:"Primary Supervision" },
-      { id:"h4", category:"secondary_supervision",type:"direct",  hours:0,   label:"Secondary Supervision" },
+      { id:"h1", category:"individual_supervision", type:"direct", hours:56, label:"Individual Supervision" },
+      { id:"h2", category:"group_supervision",      type:"direct", hours:28, label:"Group Supervision" },
     ],
     internHourLog: [
-      { id:"h1", category:"individual",          type:"direct",   hours:932, label:"Individual Supervision" },
-      { id:"h2", category:"group",               type:"direct",   hours:482, label:"Group Supervision" },
-      { id:"h3", category:"primary_supervision", type:"direct",   hours:440, label:"Primary Supervision" },
-      { id:"h4", category:"secondary_supervision",type:"direct",  hours:0,   label:"Secondary Supervision" },
-      { id:"h5", category:"custom",              type:"indirect", hours:88,  label:"Case Consultation" },
+      { id:"s1", category:"primary_supervision_received",   type:"direct",   hours:56,  label:"Individual Supervision — Primary" },
+      { id:"s2", category:"secondary_supervision_received", type:"direct",   hours:0,   label:"Individual Supervision — Secondary" },
+      { id:"s3", category:"group_supervision_received",     type:"direct",   hours:28,  label:"Group Supervision Received" },
+      { id:"i1", category:"mft_clients",         type:"direct",   hours:920, label:"Therapy with Clients (Individual)" },
+      { id:"i2", category:"group_therapy",        type:"direct",   hours:180, label:"Group Therapy (with Clients)" },
+      { id:"i3", category:"personal_therapy",     type:"indirect", hours:40,  label:"Personal Therapy" },
+      { id:"i4", category:"documented_teaching",  type:"indirect", hours:20,  label:"Documented Teaching / Workshops" },
+      { id:"i5", category:"additional_training",  type:"indirect", hours:32,  label:"Additional Training / Graduate Work" },
     ],
     customHourCategories: [],
     flags:[
@@ -252,16 +253,18 @@ const INITIAL_INTERNS = [
     groupIds:["g1"], listIds:["l1"], proBono:false, paymentStatus:"overdue",
     hoursTotal:3000, hoursCompleted:1104, individualHours:540, groupHours:564,
     hourLog: [
-      { id:"h1", category:"individual",          type:"direct",   hours:540, label:"Individual Supervision" },
-      { id:"h2", category:"group",               type:"direct",   hours:564, label:"Group Supervision" },
-      { id:"h3", category:"primary_supervision", type:"direct",   hours:0,   label:"Primary Supervision" },
-      { id:"h4", category:"secondary_supervision",type:"direct",  hours:540, label:"Secondary Supervision" },
+      { id:"h1", category:"individual_supervision", type:"direct", hours:32, label:"Individual Supervision" },
+      { id:"h2", category:"group_supervision",      type:"direct", hours:18, label:"Group Supervision" },
     ],
     internHourLog: [
-      { id:"h1", category:"individual",          type:"direct",   hours:540, label:"Individual Supervision" },
-      { id:"h2", category:"group",               type:"direct",   hours:564, label:"Group Supervision" },
-      { id:"h3", category:"primary_supervision", type:"direct",   hours:0,   label:"Primary Supervision" },
-      { id:"h4", category:"secondary_supervision",type:"direct",  hours:540, label:"Secondary Supervision" },
+      { id:"s1", category:"primary_supervision_received",   type:"direct",   hours:0,   label:"Individual Supervision — Primary" },
+      { id:"s2", category:"secondary_supervision_received", type:"direct",   hours:32,  label:"Individual Supervision — Secondary" },
+      { id:"s3", category:"group_supervision_received",     type:"direct",   hours:18,  label:"Group Supervision Received" },
+      { id:"i1", category:"mft_clients",         type:"direct",   hours:540, label:"Therapy with Clients (Individual)" },
+      { id:"i2", category:"group_therapy",        type:"direct",   hours:120, label:"Group Therapy (with Clients)" },
+      { id:"i3", category:"personal_therapy",     type:"indirect", hours:20,  label:"Personal Therapy" },
+      { id:"i4", category:"documented_teaching",  type:"indirect", hours:8,   label:"Documented Teaching / Workshops" },
+      { id:"i5", category:"additional_training",  type:"indirect", hours:12,  label:"Additional Training / Graduate Work" },
     ],
     customHourCategories: [],
     flags:[
@@ -979,7 +982,22 @@ function QuickActionModal({action, interns, groups, onClose, onUpdateIntern, T})
       date: TODAY(), type: sessionType,
       duration: `${duration} min`, notes: note.trim(), author:"Alyson"
     };
-    onUpdateIntern({...intern, sessions:[session,...(intern.sessions||[])]});
+    // Also credit hours to supervisor's hourLog
+    const hrs = Math.round((Number(duration)/60)*10)/10;
+    const catId = sessionType==="Individual"||sessionType==="Phone/Telehealth"||sessionType==="Emergency"
+      ? "individual_direct" : "individual_direct";
+    const catLabel = "Individual Supervision";
+    const existingLog = intern.hourLog||[];
+    const existingEntry = existingLog.find(e=>e.category===catId);
+    const newLog = existingEntry
+      ? existingLog.map(e=>e.category===catId?{...e,hours:Math.round((e.hours+hrs)*10)/10}:e)
+      : [...existingLog,{category:catId,label:catLabel,type:"direct",hours:hrs}];
+    const newTotal = newLog.reduce((s,e)=>s+e.hours,0);
+    onUpdateIntern({...intern,
+      sessions:[session,...(intern.sessions||[])],
+      hourLog:newLog,
+      hoursCompleted: Math.round(newTotal),
+    });
     onClose();
   };
 
@@ -1031,9 +1049,21 @@ function QuickActionModal({action, interns, groups, onClose, onUpdateIntern, T})
         <InternPicker/>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
           <div>
-            <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:5}}>Type</div>
+            <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:5}}>Category</div>
             <select value={sessionType} onChange={e=>setSessionType(e.target.value)} style={{...iStyle,cursor:"pointer"}}>
-              {["Individual","Phone/Telehealth","Emergency"].map(s=><option key={s}>{s}</option>)}
+              <optgroup label="Direct">
+                <option value="Individual Supervision">Individual Supervision</option>
+                <option value="Group Supervision">Group Supervision</option>
+                <option value="Triadic Supervision">Triadic Supervision</option>
+                <option value="Live Supervision">Live Supervision</option>
+                <option value="Phone / Telehealth">Phone / Telehealth</option>
+              </optgroup>
+              <optgroup label="Indirect">
+                <option value="Case Consultation">Case Consultation</option>
+                <option value="Report Writing">Report Writing</option>
+                <option value="Administrative Tasks">Administrative Tasks</option>
+                <option value="Training / Didactic">Training / Didactic</option>
+              </optgroup>
             </select>
           </div>
           <div>
@@ -1121,7 +1151,7 @@ function AISessionModal({intern,groupContext,onSave,onClose,T}) {
   const [form,setForm]=useState({
     date: TODAY(),
     duration: "60",
-    sessionType: groupContext ? "Group" : "Individual",
+    sessionType: groupContext ? "Group Supervision" : "Individual Supervision",
     summary:"",
     bullets:"",
   });
@@ -1184,13 +1214,32 @@ Use professional clinical language appropriate for licensure documentation. Be s
 
   const save = () => {
     const note = editing ? document.getElementById("ai-note-edit")?.value || result : result;
-    onSave({
+    const session = {
       date: form.date,
       type: form.sessionType,
       duration: `${form.duration} min`,
       author: "Alyson",
       notes: note,
-    });
+    };
+    // Determine if direct or indirect from session type
+    const directTypes = ["Individual Supervision","Group Supervision","Triadic Supervision","Live Supervision","Phone / Telehealth","Group"];
+    const isDirect = directTypes.some(d=>form.sessionType.includes(d.split(" ")[0]));
+    const hrs = Math.round((Number(form.duration)/60)*10)/10;
+    const catId = isDirect ? "individual_direct" : "individual_indirect";
+    const catLabel = isDirect ? "Individual Supervision" : "Case Consultation";
+    const catType = isDirect ? "direct" : "indirect";
+    // Only credit hourLog if this is for an individual intern (not group)
+    if(intern) {
+      const existingLog = intern.hourLog||[];
+      const existingEntry = existingLog.find(e=>e.category===catId);
+      const newLog = existingEntry
+        ? existingLog.map(e=>e.category===catId?{...e,hours:Math.round((e.hours+hrs)*10)/10}:e)
+        : [...existingLog,{category:catId,label:catLabel,type:catType,hours:hrs}];
+      const newTotal = newLog.reduce((s,e)=>s+e.hours,0);
+      onSave({...session,_hourLog:newLog,_newTotal:Math.round(newTotal)});
+    } else {
+      onSave(session);
+    }
     onClose();
   };
 
@@ -1224,11 +1273,22 @@ Use professional clinical language appropriate for licensure documentation. Be s
                 style={{width:"100%",border:`1px solid ${t.border}`,borderRadius:8,padding:"8px 12px",fontSize:13,fontFamily:"'DM Sans',system-ui,sans-serif",color:t.text,background:t.bg,outline:"none",boxSizing:"border-box"}}/>
             </div>
             <div>
-              <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:6}}>Type</div>
+              <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:6}}>Category</div>
               <select value={form.sessionType} onChange={e=>setForm(p=>({...p,sessionType:e.target.value}))}
                 style={{width:"100%",border:`1px solid ${t.border}`,borderRadius:8,padding:"8px 12px",fontSize:13,fontFamily:"'DM Sans',system-ui,sans-serif",color:t.text,background:t.surface,outline:"none"}}>
-                <option>Individual</option>
-                <option>Group</option>
+                <optgroup label="Direct">
+                  <option value="Individual Supervision">Individual Supervision</option>
+                  <option value="Group Supervision">Group Supervision</option>
+                  <option value="Triadic Supervision">Triadic Supervision</option>
+                  <option value="Live Supervision">Live Supervision</option>
+                  <option value="Phone / Telehealth">Phone / Telehealth</option>
+                </optgroup>
+                <optgroup label="Indirect">
+                  <option value="Case Consultation">Case Consultation</option>
+                  <option value="Report Writing">Report Writing</option>
+                  <option value="Administrative Tasks">Administrative Tasks</option>
+                  <option value="Training / Didactic">Training / Didactic</option>
+                </optgroup>
               </select>
             </div>
           </div>
@@ -1295,55 +1355,59 @@ Use professional clinical language appropriate for licensure documentation. Be s
 }
 
 
-const DEFAULT_CATEGORIES = [
-  { id:"individual_direct",   label:"Individual Supervision", type:"direct"   },
-  { id:"group_direct",        label:"Group Supervision",      type:"direct"   },
-  { id:"individual_indirect", label:"Case Consultation",      type:"indirect" },
-  { id:"group_indirect",      label:"Report Writing / Admin", type:"indirect" },
+// ── Hours category system ──────────────────────────────────────────────────
+// Supervisor side: ONLY supervision hours (auto-populated from session notes)
+const SUP_CATEGORIES = [
+  { id:"individual_supervision", label:"Individual Supervision", type:"direct",   note:"Primary + Secondary" },
+  { id:"group_supervision",      label:"Group Supervision",      type:"direct",   note:"Logged via Groups tab" },
 ];
 
-// Standard category presets for the dropdown
-const CATEGORY_PRESETS = [
-  // Direct
-  { id:"individual_direct",   label:"Individual Supervision",  type:"direct"   },
-  { id:"group_direct",        label:"Group Supervision",       type:"direct"   },
-  { id:"triadic",             label:"Triadic Supervision",     type:"direct"   },
-  { id:"peer_supervision",    label:"Peer Supervision",        type:"direct"   },
-  { id:"live_supervision",    label:"Live Supervision",        type:"direct"   },
-  // Indirect
-  { id:"case_consultation",   label:"Case Consultation",       type:"indirect" },
-  { id:"report_writing",      label:"Report Writing",          type:"indirect" },
-  { id:"admin_tasks",         label:"Administrative Tasks",    type:"indirect" },
-  { id:"training",            label:"Training / Didactic",     type:"indirect" },
-  { id:"reading_research",    label:"Reading / Research",      type:"indirect" },
+// Intern side: their own clinical hours (matches NV BOE Form #1 lines 2–6)
+// Disciplines can customize, but these are the standard NV MFT/LPC defaults
+const INTERN_CATEGORIES = [
+  // Supervision received (Line 1 on the BOE form — intern's side)
+  { id:"primary_supervision_received",   label:"Individual Supervision — Primary",   type:"direct",   min:300,  max:null, note:"From your primary supervisor" },
+  { id:"secondary_supervision_received", label:"Individual Supervision — Secondary", type:"direct",   min:null, max:null, note:"From your secondary supervisor (if applicable)" },
+  { id:"group_supervision_received",     label:"Group Supervision Received",          type:"direct",   min:null, max:null, note:"Group supervision sessions attended" },
+  // Clinical hours (Lines 2–6 on the BOE form)
+  { id:"mft_clients",         label:"Therapy with Clients (Individual)",  type:"direct",   min:1500, max:null, note:"Individual client sessions" },
+  { id:"group_therapy",       label:"Group Therapy (with Clients)",        type:"direct",   min:null, max:600,  note:"Max 600 hrs" },
+  { id:"personal_therapy",    label:"Personal Therapy",                    type:"indirect", min:null, max:150,  note:"Max 150 hrs" },
+  { id:"documented_teaching", label:"Documented Teaching / Workshops",     type:"indirect", min:null, max:200,  note:"Parent/family ed, workshops" },
+  { id:"additional_training", label:"Additional Training / Graduate Work", type:"indirect", min:null, max:200,  note:"Approved workshops, grad coursework" },
 ];
+
+// Legacy — kept for backward compat with existing hourLog entries
+const DEFAULT_CATEGORIES = INTERN_CATEGORIES;
+const CATEGORY_PRESETS   = INTERN_CATEGORIES;
 
 const sumHours = (log) => log.reduce((s,e)=>s+e.hours,0);
 const directHours   = (log) => log.filter(e=>e.type==="direct").reduce((s,e)=>s+e.hours,0);
 const indirectHours = (log) => log.filter(e=>e.type==="indirect").reduce((s,e)=>s+e.hours,0);
 
-// ── HoursBreakdown (supervisor view: comparison + session log + adjust) ──────
+// ── HoursBreakdown (supervisor view — supervision hours only) ─────────────
 function HoursBreakdown({intern,onUpdateIntern,T}) {
   const t=T||THEMES.sage;
-  const [tab,setTab]=useState("comparison");
-  const supLog  = intern.hourLog       || [];
-  const intLog  = intern.internHourLog || [];
-  const supTotal    = sumHours(supLog);
-  const intTotal    = sumHours(intLog);
-  const supDirect   = directHours(supLog);
-  const supIndirect = indirectHours(supLog);
-  const intDirect   = directHours(intLog);
-  const intIndirect = indirectHours(intLog);
-  const sessions    = intern.sessions || [];
+  const [tab,setTab]=useState("supervision");
+  const sessions = intern.sessions||[];
 
-  const allCats  = [...new Map([...supLog,...intLog].map(e=>[e.category,{id:e.category,label:e.label,type:e.type}])).values()];
-  const supBycat = Object.fromEntries(supLog.map(e=>[e.category,e.hours]));
-  const intBycat = Object.fromEntries(intLog.map(e=>[e.category,e.hours]));
-  const anyDisc  = allCats.some(c=>{const s=supBycat[c.id]||0;const i=intBycat[c.id]||0;return s!==i;});
-  const cell = (val,disc) => <div style={{fontSize:14,color:t.text,fontFamily:"'DM Mono',monospace",fontWeight:disc?600:400}}>{val}{disc?" ⚠":""}</div>;
+  const parseDuration=(dur)=>{
+    if(!dur) return 1;
+    const n=parseFloat(dur);
+    if(typeof dur==="string"&&dur.includes("min")) return Math.round(n/60*10)/10;
+    return n;
+  };
+
+  const indivSessions = sessions.filter(s=>!s.type?.toLowerCase().includes("group"));
+  const groupSessions = sessions.filter(s=>s.type?.toLowerCase().includes("group"));
+  const indivHrs  = Math.round(indivSessions.reduce((s,e)=>s+parseDuration(e.duration),0)*10)/10;
+  const groupHrs  = Math.round(groupSessions.reduce((s,e)=>s+parseDuration(e.duration),0)*10)/10;
+  const totalSupHrs = Math.round((indivHrs+groupHrs)*10)/10;
+
+  const TABS=[["supervision","Supervision Hours"],["sessions","Session Log"],["adjust","Adjust Hours"]];
 
   const downloadCSV=()=>{
-    const rows=[["Session Date","Type","Duration","Notes"],...sessions.map(s=>[s.date,s.type||"Individual",s.duration||"",`"${(s.notes||"").replace(/"/g,'\"')}"]`])];
+    const rows=[["Session Date","Type","Duration","Notes"],...sessions.map(s=>[s.date,s.type||"Individual Supervision",s.duration||"",`"${(s.notes||"").replace(/"/g,'\\"')}")`])];
     const csv=rows.map(r=>r.join(",")).join("\n");
     const blob=new Blob([csv],{type:"text/csv"});
     const url=URL.createObjectURL(blob);
@@ -1352,18 +1416,18 @@ function HoursBreakdown({intern,onUpdateIntern,T}) {
     URL.revokeObjectURL(url);
   };
 
-  const TABS=[["comparison","Hour Comparison"],["sessions","Session Log"],["adjust","Adjust Hours"]];
-
   return <div style={{display:"flex",flexDirection:"column",gap:16}}>
-    {/* Summary */}
     <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12}}>
-      <StatCard T={t} label="Supervisor logged" value={supTotal} color={t.accent}/>
-      <StatCard T={t} label="Intern reported"   value={intTotal} color={intTotal!==supTotal?S.amber:t.text}/>
-      <StatCard T={t} label="Direct hours"       value={supDirect} color={t.accent}/>
-      <StatCard T={t} label="Sessions logged"    value={sessions.length}/>
+      <StatCard T={t} label="Total supervision" value={totalSupHrs} color={t.accent} sub="hrs logged"/>
+      <StatCard T={t} label="Individual" value={indivHrs} color={t.accent}/>
+      <StatCard T={t} label="Group" value={groupHrs}/>
+      <StatCard T={t} label="Sessions" value={sessions.length}/>
     </div>
 
-    {/* Sub-tabs */}
+    <div style={{background:t.accentLight,border:`1px solid ${t.accentMid}`,borderRadius:10,padding:"10px 16px",fontSize:13,color:t.accentText,lineHeight:1.6}}>
+      ✦ Supervision hours are <strong>automatically calculated</strong> from logged session notes — no manual entry needed. Log a session → hours update instantly. {dn(intern)}'s client clinical hours are tracked separately by {dn(intern)} in their portal.
+    </div>
+
     <div style={{display:"flex",gap:0,borderBottom:`1px solid ${t.border}`}}>
       {TABS.map(([id,label])=>(
         <button key={id} onClick={()=>setTab(id)}
@@ -1373,77 +1437,76 @@ function HoursBreakdown({intern,onUpdateIntern,T}) {
       ))}
     </div>
 
-    {/* Comparison tab */}
-    {tab==="comparison"&&<div>
-      {anyDisc&&<div style={{background:S.amberLight,border:"1px solid #E8C98A",borderRadius:10,padding:"11px 16px",fontSize:13,color:S.amber,marginBottom:8}}>
-        ⚠ Some hours don't match — rows marked below. Resolve before the reporting period closes.
-      </div>}
+    {tab==="supervision"&&<div>
       <div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:14,overflow:"hidden",boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
-        <div style={{display:"grid",gridTemplateColumns:"2fr .7fr 1fr 1fr 1fr",background:t.surfaceAlt,padding:"10px 18px",gap:8}}>
-          {["Category","Type","My log","Intern reported","Difference"].map(h=><div key={h} style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em"}}>{h}</div>)}
+        <div style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr",background:t.surfaceAlt,padding:"10px 18px",gap:8}}>
+          {["Supervision type","Sessions","Hours"].map(h=>(
+            <div key={h} style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em"}}>{h}</div>
+          ))}
         </div>
-        {allCats.map(cat=>{
-          const s=supBycat[cat.id]||0;const i=intBycat[cat.id]||0;
-          const disc=s!==i;const diff=i-s;
-          return <div key={cat.id} style={{display:"grid",gridTemplateColumns:"2fr .7fr 1fr 1fr 1fr",padding:"12px 18px",gap:8,borderTop:`1px solid ${t.borderLight}`,background:disc?`${t.accent}12`:"transparent",alignItems:"center"}}>
-            <div style={{fontSize:14,color:t.text}}>{cat.label}</div>
-            <div><Badge color={cat.type==="direct"?t.accentText:t.muted} bg={cat.type==="direct"?t.accentLight:t.surfaceAlt}>{cat.type}</Badge></div>
-            {cell(s,false)}{cell(i,disc)}
-            <div style={{fontSize:13,color:disc?t.accent:t.faint,fontFamily:"'DM Mono',monospace"}}>{disc?(diff>0?`+${diff}`:diff):"—"}</div>
-          </div>;
-        })}
-        <div style={{display:"grid",gridTemplateColumns:"2fr .7fr 1fr 1fr 1fr",padding:"12px 18px",gap:8,borderTop:`2px solid ${t.border}`,background:t.surfaceAlt}}>
-          <div style={{fontSize:13,color:t.text,fontWeight:600}}>Direct</div><div/>
-          <div style={{fontSize:13,color:t.accent,fontFamily:"'DM Mono',monospace",fontWeight:600}}>{supDirect}</div>
-          <div style={{fontSize:13,color:intDirect!==supDirect?S.amber:t.accent,fontFamily:"'DM Mono',monospace",fontWeight:600}}>{intDirect}{intDirect!==supDirect?" ⚠":""}</div><div/>
-        </div>
-        <div style={{display:"grid",gridTemplateColumns:"2fr .7fr 1fr 1fr 1fr",padding:"12px 18px",gap:8,borderTop:`1px solid ${t.borderLight}`,background:t.surfaceAlt}}>
-          <div style={{fontSize:13,color:t.text,fontWeight:600}}>Indirect</div><div/>
-          <div style={{fontSize:13,color:t.muted,fontFamily:"'DM Mono',monospace",fontWeight:600}}>{supIndirect}</div>
-          <div style={{fontSize:13,color:intIndirect!==supIndirect?S.amber:t.muted,fontFamily:"'DM Mono',monospace",fontWeight:600}}>{intIndirect}{intIndirect!==supIndirect?" ⚠":""}</div><div/>
-        </div>
-        <div style={{display:"grid",gridTemplateColumns:"2fr .7fr 1fr 1fr 1fr",padding:"13px 18px",gap:8,borderTop:`2px solid ${t.border}`}}>
-          <div style={{fontSize:14,color:t.text,fontWeight:700}}>Grand total</div><div/>
-          <div style={{fontSize:14,color:t.accent,fontFamily:"'DM Mono',monospace",fontWeight:700}}>{supTotal}</div>
-          <div style={{fontSize:14,color:intTotal!==supTotal?S.amber:t.accent,fontFamily:"'DM Mono',monospace",fontWeight:700}}>{intTotal}{intTotal!==supTotal?" ⚠":""}</div>
-          <div style={{fontSize:12,color:t.faint,fontFamily:"'DM Mono',monospace"}}>{intTotal!==supTotal?(intTotal-supTotal>0?`+${intTotal-supTotal}`:intTotal-supTotal):"✓ Match"}</div>
+        {[
+          {label:"Individual Supervision",note:"Auto-calculated from session notes · Direct",sessions:indivSessions,hrs:indivHrs},
+          {label:"Group Supervision",note:"Auto-calculated from group sessions · Direct",sessions:groupSessions,hrs:groupHrs},
+        ].map((row,i)=>(
+          <div key={i} style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr",padding:"14px 18px",gap:8,borderTop:`1px solid ${t.borderLight}`,alignItems:"center"}}>
+            <div>
+              <div style={{fontSize:14,color:t.text,fontWeight:500}}>{row.label}</div>
+              <div style={{fontSize:11,color:t.faint,fontFamily:"'DM Mono',monospace",marginTop:2}}>{row.note}</div>
+            </div>
+            <div style={{fontSize:14,color:t.muted,fontFamily:"'DM Mono',monospace"}}>{row.sessions.length}</div>
+            <div style={{fontSize:16,color:t.accent,fontFamily:"'DM Mono',monospace",fontWeight:700}}>{row.hrs}</div>
+          </div>
+        ))}
+        <div style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr",padding:"13px 18px",gap:8,borderTop:`2px solid ${t.border}`,background:t.surfaceAlt}}>
+          <div style={{fontSize:14,color:t.text,fontWeight:700}}>Total supervision hours</div>
+          <div style={{fontSize:14,color:t.muted,fontFamily:"'DM Mono',monospace",fontWeight:700}}>{sessions.length}</div>
+          <div style={{fontSize:18,color:t.accent,fontFamily:"'DM Mono',monospace",fontWeight:700}}>{totalSupHrs}</div>
         </div>
       </div>
+      {intern.supervisorHoursLog?.length>0&&<div style={{marginTop:16}}>
+        <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:10}}>Six-month period history</div>
+        {intern.supervisorHoursLog.map((row,i)=>(
+          <div key={i} style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:10,padding:"12px 16px",display:"flex",alignItems:"center",gap:16,marginBottom:8}}>
+            <div style={{fontSize:13,color:t.text,fontWeight:500,flex:1}}>{row.period}</div>
+            <div style={{fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace"}}>Individual: <strong style={{color:t.accent}}>{row.individual}</strong></div>
+            <div style={{fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace"}}>Group: <strong style={{color:t.accent}}>{row.group}</strong></div>
+            <div style={{fontSize:13,color:t.accentText,fontFamily:"'DM Mono',monospace",fontWeight:600}}>{row.individual+row.group} hrs total</div>
+          </div>
+        ))}
+      </div>}
     </div>}
 
-    {/* Session log tab */}
     {tab==="sessions"&&<div>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
-        <div style={{fontSize:13,color:t.muted}}>{sessions.length} session{sessions.length!==1?"s":""} logged by supervisor</div>
+        <div style={{fontSize:13,color:t.muted}}>{sessions.length} session{sessions.length!==1?"s":""} logged</div>
         {sessions.length>0&&<button onClick={downloadCSV}
           style={{background:"none",border:`1px solid ${t.border}`,borderRadius:7,padding:"5px 12px",cursor:"pointer",fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace"}}>
           ⬇ Download (.csv)
         </button>}
       </div>
       {sessions.length===0
-        ? <div style={{fontSize:13,color:t.faint,padding:"24px 0",textAlign:"center"}}>No individual sessions logged yet for {dn(intern)}.</div>
+        ? <div style={{fontSize:13,color:t.faint,padding:"24px 0",textAlign:"center"}}>No sessions logged yet — use "Log a session" from the profile or dashboard.</div>
         : sessions.map((s,i)=>(
             <div key={i} style={{background:t.surface,border:`1px solid ${t.border}`,borderLeft:`3px solid ${t.accent}`,borderRadius:10,padding:"12px 16px",marginBottom:8}}>
               <div style={{display:"flex",gap:8,marginBottom:s.notes?6:0,alignItems:"center",flexWrap:"wrap"}}>
                 <Badge color={t.muted} bg={t.surfaceAlt}>{s.date}</Badge>
-                <Badge color={t.accentText} bg={t.accentLight}>{s.type||"Individual"}</Badge>
+                <Badge color={t.accentText} bg={t.accentLight}>{s.type||"Individual Supervision"}</Badge>
                 {s.duration&&<Badge color={t.muted} bg={t.surfaceAlt}>{s.duration}</Badge>}
+                <span style={{fontSize:11,color:t.faint,fontFamily:"'DM Mono',monospace",marginLeft:"auto"}}>{s.author}</span>
               </div>
               {s.notes&&<p style={{fontSize:13,color:t.text,margin:0,lineHeight:1.6}}>{s.notes}</p>}
             </div>
           ))}
     </div>}
 
-    {/* Adjust hours tab */}
     {tab==="adjust"&&<div>
       <div style={{background:S.amberLight,border:"1px solid #E8C98A",borderRadius:10,padding:"12px 16px",marginBottom:16,fontSize:13,color:"#7A5A00",lineHeight:1.6}}>
-        ⚠ <strong>Supervisor adjustment.</strong> Use this only to correct data entry errors in SupTrack. If {dn(intern)} submitted incorrect hours to their licensing board, they need to correct that separately — this only updates what's tracked here.
+        ⚠ <strong>For SupTrack data errors only.</strong> Supervision hours are auto-calculated from session notes. Only adjust here if a session was logged with wrong duration and you cannot edit it. If {dn(intern)} submitted incorrect hours to their licensing board, that must be corrected directly with the board.
       </div>
       <InternHoursEditor key={`sup-adj-${intern.id}`} T={t} intern={intern} onUpdate={onUpdateIntern} supervisorMode={true}/>
     </div>}
   </div>;
 }
-
 
 // ── InternHoursEditor (intern portal — can log & add categories) ───────────
 function InternHoursEditor({intern,onUpdate,T,supervisorMode}) {
@@ -1466,7 +1529,7 @@ function InternHoursEditor({intern,onUpdate,T,supervisorMode}) {
   const groupSessionCount = intern.groupIds?.reduce((s,gid)=>s,0)||0;
 
   const allCats = [
-    ...DEFAULT_CATEGORIES,
+    ...INTERN_CATEGORIES,
     ...customCats.map(c=>typeof c==="string"?{id:`custom_${c}`,label:c,type:"direct"}:c),
   ];
 
@@ -1522,11 +1585,16 @@ function InternHoursEditor({intern,onUpdate,T,supervisorMode}) {
 
     {/* Summary cards */}
     <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12}}>
-      <StatCard T={t} label="Grand total" value={total} color={t.accent}/>
-      <StatCard T={t} label="Direct" value={direct} color={t.accent}/>
+      <StatCard T={t} label="Clinical hours total" value={total} color={t.accent}/>
+      <StatCard T={t} label="Direct (client contact)" value={direct} color={t.accent}/>
       <StatCard T={t} label="Indirect" value={indirect}/>
-      <StatCard T={t} label="Sessions logged" value={sessionCount} sub="by supervisor"/>
+      <StatCard T={t} label="Supervision sessions" value={sessionCount} sub="logged by supervisor"/>
     </div>
+
+    {/* BOE context note */}
+    {!supervisorMode&&<div style={{background:t.accentLight,border:`1px solid ${t.accentMid}`,borderRadius:10,padding:"10px 16px",fontSize:13,color:t.accentText,lineHeight:1.6}}>
+      Log your hours below — supervision received (primary, secondary, group) and all your clinical hours. Your supervisor's session notes automatically credit your supervision rows, but you can update them here too if anything is missing.
+    </div>}
 
     {/* Supervisor adjustment note */}
     {supervisorMode&&<div style={{background:t.isGradient?(t.gradientSubtle||t.accentLight):t.accentLight,border:`1px solid ${t.isGradient?"transparent":t.accentMid}`,borderRadius:10,padding:"10px 16px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
@@ -1543,15 +1611,20 @@ function InternHoursEditor({intern,onUpdate,T,supervisorMode}) {
 
     {/* Editable breakdown */}
     <div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:14,overflow:"hidden",boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
-      <div style={{display:"grid",gridTemplateColumns:"2fr .8fr 1fr 40px",background:t.surfaceAlt,padding:"10px 18px",gap:8}}>
-        {["Category","Type","Hours",""].map(h=><div key={h} style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em"}}>{h}</div>)}
+      <div style={{display:"grid",gridTemplateColumns:"2.5fr .7fr 1fr .8fr 40px",background:t.surfaceAlt,padding:"10px 18px",gap:8}}>
+        {["Category","Type","Hours","Limit",""].map(h=><div key={h} style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em"}}>{h}</div>)}
       </div>
       {allCats.map((cat)=>{
         const entry=fullLog.find(e=>e.category===cat.id||e.label===cat.label);
         const hrs=entry?.hours||0;
         const isCustom=customCats.some(c=>(typeof c==="string"?`custom_${c}`:c.id)===cat.id||c===cat.label);
-        return <div key={cat.id} style={{display:"grid",gridTemplateColumns:"2fr .8fr 1fr 40px",padding:"10px 18px",gap:8,borderTop:`1px solid ${t.borderLight}`,alignItems:"center"}}>
-          <div style={{fontSize:14,color:t.text}}>{cat.label}</div>
+        const atMax = cat.max && hrs>=cat.max;
+        const metMin = cat.min && hrs>=cat.min;
+        return <div key={cat.id} style={{display:"grid",gridTemplateColumns:"2.5fr .7fr 1fr .8fr 40px",padding:"10px 18px",gap:8,borderTop:`1px solid ${t.borderLight}`,alignItems:"center",background:atMax?`${S.amber}10`:"transparent"}}>
+          <div>
+            <div style={{fontSize:13,color:t.text,fontWeight:500}}>{cat.label}</div>
+            {cat.note&&<div style={{fontSize:11,color:t.faint,fontFamily:"'DM Mono',monospace",marginTop:1}}>{cat.note}</div>}
+          </div>
           <div><Badge color={cat.type==="direct"?t.accentText:t.muted} bg={cat.type==="direct"?t.accentLight:t.surfaceAlt}>{cat.type}</Badge></div>
           <div>
             {editing===cat.id
@@ -1561,21 +1634,24 @@ function InternHoursEditor({intern,onUpdate,T,supervisorMode}) {
                   style={{width:80,border:`1px solid ${t.accentMid}`,borderRadius:6,padding:"4px 8px",fontSize:14,fontFamily:"'DM Mono',monospace",color:t.text,background:t.accentLight,outline:"none"}}/>
               : <button onClick={()=>setEditing(cat.id)} style={{background:"none",border:`1px solid ${t.border}`,borderRadius:6,padding:"4px 12px",cursor:"pointer",fontSize:14,color:t.text,fontFamily:"'DM Mono',monospace",textAlign:"left",minWidth:60}}>{hrs} <span style={{fontSize:11,color:t.faint}}>✎</span></button>}
           </div>
+          <div style={{fontSize:11,fontFamily:"'DM Mono',monospace"}}>
+            {cat.min&&<div style={{color:metMin?S.green:t.faint}}>min {cat.min}{metMin?" ✓":""}</div>}
+            {cat.max&&<div style={{color:atMax?S.amber:t.faint}}>max {cat.max}{atMax?" ⚠":""}</div>}
+          </div>
           <div>{isCustom&&<button onClick={()=>removeCustom(cat.id)} title="Remove" style={{background:"none",border:"none",cursor:"pointer",color:t.faint,fontSize:14,padding:0}}>✕</button>}</div>
         </div>;
       })}
-      {/* Subtotals */}
-      <div style={{display:"grid",gridTemplateColumns:"2fr .8fr 1fr 40px",padding:"11px 18px",gap:8,borderTop:`2px solid ${t.border}`,background:t.surfaceAlt}}>
-        <div style={{fontSize:13,color:t.text,fontWeight:600}}>Direct subtotal</div><div/>
-        <div style={{fontSize:13,color:t.accent,fontFamily:"'DM Mono',monospace",fontWeight:600}}>{direct}</div><div/>
+      <div style={{display:"grid",gridTemplateColumns:"2.5fr .7fr 1fr .8fr 40px",padding:"11px 18px",gap:8,borderTop:`2px solid ${t.border}`,background:t.surfaceAlt}}>
+        <div style={{fontSize:13,color:t.text,fontWeight:600}}>Direct (client contact)</div><div/>
+        <div style={{fontSize:13,color:t.accent,fontFamily:"'DM Mono',monospace",fontWeight:600}}>{direct}</div><div/><div/>
       </div>
-      <div style={{display:"grid",gridTemplateColumns:"2fr .8fr 1fr 40px",padding:"11px 18px",gap:8,borderTop:`1px solid ${t.borderLight}`,background:t.surfaceAlt}}>
-        <div style={{fontSize:13,color:t.text,fontWeight:600}}>Indirect subtotal</div><div/>
-        <div style={{fontSize:13,color:t.muted,fontFamily:"'DM Mono',monospace",fontWeight:600}}>{indirect}</div><div/>
+      <div style={{display:"grid",gridTemplateColumns:"2.5fr .7fr 1fr .8fr 40px",padding:"11px 18px",gap:8,borderTop:`1px solid ${t.borderLight}`,background:t.surfaceAlt}}>
+        <div style={{fontSize:13,color:t.text,fontWeight:600}}>Indirect</div><div/>
+        <div style={{fontSize:13,color:t.muted,fontFamily:"'DM Mono',monospace",fontWeight:600}}>{indirect}</div><div/><div/>
       </div>
-      <div style={{display:"grid",gridTemplateColumns:"2fr .8fr 1fr 40px",padding:"13px 18px",gap:8,borderTop:`2px solid ${t.border}`}}>
+      <div style={{display:"grid",gridTemplateColumns:"2.5fr .7fr 1fr .8fr 40px",padding:"13px 18px",gap:8,borderTop:`2px solid ${t.border}`}}>
         <div style={{fontSize:14,fontWeight:700,color:t.text}}>Grand total</div><div/>
-        <div style={{fontSize:14,color:t.accent,fontFamily:"'DM Mono',monospace",fontWeight:700}}>{total}</div><div/>
+        <div style={{fontSize:14,color:t.accent,fontFamily:"'DM Mono',monospace",fontWeight:700}}>{total}</div><div/><div/>
       </div>
     </div>
 
@@ -2014,7 +2090,11 @@ function InternProfile({intern,groups,lists,onBack,onUpdateIntern,onConsult,onOp
     {exportOpen&&<ExportModal T={t} intern={intern} groups={groups} onClose={()=>setExportOpen(false)}/>}
     {flagOpen&&<FlagModal T={t} intern={intern} onSave={flags=>{onUpdateIntern({...intern,flags});setFlagOpen(false);}} onClose={()=>setFlagOpen(false)}/>}
     {editProfileOpen&&<EditProfileModal T={t} intern={intern} onSave={onUpdateIntern} onClose={()=>setEditProfileOpen(false)}/>}
-    {aiSessionOpen&&<AISessionModal T={t} intern={intern} onSave={session=>{onUpdateIntern({...intern,sessions:[session,...(intern.sessions||[])]});}} onClose={()=>setAiSessionOpen(false)}/>}
+    {aiSessionOpen&&<AISessionModal T={t} intern={intern} onSave={session=>{
+      const update={...intern,sessions:[session,...(intern.sessions||[])]};
+      if(session._hourLog){update.hourLog=session._hourLog;update.hoursCompleted=session._newTotal;}
+      onUpdateIntern(update);
+    }} onClose={()=>setAiSessionOpen(false)}/>}
 
     <button onClick={onBack} style={{background:"none",border:"none",cursor:"pointer",color:t.muted,fontSize:13,padding:"0 0 16px",fontFamily:"'DM Mono',monospace"}}>← Back</button>
 
@@ -2074,7 +2154,7 @@ function InternProfile({intern,groups,lists,onBack,onUpdateIntern,onConsult,onOp
     {tab==="overview"&&<div style={{display:"flex",flexDirection:"column",gap:14}}>
       {/* Stats row */}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:12}}>
-        <StatCard T={t} label="Hours Completed" value={intern.hoursCompleted.toLocaleString()} sub={`of ${intern.hoursTotal.toLocaleString()} required`} color={t.accent}/>
+        <StatCard T={t} label="Hours Completed" value={intern.hoursCompleted.toLocaleString()} sub={`of ${intern.hoursTotal.toLocaleString()} required`} color={t.accent} onClick={()=>setTab("hours")}/>
         <StatCard T={t} label="Completion" value={`${Math.round(intern.hoursCompleted/intern.hoursTotal*100)}%`} sub="Toward licensure goal"/>
         <StatCard T={t} label="Sessions logged" value={intern.sessions?.length||0}/>
         <StatCard T={t} label="Cases staffed" value={intern.cases?.length||0}/>
@@ -8468,7 +8548,6 @@ export default function SupTrack() {
     {id:"dashboard",  label:"Dashboard",        required:true},
     {id:"interns",    label:"Supervisees",       required:true},
     {id:"groups",     label:"Groups"},
-    {id:"lists",      label:"My Lists"},
     {id:"calendar",   label:"Calendar"},
     {id:"payments",   label:"Payments"},
     {id:"ce",         label:"CE Tracker"},
@@ -8660,44 +8739,7 @@ export default function SupTrack() {
       {page==="intern-profile"&&selectedIntern&&<InternProfile T={t} intern={selectedIntern} groups={groups} lists={lists} onBack={()=>{setSelectedInternId_sv(null);setPage("interns");}} onUpdateIntern={updateIntern} onConsult={i=>{setConsultIntern(i);setPage("consult");}} onOpenLab={()=>setPage("lab")}/>}
       {page==="interns"&&<InterneesPage T={t} interns={interns} groups={groups} lists={lists} internFilter={internFilter} setInternFilter={setInternFilter} internSort={internSort} setInternSort={setInternSort} internViewMode={internViewMode} setInternViewMode={setInternViewMode} onSelectIntern={i=>{setSelectedInternId_sv(i.id);setPage("intern-profile");}} onGroupClick={(gid)=>{setSelectedGroupId(gid);setPage("groups");}} onAddIntern={()=>setAddInternOpen(true)} onOpenOnboarding={()=>setOnboardingOpen(true)}/>}
       {page==="groups"&&<GroupsPage T={t} groups={groups} interns={interns} setGroups={setGroups} initialGroupId={selectedGroupId} updateInterns={addSessionCharge} updateIntern={updateIntern} onSelectIntern={i=>{setSelectedInternId_sv(i.id);setPage("intern-profile");}}/>}
-      {page==="lists"&&<div>
-        <h1 style={{fontFamily:f.display,fontSize:28,fontWeight:400,color:t.text,margin:"0 0 8px",letterSpacing:"-0.02em"}}>My Lists</h1>
-        <div style={{background:t.surfaceAlt,border:`1px solid ${t.border}`,borderRadius:10,padding:"12px 16px",marginBottom:24,fontSize:13,color:t.muted,lineHeight:1.7}}>
-          <strong style={{color:t.text}}>Lists vs Groups:</strong> <strong>Groups</strong> are for supervision sessions — you log group notes, take attendance, and charge members together. <strong>Lists</strong> are personal organizational tags — like "Needs follow-up", "High priority", or "Sliding scale" — that help you filter and view supervisees your way. One supervisee can be in multiple lists; lists don't affect billing or session logs.
-        </div>
-        {lists.length===0&&<div style={{fontSize:14,color:t.faint,textAlign:"center",padding:"40px 0"}}>No lists yet — create one from any supervisee's profile.</div>}
-        {lists.map(l=>{
-          const members=interns.filter(i=>i.listIds.includes(l.id));
-          return <div key={l.id} style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:14,padding:"18px 22px",marginBottom:14,boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
-            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:members.length>0?12:0}}>
-              <div style={{width:10,height:10,borderRadius:"50%",background:l.color,flexShrink:0}}/>
-              <span style={{fontFamily:"inherit",fontSize:17,color:t.text,fontWeight:500}}>{l.name}</span>
-              <Badge color={l.color} bg={l.colorLight}>{members.length} supervisee{members.length!==1?"s":""}</Badge>
-            </div>
-            {members.length===0&&<div style={{fontSize:13,color:t.faint,paddingTop:4}}>No supervisees in this list yet.</div>}
-            <div style={{display:"flex",flexDirection:"column",gap:0}}>
-              {members.map((intern,i)=>(
-                <div key={intern.id} onClick={()=>{setSelectedInternId_sv(intern.id);setPage("intern-profile");}}
-                  style={{display:"flex",alignItems:"center",gap:12,padding:"10px 10px",borderTop:i>0?`1px solid ${t.borderLight}`:"none",cursor:"pointer",borderRadius:8,transition:"background 0.1s",margin:"0 -10px"}}
-                  onMouseEnter={e=>e.currentTarget.style.background=t.surfaceAlt}
-                  onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                  <Avatar initials={intern.initials} size={30} T={t} photo={intern.photo}/>
-                  <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontSize:14,color:t.text,fontWeight:500,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{dn(intern)}</div>
-                    <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",marginTop:1}}>{intern.credential} · {intern.startDate}</div>
-                  </div>
-                  <div style={{display:"flex",gap:5,flexShrink:0,alignItems:"center"}}>
-                    <RoleBadge role={intern.supervisorRole}/>
-                    {activeFlags(intern).length>0&&<FlagDots intern={intern}/>}
-                    {intern.paymentStatus==="overdue"&&!intern.proBono&&<span style={{fontSize:11,color:t.accentText}} title="Payment overdue">⚠</span>}
-                  </div>
-                  <span style={{fontSize:12,color:t.faint}}>›</span>
-                </div>
-              ))}
-            </div>
-          </div>;
-        })}
-      </div>}
+
       {page==="payments"&&<PaymentsPage T={t} interns={interns} groups={groups} onSelectIntern={i=>{setSelectedInternId_sv(i.id);setPage("intern-profile");}}/>}
       {page==="billing"&&<BillingPage T={t} F={f} billing={billing} setBilling={setBilling} interns={interns}/>}
       {page==="ce"&&<CETrackerPage T={t} ceData={ceData} setCeData={setCeData}/>}
