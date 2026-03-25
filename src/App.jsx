@@ -1389,6 +1389,7 @@ const indirectHours = (log) => log.filter(e=>e.type==="indirect").reduce((s,e)=>
 function HoursBreakdown({intern,onUpdateIntern,T}) {
   const t=T||THEMES.sage;
   const [tab,setTab]=useState("supervision");
+  const [expandedPeriod,setExpandedPeriod]=useState(null);
   const sessions = intern.sessions||[];
 
   const parseDuration=(dur)=>{
@@ -1404,10 +1405,16 @@ function HoursBreakdown({intern,onUpdateIntern,T}) {
   const groupHrs  = Math.round(groupSessions.reduce((s,e)=>s+parseDuration(e.duration),0)*10)/10;
   const totalSupHrs = Math.round((indivHrs+groupHrs)*10)/10;
 
-  const TABS=[["supervision","Supervision Hours"],["sessions","Session Log"],["adjust","Adjust Hours"]];
+  // Intern clinical hours
+  const internLog = intern.internHourLog||[];
+  const internTotal = internLog.reduce((s,e)=>s+e.hours,0);
+  const internDirect = internLog.filter(e=>e.type==="direct").reduce((s,e)=>s+e.hours,0);
+  const internIndirect = internLog.filter(e=>e.type==="indirect").reduce((s,e)=>s+e.hours,0);
+
+  const TABS=[["supervision","Supervision (My Log)"],["intern","Intern's Full Log"],["sessions","Session Notes"],["adjust","Adjust"]];
 
   const downloadCSV=()=>{
-    const rows=[["Session Date","Type","Duration","Notes"],...sessions.map(s=>[s.date,s.type||"Individual Supervision",s.duration||"",`"${(s.notes||"").replace(/"/g,'\\"')}")`])];
+    const rows=[["Session Date","Type","Duration","Notes"],...sessions.map(s=>[s.date,s.type||"Individual Supervision",s.duration||"",`"${(s.notes||"").replace(/"/g,'\\"')}"`])];
     const csv=rows.map(r=>r.join(",")).join("\n");
     const blob=new Blob([csv],{type:"text/csv"});
     const url=URL.createObjectURL(blob);
@@ -1418,26 +1425,26 @@ function HoursBreakdown({intern,onUpdateIntern,T}) {
 
   return <div style={{display:"flex",flexDirection:"column",gap:16}}>
     <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12}}>
-      <StatCard T={t} label="Total supervision" value={totalSupHrs} color={t.accent} sub="hrs logged"/>
-      <StatCard T={t} label="Individual" value={indivHrs} color={t.accent}/>
-      <StatCard T={t} label="Group" value={groupHrs}/>
-      <StatCard T={t} label="Sessions" value={sessions.length}/>
-    </div>
-
-    <div style={{background:t.accentLight,border:`1px solid ${t.accentMid}`,borderRadius:10,padding:"10px 16px",fontSize:13,color:t.accentText,lineHeight:1.6}}>
-      ✦ Supervision hours are <strong>automatically calculated</strong> from logged session notes — no manual entry needed. Log a session → hours update instantly. {dn(intern)}'s client clinical hours are tracked separately by {dn(intern)} in their portal.
+      <StatCard T={t} label="Supervision logged" value={totalSupHrs} color={t.accent} sub="hrs by you"/>
+      <StatCard T={t} label="Individual sup." value={indivHrs} color={t.accent}/>
+      <StatCard T={t} label="Group sup." value={groupHrs}/>
+      <StatCard T={t} label="Intern clinical total" value={internTotal} sub="self-reported"/>
     </div>
 
     <div style={{display:"flex",gap:0,borderBottom:`1px solid ${t.border}`}}>
       {TABS.map(([id,label])=>(
         <button key={id} onClick={()=>setTab(id)}
-          style={{background:"none",border:"none",borderBottom:tab===id?`2px solid ${t.accent}`:"2px solid transparent",padding:"8px 20px",cursor:"pointer",fontSize:13,color:tab===id?t.accent:t.muted,fontFamily:"inherit",fontWeight:tab===id?500:400,marginBottom:-1,transition:"all 0.15s"}}>
+          style={{background:"none",border:"none",borderBottom:tab===id?`2px solid ${t.accent}`:"2px solid transparent",padding:"8px 16px",cursor:"pointer",fontSize:13,color:tab===id?t.accent:t.muted,fontFamily:"inherit",fontWeight:tab===id?500:400,marginBottom:-1,transition:"all 0.15s"}}>
           {label}
         </button>
       ))}
     </div>
 
+    {/* ── My Supervision Log ── */}
     {tab==="supervision"&&<div>
+      <div style={{background:t.accentLight,border:`1px solid ${t.accentMid}`,borderRadius:10,padding:"10px 16px",fontSize:13,color:t.accentText,lineHeight:1.6,marginBottom:14}}>
+        ✦ These hours are <strong>auto-calculated from your logged session notes</strong>. Switch to "Intern's Full Log" to see everything {dn(intern)} is tracking.
+      </div>
       <div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:14,overflow:"hidden",boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
         <div style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr",background:t.surfaceAlt,padding:"10px 18px",gap:8}}>
           {["Supervision type","Sessions","Hours"].map(h=>(
@@ -1445,8 +1452,8 @@ function HoursBreakdown({intern,onUpdateIntern,T}) {
           ))}
         </div>
         {[
-          {label:"Individual Supervision",note:"Auto-calculated from session notes · Direct",sessions:indivSessions,hrs:indivHrs},
-          {label:"Group Supervision",note:"Auto-calculated from group sessions · Direct",sessions:groupSessions,hrs:groupHrs},
+          {label:"Individual Supervision",note:"Direct hours · auto from session notes",sessions:indivSessions,hrs:indivHrs},
+          {label:"Group Supervision",note:"Direct hours · auto from group sessions",sessions:groupSessions,hrs:groupHrs},
         ].map((row,i)=>(
           <div key={i} style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr",padding:"14px 18px",gap:8,borderTop:`1px solid ${t.borderLight}`,alignItems:"center"}}>
             <div>
@@ -1463,19 +1470,99 @@ function HoursBreakdown({intern,onUpdateIntern,T}) {
           <div style={{fontSize:18,color:t.accent,fontFamily:"'DM Mono',monospace",fontWeight:700}}>{totalSupHrs}</div>
         </div>
       </div>
+
+      {/* Six-month period history — clickable */}
       {intern.supervisorHoursLog?.length>0&&<div style={{marginTop:16}}>
-        <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:10}}>Six-month period history</div>
+        <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:10}}>
+          Six-month period history <span style={{fontSize:10,color:t.faint,textTransform:"none",letterSpacing:"normal"}}>(click to expand)</span>
+        </div>
         {intern.supervisorHoursLog.map((row,i)=>(
-          <div key={i} style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:10,padding:"12px 16px",display:"flex",alignItems:"center",gap:16,marginBottom:8}}>
-            <div style={{fontSize:13,color:t.text,fontWeight:500,flex:1}}>{row.period}</div>
-            <div style={{fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace"}}>Individual: <strong style={{color:t.accent}}>{row.individual}</strong></div>
-            <div style={{fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace"}}>Group: <strong style={{color:t.accent}}>{row.group}</strong></div>
-            <div style={{fontSize:13,color:t.accentText,fontFamily:"'DM Mono',monospace",fontWeight:600}}>{row.individual+row.group} hrs total</div>
+          <div key={i} style={{marginBottom:8}}>
+            <div onClick={()=>setExpandedPeriod(expandedPeriod===i?null:i)}
+              style={{background:t.surface,border:`1px solid ${expandedPeriod===i?t.accentMid:t.border}`,borderRadius:expandedPeriod===i?"10px 10px 0 0":10,padding:"12px 16px",display:"flex",alignItems:"center",gap:16,cursor:"pointer",transition:"all 0.1s"}}
+              onMouseEnter={e=>e.currentTarget.style.borderColor=t.accentMid}
+              onMouseLeave={e=>{if(expandedPeriod!==i)e.currentTarget.style.borderColor=t.border;}}>
+              <span style={{fontSize:12,color:t.faint,transition:"transform 0.2s",display:"inline-block",transform:expandedPeriod===i?"rotate(90deg)":"rotate(0deg)"}}>›</span>
+              <div style={{fontSize:13,color:t.text,fontWeight:500,flex:1}}>{row.period}</div>
+              <div style={{fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace"}}>Indiv: <strong style={{color:t.accent}}>{row.individual}</strong></div>
+              <div style={{fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace"}}>Group: <strong style={{color:t.accent}}>{row.group}</strong></div>
+              <div style={{fontSize:13,color:t.accentText,fontFamily:"'DM Mono',monospace",fontWeight:600}}>{row.individual+row.group} hrs</div>
+            </div>
+            {expandedPeriod===i&&<div style={{background:t.surfaceAlt,border:`1px solid ${t.accentMid}`,borderTop:"none",borderRadius:"0 0 10px 10px",padding:"14px 16px"}}>
+              {/* Session breakdown for this period */}
+              {sessions.length===0
+                ? <div style={{fontSize:13,color:t.faint,padding:"8px 0"}}>No individual session records available for this period.</div>
+                : <div>
+                    <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:10}}>Sessions logged this period</div>
+                    {sessions.map((s,si)=>(
+                      <div key={si} style={{display:"flex",alignItems:"center",gap:10,padding:"7px 10px",borderRadius:8,marginBottom:4,background:t.surface}}>
+                        <span style={{fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace",minWidth:90}}>{s.date}</span>
+                        <Badge color={t.accentText} bg={t.accentLight}>{s.type||"Individual"}</Badge>
+                        <span style={{fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace"}}>{s.duration}</span>
+                        <span style={{fontSize:12,color:t.faint,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{s.notes}</span>
+                      </div>
+                    ))}
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginTop:12}}>
+                      <div style={{background:t.surface,borderRadius:8,padding:"10px 14px",textAlign:"center"}}>
+                        <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:4}}>Individual</div>
+                        <div style={{fontSize:20,color:t.accent,fontFamily:"'DM Mono',monospace",fontWeight:700}}>{row.individual} hrs</div>
+                      </div>
+                      <div style={{background:t.surface,borderRadius:8,padding:"10px 14px",textAlign:"center"}}>
+                        <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:4}}>Group</div>
+                        <div style={{fontSize:20,color:t.muted,fontFamily:"'DM Mono',monospace",fontWeight:700}}>{row.group} hrs</div>
+                      </div>
+                    </div>
+                  </div>}
+            </div>}
           </div>
         ))}
       </div>}
     </div>}
 
+    {/* ── Intern's Full Log ── */}
+    {tab==="intern"&&<div>
+      <div style={{background:t.surfaceAlt,border:`1px solid ${t.border}`,borderRadius:10,padding:"10px 16px",fontSize:13,color:t.muted,marginBottom:14,lineHeight:1.6}}>
+        This is {dn(intern)}'s self-reported clinical log. These are the hours they are tracking for their licensing board — supervision received, client contact, training, etc.
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:16}}>
+        <StatCard T={t} label="Total hours" value={internTotal} color={t.accent}/>
+        <StatCard T={t} label="Direct" value={internDirect} color={t.accent}/>
+        <StatCard T={t} label="Indirect" value={internIndirect}/>
+      </div>
+      <div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:14,overflow:"hidden",boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
+        <div style={{display:"grid",gridTemplateColumns:"2.5fr .7fr 1fr .8fr",background:t.surfaceAlt,padding:"10px 18px",gap:8}}>
+          {["Category","Type","Hours","Limit"].map(h=>(
+            <div key={h} style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em"}}>{h}</div>
+          ))}
+        </div>
+        {INTERN_CATEGORIES.map(cat=>{
+          const entry=internLog.find(e=>e.category===cat.id);
+          const hrs=entry?.hours||0;
+          const atMax=cat.max&&hrs>=cat.max;
+          const metMin=cat.min&&hrs>=cat.min;
+          return <div key={cat.id} style={{display:"grid",gridTemplateColumns:"2.5fr .7fr 1fr .8fr",padding:"12px 18px",gap:8,borderTop:`1px solid ${t.borderLight}`,alignItems:"center",background:atMax?`${S.amber}08`:"transparent"}}>
+            <div>
+              <div style={{fontSize:13,color:t.text,fontWeight:500}}>{cat.label}</div>
+              {cat.note&&<div style={{fontSize:11,color:t.faint,fontFamily:"'DM Mono',monospace",marginTop:1}}>{cat.note}</div>}
+            </div>
+            <Badge color={cat.type==="direct"?t.accentText:t.muted} bg={cat.type==="direct"?t.accentLight:t.surfaceAlt}>{cat.type}</Badge>
+            <div style={{fontSize:16,color:hrs>0?t.accent:t.faint,fontFamily:"'DM Mono',monospace",fontWeight:hrs>0?700:400}}>{hrs}</div>
+            <div style={{fontSize:11,fontFamily:"'DM Mono',monospace"}}>
+              {cat.min&&<div style={{color:metMin?S.green:t.faint}}>min {cat.min}{metMin?" ✓":""}</div>}
+              {cat.max&&<div style={{color:atMax?S.amber:t.faint}}>max {cat.max}{atMax?" ⚠":""}</div>}
+            </div>
+          </div>;
+        })}
+        <div style={{display:"grid",gridTemplateColumns:"2.5fr .7fr 1fr .8fr",padding:"13px 18px",gap:8,borderTop:`2px solid ${t.border}`,background:t.surfaceAlt}}>
+          <div style={{fontSize:14,color:t.text,fontWeight:700}}>Grand total</div>
+          <div/>
+          <div style={{fontSize:18,color:t.accent,fontFamily:"'DM Mono',monospace",fontWeight:700}}>{internTotal}</div>
+          <div/>
+        </div>
+      </div>
+    </div>}
+
+    {/* ── Session Notes ── */}
     {tab==="sessions"&&<div>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
         <div style={{fontSize:13,color:t.muted}}>{sessions.length} session{sessions.length!==1?"s":""} logged</div>
@@ -1485,7 +1572,7 @@ function HoursBreakdown({intern,onUpdateIntern,T}) {
         </button>}
       </div>
       {sessions.length===0
-        ? <div style={{fontSize:13,color:t.faint,padding:"24px 0",textAlign:"center"}}>No sessions logged yet — use "Log a session" from the profile or dashboard.</div>
+        ? <div style={{fontSize:13,color:t.faint,padding:"24px 0",textAlign:"center"}}>No sessions logged yet.</div>
         : sessions.map((s,i)=>(
             <div key={i} style={{background:t.surface,border:`1px solid ${t.border}`,borderLeft:`3px solid ${t.accent}`,borderRadius:10,padding:"12px 16px",marginBottom:8}}>
               <div style={{display:"flex",gap:8,marginBottom:s.notes?6:0,alignItems:"center",flexWrap:"wrap"}}>
@@ -1499,15 +1586,15 @@ function HoursBreakdown({intern,onUpdateIntern,T}) {
           ))}
     </div>}
 
+    {/* ── Adjust ── */}
     {tab==="adjust"&&<div>
       <div style={{background:S.amberLight,border:"1px solid #E8C98A",borderRadius:10,padding:"12px 16px",marginBottom:16,fontSize:13,color:"#7A5A00",lineHeight:1.6}}>
-        ⚠ <strong>For SupTrack data errors only.</strong> Supervision hours are auto-calculated from session notes. Only adjust here if a session was logged with wrong duration and you cannot edit it. If {dn(intern)} submitted incorrect hours to their licensing board, that must be corrected directly with the board.
+        ⚠ <strong>For SupTrack data errors only.</strong> Supervision hours are auto-calculated from session notes. Only adjust here if a session was logged with the wrong duration. If {dn(intern)} submitted incorrect hours to their board, that must be corrected directly with the board.
       </div>
       <InternHoursEditor key={`sup-adj-${intern.id}`} T={t} intern={intern} onUpdate={onUpdateIntern} supervisorMode={true}/>
     </div>}
   </div>;
 }
-
 // ── InternHoursEditor (intern portal — can log & add categories) ───────────
 function InternHoursEditor({intern,onUpdate,T,supervisorMode}) {
   const t=T||THEMES.sage;
@@ -2154,7 +2241,7 @@ function InternProfile({intern,groups,lists,onBack,onUpdateIntern,onConsult,onOp
     {tab==="overview"&&<div style={{display:"flex",flexDirection:"column",gap:14}}>
       {/* Stats row */}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:12}}>
-        <StatCard T={t} label="Hours Completed" value={intern.hoursCompleted.toLocaleString()} sub={`of ${intern.hoursTotal.toLocaleString()} required`} color={t.accent} onClick={()=>setTab("hours")}/>
+        <StatCard T={t} label="Hours Completed" value={intern.hoursCompleted.toLocaleString()} sub={`of ${intern.hoursTotal.toLocaleString()} required`} color={t.accent}/>
         <StatCard T={t} label="Completion" value={`${Math.round(intern.hoursCompleted/intern.hoursTotal*100)}%`} sub="Toward licensure goal"/>
         <StatCard T={t} label="Sessions logged" value={intern.sessions?.length||0}/>
         <StatCard T={t} label="Cases staffed" value={intern.cases?.length||0}/>
@@ -2228,11 +2315,39 @@ function InternProfile({intern,groups,lists,onBack,onUpdateIntern,onConsult,onOp
         </div>
 
         <div style={{display:"flex",flexDirection:"column",gap:12}}>
-          {/* Lists */}
-          {memberLists.length>0&&<div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:12,padding:"14px 16px",boxShadow:"0 1px 3px rgba(0,0,0,0.04)"}}>
-            <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:8}}>Lists</div>
-            <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{memberLists.map(l=><Badge key={l.id} color={l.color} bg={l.colorLight}>{l.name}</Badge>)}</div>
-          </div>}
+          {/* Lists — editable inline */}
+          <div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:12,padding:"14px 16px",boxShadow:"0 1px 3px rgba(0,0,0,0.04)"}}>
+            <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:8}}>Tags / Lists</div>
+            <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center"}}>
+              {memberLists.map(l=>(
+                <div key={l.id} style={{display:"flex",alignItems:"center",gap:3,background:l.colorLight,border:`1px solid ${l.color}40`,borderRadius:20,padding:"3px 10px 3px 12px"}}>
+                  <span style={{fontSize:12,color:l.color,fontWeight:500}}>{l.name}</span>
+                  <button onClick={()=>onUpdateIntern({...intern,listIds:intern.listIds.filter(id=>id!==l.id)})}
+                    title="Remove from this list"
+                    style={{background:"none",border:"none",cursor:"pointer",fontSize:12,color:l.color,opacity:0.6,padding:"0 0 0 4px",lineHeight:1,marginTop:1}}
+                    onMouseEnter={e=>e.currentTarget.style.opacity="1"}
+                    onMouseLeave={e=>e.currentTarget.style.opacity="0.6"}>✕</button>
+                </div>
+              ))}
+              {/* Add to list dropdown */}
+              {lists.filter(l=>!intern.listIds.includes(l.id)).length>0&&(
+                <select
+                  defaultValue=""
+                  onChange={e=>{
+                    if(e.target.value) onUpdateIntern({...intern,listIds:[...intern.listIds,e.target.value]});
+                    e.target.value="";
+                  }}
+                  style={{background:"none",border:`1px dashed ${t.border}`,borderRadius:20,padding:"3px 10px",fontSize:12,color:t.muted,cursor:"pointer",outline:"none",fontFamily:"inherit"}}>
+                  <option value="">+ Add tag</option>
+                  {lists.filter(l=>!intern.listIds.includes(l.id)).map(l=>(
+                    <option key={l.id} value={l.id}>{l.name}</option>
+                  ))}
+                </select>
+              )}
+              {memberLists.length===0&&lists.length===0&&<span style={{fontSize:12,color:t.faint}}>No tags — create lists in Settings to organize supervisees</span>}
+              {memberLists.length===0&&lists.length>0&&<span style={{fontSize:12,color:t.faint,fontStyle:"italic"}}>No tags assigned</span>}
+            </div>
+          </div>
           {/* Groups */}
           {memberGroups.length>0&&<div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:12,padding:"14px 16px",boxShadow:"0 1px 3px rgba(0,0,0,0.04)"}}>
             <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:8}}>Groups</div>
@@ -2284,11 +2399,7 @@ function InternProfile({intern,groups,lists,onBack,onUpdateIntern,onConsult,onOp
       </div>))}
     </div>}
 
-    {tab==="cases"&&intern.cases.map((c,i)=><div key={i} style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:12,padding:"18px 20px",marginBottom:12,boxShadow:"0 1px 3px rgba(0,0,0,0.04)"}}>
-      <div style={{display:"flex",gap:8,marginBottom:6}}><Badge color={t.muted} bg={t.surfaceAlt}>{c.id}</Badge><span style={{fontFamily:"inherit",fontSize:16,color:t.text}}>{c.presenting}</span></div>
-      <div style={{display:"flex",gap:8,marginBottom:8}}><Badge color={t.muted} bg={t.surfaceAlt}>{c.sessions} sessions</Badge><Badge color={t.muted} bg={t.surfaceAlt}>Last staffed {c.lastStaffed}</Badge></div>
-      <p style={{fontSize:14,color:t.text,margin:0,lineHeight:1.7}}>{c.notes}</p>
-    </div>)}
+    {tab==="cases"&&<CasesTab intern={intern} onUpdateIntern={onUpdateIntern} T={t}/>}
 
     {tab==="evaluations"&&<EvaluationTab intern={intern} onUpdateIntern={onUpdateIntern} T={t}/>}
 
@@ -2690,6 +2801,131 @@ function Dashboard({interns,groups,lists,onSelectIntern,onNavigate,onOpenOnboard
 // ── Payments Page ──────────────────────────────────────────────────────────
 // ── PaymentsTab — per-intern payments inside InternProfile ───────────────────
 // ── DocumentsTab — file upload, preview, delete, signature pad ───────────────
+// ── CasesTab ───────────────────────────────────────────────────────────────
+function CasesTab({intern,onUpdateIntern,T}) {
+  const t=T||THEMES.sage;
+  const [cases,setCases]=useState(intern.cases||[]);
+  const [editing,setEditing]=useState(null); // index or "new"
+  const [form,setForm]=useState({id:"",presenting:"",sessions:0,lastStaffed:"",notes:"",status:"active"});
+  const [confirmDel,setConfirmDel]=useState(null);
+
+  const save=(updated)=>{setCases(updated);onUpdateIntern({...intern,cases:updated});};
+
+  const openNew=()=>{
+    setForm({id:`C-${String(Date.now()).slice(-4)}`,presenting:"",sessions:0,lastStaffed:TODAY(),notes:"",status:"active"});
+    setEditing("new");
+  };
+  const openEdit=(i)=>{setForm({...cases[i]});setEditing(i);};
+
+  const saveForm=()=>{
+    if(!form.presenting.trim()) return;
+    const updated=editing==="new"?[...cases,{...form,sessions:Number(form.sessions)||0}]:cases.map((c,i)=>i===editing?{...form,sessions:Number(form.sessions)||0}:c);
+    save(updated);setEditing(null);
+  };
+
+  const deleteCase=(i)=>{save(cases.filter((_,idx)=>idx!==i));setConfirmDel(null);};
+
+  const iStyle={width:"100%",border:`1px solid ${t.border}`,borderRadius:8,padding:"8px 12px",fontSize:13,fontFamily:"inherit",color:t.text,background:t.bg,outline:"none",boxSizing:"border-box"};
+  const Label=({children})=><div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:5}}>{children}</div>;
+
+  return <div>
+    {/* Delete confirm */}
+    {confirmDel!==null&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000}} onClick={()=>setConfirmDel(null)}>
+      <div style={{background:t.surface,borderRadius:14,padding:"24px 28px",width:400,boxShadow:"0 24px 64px rgba(0,0,0,0.18)"}} onClick={e=>e.stopPropagation()}>
+        <div style={{fontSize:17,color:t.text,fontWeight:500,marginBottom:8}}>Remove this case?</div>
+        <div style={{fontSize:13,color:t.muted,marginBottom:20,lineHeight:1.6}}>Case <strong>{cases[confirmDel]?.id}</strong> — {cases[confirmDel]?.presenting} will be removed from {dn(intern)}'s record. This does not affect any session notes.</div>
+        <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
+          <Btn T={t} variant="secondary" onClick={()=>setConfirmDel(null)}>Cancel</Btn>
+          <button onClick={()=>deleteCase(confirmDel)} style={{background:S.red,color:"#fff",border:"none",borderRadius:8,padding:"8px 16px",cursor:"pointer",fontSize:13,fontWeight:500,fontFamily:"inherit"}}>Remove</button>
+        </div>
+      </div>
+    </div>}
+
+    {/* Header */}
+    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
+      <div>
+        <div style={{fontSize:13,color:t.muted,lineHeight:1.6}}>
+          Cases are client situations {dn(intern)} brings to supervision. Track presenting concerns, session count, and your supervision notes per case.
+        </div>
+      </div>
+      {editing===null&&<Btn T={t} small onClick={openNew}>+ Add case</Btn>}
+    </div>
+
+    {/* Add/Edit form */}
+    {editing!==null&&<div style={{background:t.surface,border:`1px solid ${t.accentMid}`,borderRadius:12,padding:"18px 20px",marginBottom:16}}>
+      <div style={{fontSize:14,color:t.text,fontWeight:500,marginBottom:14}}>{editing==="new"?"Add case":"Edit case"}</div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
+        <div>
+          <Label>Case ID</Label>
+          <input value={form.id} onChange={e=>setForm(p=>({...p,id:e.target.value}))} placeholder="C-0042" style={iStyle}/>
+        </div>
+        <div>
+          <Label>Sessions in supervision</Label>
+          <input type="number" min="0" value={form.sessions} onChange={e=>setForm(p=>({...p,sessions:e.target.value}))} style={iStyle}/>
+        </div>
+      </div>
+      <div style={{marginBottom:12}}>
+        <Label>Presenting concern *</Label>
+        <input value={form.presenting} onChange={e=>setForm(p=>({...p,presenting:e.target.value}))} placeholder="e.g. Generalized Anxiety, Trauma / PTSD, Family conflict..." style={iStyle}/>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
+        <div>
+          <Label>Last staffed</Label>
+          <input type="date" value={form.lastStaffed} onChange={e=>setForm(p=>({...p,lastStaffed:e.target.value}))} style={iStyle}/>
+        </div>
+        <div>
+          <Label>Status</Label>
+          <select value={form.status} onChange={e=>setForm(p=>({...p,status:e.target.value}))} style={{...iStyle,cursor:"pointer"}}>
+            <option value="active">Active</option>
+            <option value="closed">Closed / Terminated</option>
+            <option value="transferred">Transferred</option>
+            <option value="on_hold">On hold</option>
+          </select>
+        </div>
+      </div>
+      <div style={{marginBottom:14}}>
+        <Label>Supervision notes</Label>
+        <textarea value={form.notes} onChange={e=>setForm(p=>({...p,notes:e.target.value}))} placeholder="Clinical observations, guidance given, treatment direction, concerns..." rows={3} style={{...iStyle,resize:"vertical"}}/>
+      </div>
+      <div style={{display:"flex",gap:10}}>
+        <Btn T={t} onClick={saveForm}>Save case</Btn>
+        <Btn T={t} variant="secondary" onClick={()=>setEditing(null)}>Cancel</Btn>
+      </div>
+    </div>}
+
+    {/* Case list */}
+    {cases.length===0&&editing===null&&<div style={{background:t.surfaceAlt,borderRadius:12,padding:"32px",textAlign:"center",color:t.muted,fontSize:14}}>
+      No cases yet — click "+ Add case" to track a client {dn(intern)} is bringing to supervision.
+    </div>}
+    {cases.map((c,i)=>(
+      <div key={i} style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:12,padding:"16px 20px",marginBottom:10,boxShadow:"0 1px 3px rgba(0,0,0,0.04)"}}>
+        <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:6}}>
+          <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+            <Badge color={t.muted} bg={t.surfaceAlt}>{c.id}</Badge>
+            <span style={{fontSize:15,color:t.text,fontWeight:500}}>{c.presenting}</span>
+            {c.status&&c.status!=="active"&&<Badge color={S.amber} bg={S.amberLight}>{c.status.replace("_"," ")}</Badge>}
+          </div>
+          <div style={{display:"flex",gap:6,flexShrink:0}}>
+            <button onClick={()=>openEdit(i)}
+              style={{background:"none",border:`1px solid ${t.border}`,borderRadius:6,padding:"3px 10px",cursor:"pointer",fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace"}}>
+              ✎ Edit
+            </button>
+            <button onClick={()=>setConfirmDel(i)}
+              style={{background:"none",border:`1px solid ${S.red}30`,borderRadius:6,padding:"3px 8px",cursor:"pointer",fontSize:11,color:S.red,fontFamily:"'DM Mono',monospace"}}>
+              ✕
+            </button>
+          </div>
+        </div>
+        <div style={{display:"flex",gap:8,marginBottom:c.notes?8:0}}>
+          <Badge color={t.muted} bg={t.surfaceAlt}>{c.sessions} session{c.sessions!==1?"s":""} staffed</Badge>
+          {c.lastStaffed&&<Badge color={t.muted} bg={t.surfaceAlt}>Last {c.lastStaffed}</Badge>}
+        </div>
+        {c.notes&&<p style={{fontSize:13,color:t.text,margin:0,lineHeight:1.7}}>{c.notes}</p>}
+      </div>
+    ))}
+  </div>;
+}
+
 function DocumentsTab({intern,onUpdateIntern,T}) {
   const t=T||THEMES.sage;
   const [docs,setDocs]=useState(intern.documents||[]);
@@ -2788,9 +3024,10 @@ function DocumentsTab({intern,onUpdateIntern,T}) {
   const [bg,color]=viewingDoc?docTC(viewingDoc.type):["#eee","#555"];
 
   return <div>
-    {/* Viewer modal */}
-    {viewingDoc&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000}} onClick={()=>setViewing(null)}>
+    {/* Viewer modal — with integrated signature pad */}
+    {viewingDoc&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000}} onClick={()=>{setViewing(null);setSigning(null);}}>
       <div style={{background:t.surface,borderRadius:16,width:"82vw",maxWidth:900,maxHeight:"92vh",overflow:"hidden",boxShadow:"0 24px 64px rgba(0,0,0,0.2)",display:"flex",flexDirection:"column"}} onClick={e=>e.stopPropagation()}>
+        {/* Header */}
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 20px",borderBottom:`1px solid ${t.border}`,flexShrink:0}}>
           <div style={{flex:1,minWidth:0}}>
             <div style={{fontSize:15,color:t.text,fontWeight:500,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{viewingDoc.name}</div>
@@ -2801,22 +3038,66 @@ function DocumentsTab({intern,onUpdateIntern,T}) {
               style={{background:t.surfaceAlt,border:`1px solid ${t.border}`,borderRadius:7,padding:"5px 12px",cursor:"pointer",fontSize:12,color:t.text,fontFamily:"'DM Mono',monospace",textDecoration:"none"}}>
               ⬇ Download
             </a>}
-            <button onClick={()=>setViewing(null)} style={{background:"none",border:"none",cursor:"pointer",fontSize:20,color:t.muted,padding:4}}>✕</button>
+            {!viewingDoc.signed&&<button onClick={()=>setSigning(signing===viewing?null:viewing)}
+              style={{background:signing===viewing?t.accentLight:"none",border:`1px solid ${signing===viewing?t.accentMid:t.border}`,borderRadius:7,padding:"5px 12px",cursor:"pointer",fontSize:12,color:signing===viewing?t.accentText:t.muted,fontFamily:"'DM Mono',monospace"}}>
+              ✍ {signing===viewing?"Cancel signing":"Sign document"}
+            </button>}
+            <button onClick={()=>{setViewing(null);setSigning(null);}} style={{background:"none",border:"none",cursor:"pointer",fontSize:20,color:t.muted,padding:4}}>✕</button>
           </div>
         </div>
-        <div style={{flex:1,overflowY:"auto",padding:20,display:"flex",justifyContent:"center",alignItems:"flex-start"}}>
-          {viewingDoc.dataUrl
-            ? viewingDoc.mimeType?.startsWith("image/")
-              ? <img src={viewingDoc.dataUrl} alt={viewingDoc.name} style={{maxWidth:"100%",borderRadius:8}}/>
-              : viewingDoc.mimeType==="application/pdf"
-                ? <iframe src={viewingDoc.dataUrl} title={viewingDoc.name} style={{width:"100%",height:"75vh",border:"none",borderRadius:8}}/>
-                : <div style={{color:t.muted,fontSize:14,padding:40,textAlign:"center"}}>Preview not available for this file type.<br/>Use the Download button to open it.</div>
-            : <div style={{background:t.surfaceAlt,borderRadius:10,padding:40,textAlign:"center",width:"100%"}}>
-                <div style={{fontSize:40,marginBottom:12}}>📄</div>
-                <div style={{fontSize:15,color:t.text,marginBottom:6}}>{viewingDoc.name}</div>
-                <div style={{fontSize:13,color:t.muted}}>No preview available.</div>
-              </div>}
+
+        {/* Document preview */}
+        <div style={{flex:1,overflowY:"auto",padding:20,display:"flex",flexDirection:"column",gap:16}}>
+          <div style={{display:"flex",justifyContent:"center",alignItems:"flex-start"}}>
+            {viewingDoc.dataUrl
+              ? viewingDoc.mimeType?.startsWith("image/")
+                ? <img src={viewingDoc.dataUrl} alt={viewingDoc.name} style={{maxWidth:"100%",borderRadius:8}}/>
+                : viewingDoc.mimeType==="application/pdf"
+                  ? <iframe src={viewingDoc.dataUrl} title={viewingDoc.name} style={{width:"100%",height:"60vh",border:"none",borderRadius:8}}/>
+                  : <div style={{color:t.muted,fontSize:14,padding:40,textAlign:"center"}}>Preview not available for this file type.<br/>Use the Download button to open it.</div>
+              : <div style={{background:t.surfaceAlt,borderRadius:10,padding:40,textAlign:"center",width:"100%"}}>
+                  <div style={{fontSize:40,marginBottom:12}}>📄</div>
+                  <div style={{fontSize:15,color:t.text,marginBottom:6}}>{viewingDoc.name}</div>
+                  <div style={{fontSize:13,color:t.muted}}>No preview available.</div>
+                </div>}
+          </div>
+
+          {/* Inline signature pad — shown when signing */}
+          {signing===viewing&&<div style={{background:t.surfaceAlt,border:`1px solid ${t.accentMid}`,borderRadius:12,padding:"18px 20px"}}>
+            <div style={{fontSize:14,color:t.text,fontWeight:500,marginBottom:4}}>Sign this document</div>
+            <div style={{fontSize:12,color:t.muted,marginBottom:12}}>Draw your signature below, then click "Apply signature"</div>
+            <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:6}}>Draw your signature</div>
+            <canvas ref={canvasRef}
+              width={800} height={140}
+              style={{border:`2px solid ${t.border}`,borderRadius:10,cursor:"crosshair",background:"#FAFAFA",touchAction:"none",width:"100%",display:"block",marginBottom:10}}
+              onMouseDown={e=>startDraw(e,canvasRef.current)}
+              onMouseMove={e=>draw(e,canvasRef.current)}
+              onMouseUp={endDraw}
+              onMouseLeave={endDraw}
+              onTouchStart={e=>startDraw(e,canvasRef.current)}
+              onTouchMove={e=>draw(e,canvasRef.current)}
+              onTouchEnd={endDraw}
+            />
+            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
+              <span style={{fontSize:12,color:t.muted}}>Ink color:</span>
+              {["#1A1A2E","#1A3A8C","#2D5A3D","#8C1A1A"].map(c=><button key={c} onClick={()=>setSigColor(c)}
+                style={{width:22,height:22,borderRadius:"50%",background:c,border:sigColor===c?`3px solid ${t.text}`:"2px solid transparent",cursor:"pointer",padding:0}}/>)}
+              <button onClick={()=>clearSig(canvasRef.current)}
+                style={{marginLeft:"auto",background:"none",border:`1px solid ${t.border}`,borderRadius:6,padding:"4px 10px",cursor:"pointer",fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace"}}>
+                Clear
+              </button>
+            </div>
+            <div style={{background:t.surface,borderRadius:8,padding:"10px 14px",fontSize:12,color:t.muted,marginBottom:12,lineHeight:1.5}}>
+              By clicking "Apply signature" you confirm this electronic signature is legally binding and equivalent to a handwritten signature, applied on {TODAY()}.
+            </div>
+            <div style={{display:"flex",gap:10}}>
+              <Btn T={t} onClick={()=>applySignature(canvasRef.current,signing)} style={{flex:1}}>✍ Apply signature to document</Btn>
+              <Btn T={t} variant="secondary" onClick={()=>setSigning(null)}>Cancel</Btn>
+            </div>
+          </div>}
         </div>
+
+        {/* Signed footer */}
         {viewingDoc.signed&&<div style={{padding:"10px 20px",borderTop:`1px solid ${t.border}`,background:t.surfaceAlt,fontSize:12,color:t.muted,display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
           ✍ Signed by {viewingDoc.signedBy} on {viewingDoc.signedDate}
           {viewingDoc.signatureDataUrl&&<img src={viewingDoc.signatureDataUrl} alt="signature" style={{height:28,marginLeft:8,border:`1px solid ${t.border}`,borderRadius:4,background:"#fff",padding:"0 6px"}}/>}
@@ -2824,41 +3105,7 @@ function DocumentsTab({intern,onUpdateIntern,T}) {
       </div>
     </div>}
 
-    {/* Signature pad modal */}
-    {signing!==null&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000}} onClick={()=>setSigning(null)}>
-      <div style={{background:t.surface,borderRadius:16,padding:"24px 28px",width:520,boxShadow:"0 24px 64px rgba(0,0,0,0.18)"}} onClick={e=>e.stopPropagation()}>
-        <div style={{fontSize:18,color:t.text,fontWeight:500,marginBottom:4}}>Sign document</div>
-        <div style={{fontSize:13,color:t.muted,marginBottom:16}}>{docs[signing]?.name}</div>
-        <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:6}}>Draw your signature below</div>
-        <canvas ref={canvasRef}
-          width={460} height={140}
-          style={{border:`2px solid ${t.border}`,borderRadius:10,cursor:"crosshair",background:"#FAFAFA",touchAction:"none",width:"100%",display:"block",marginBottom:10}}
-          onMouseDown={e=>startDraw(e,canvasRef.current)}
-          onMouseMove={e=>draw(e,canvasRef.current)}
-          onMouseUp={endDraw}
-          onMouseLeave={endDraw}
-          onTouchStart={e=>startDraw(e,canvasRef.current)}
-          onTouchMove={e=>draw(e,canvasRef.current)}
-          onTouchEnd={endDraw}
-        />
-        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:14}}>
-          <span style={{fontSize:12,color:t.muted}}>Ink color:</span>
-          {["#1A1A2E","#1A3A8C","#2D5A3D","#8C1A1A"].map(c=><button key={c} onClick={()=>setSigColor(c)}
-            style={{width:22,height:22,borderRadius:"50%",background:c,border:sigColor===c?`3px solid ${t.text}`:"2px solid transparent",cursor:"pointer",padding:0}}/>)}
-          <button onClick={()=>clearSig(canvasRef.current)}
-            style={{marginLeft:"auto",background:"none",border:`1px solid ${t.border}`,borderRadius:6,padding:"4px 10px",cursor:"pointer",fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace"}}>
-            Clear
-          </button>
-        </div>
-        <div style={{background:t.surfaceAlt,borderRadius:8,padding:"10px 14px",fontSize:12,color:t.muted,marginBottom:14,lineHeight:1.5}}>
-          By clicking "Apply signature" you agree that this electronic signature is legally binding, equivalent to a handwritten signature, applied on {TODAY()}.
-        </div>
-        <div style={{display:"flex",gap:10}}>
-          <Btn T={t} onClick={()=>applySignature(canvasRef.current,signing)} style={{flex:1}}>✍ Apply signature</Btn>
-          <Btn T={t} variant="secondary" onClick={()=>setSigning(null)}>Cancel</Btn>
-        </div>
-      </div>
-    </div>}
+    {/* Old separate signature pad modal — no longer needed (signing is now inline in viewer) */}
 
     {/* Upload area */}
     <div
@@ -2904,7 +3151,7 @@ function DocumentsTab({intern,onUpdateIntern,T}) {
           <div style={{display:"flex",gap:6,flexShrink:0}}>
             <button onClick={()=>setViewing(i)}
               style={{background:t.surfaceAlt,border:`1px solid ${t.border}`,borderRadius:6,padding:"4px 10px",cursor:"pointer",fontSize:11,color:t.text,fontFamily:"'DM Mono',monospace"}}>View</button>
-            {!d.signed&&<button onClick={()=>setSigning(i)}
+            {!d.signed&&<button onClick={()=>{setViewing(i);setSigning(i);}}
               style={{background:t.accentLight,border:`1px solid ${t.accentMid}`,borderRadius:6,padding:"4px 10px",cursor:"pointer",fontSize:11,color:t.accentText,fontFamily:"'DM Mono',monospace"}}>✍ Sign</button>}
             <button onClick={()=>deleteDoc(i)}
               style={{background:"none",border:`1px solid ${S.red}30`,borderRadius:6,padding:"4px 8px",cursor:"pointer",fontSize:11,color:S.red,fontFamily:"'DM Mono',monospace"}} title="Delete">✕</button>
