@@ -819,40 +819,175 @@ function ShareLinkModal({intern,onClose,T}) {
 // ── Share Modal (colleagues) ───────────────────────────────────────────────
 function ShareModal({title,sharedWith,onSave,onClose,T}) {
   const t=T||THEMES.sage;
-  const [shares,setShares]=useState(sharedWith.map(s=>({...s,perms:{...s.perms}})));
+  const [shares,setShares]=useState(()=>sharedWith.map(s=>({...s,perms:{...s.perms}})));
   const [adding,setAdding]=useState(false);
   const [sel,setSel]=useState("");
-  const avail=COLLEAGUES.filter(c=>!shares.find(s=>s.colleagueId===c.id));
-  const groups=[...new Set(PERM_DEFS.map(p=>p.group))];
+  const [newName,setNewName]=useState("");
+  const [newEmail,setNewEmail]=useState("");
+  const [addMode,setAddMode]=useState("existing"); // "existing" | "new"
 
-  return <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.3)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000}} onClick={onClose}>
-    <div style={{background:t.surface,borderRadius:18,padding:"26px 28px",width:520,maxHeight:"80vh",overflowY:"auto",boxShadow:"0 24px 64px rgba(0,0,0,0.14)"}} onClick={e=>e.stopPropagation()}>
-      <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:18}}>
-        <div><div style={{fontFamily:"inherit",fontSize:20,color:t.text,marginBottom:3}}>Share access</div><div style={{fontSize:13,color:t.muted}}>{title}</div></div>
-        <button onClick={onClose} style={{background:"none",border:"none",cursor:"pointer",fontSize:18,color:t.muted,padding:4}}>✕</button>
-      </div>
-      {shares.length===0&&!adding&&<div style={{background:t.surfaceAlt,borderRadius:10,padding:18,textAlign:"center",fontSize:14,color:t.muted,marginBottom:14}}>Not shared with anyone yet</div>}
-      {shares.map(share=>{const col=COLLEAGUES.find(c=>c.id===share.colleagueId);if(!col) return null; return (
-        <div key={col.id} style={{background:t.surfaceAlt,borderRadius:12,padding:"14px 16px",marginBottom:12}}>
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
-            <div style={{display:"flex",alignItems:"center",gap:10}}><Avatar initials={col.initials} size={34} color={col.color} textColor="#fff"/><div><div style={{fontSize:14,color:t.text,fontWeight:500}}>{col.name}</div><div style={{fontSize:12,color:t.muted}}>{col.email}</div></div></div>
-            <button onClick={()=>setShares(p=>p.filter(s=>s.colleagueId!==col.id))} style={{background:"none",border:"none",cursor:"pointer",fontSize:12,color:S.red,fontFamily:"'DM Mono',monospace"}}>Remove</button>
+  const existing=COLLEAGUES.filter(c=>!shares.find(s=>s.colleagueId===c.id));
+  const permGroups=[...new Set(PERM_DEFS.map(p=>p.group))];
+
+  const addExisting=()=>{
+    if(!sel) return;
+    setShares(p=>[...p,{colleagueId:sel,perms:{...DEFAULT_PERMS}}]);
+    setSel("");
+    setAdding(false);
+  };
+
+  const addNew=()=>{
+    if(!newName.trim()) return;
+    const id=`c_${Date.now()}`;
+    // Add to COLLEAGUES array dynamically
+    COLLEAGUES.push({id,name:newName.trim(),initials:newName.trim().split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase(),email:newEmail.trim()||"",color:"#5B7B5E",colorLight:"#EEF4EE"});
+    setShares(p=>[...p,{colleagueId:id,perms:{...DEFAULT_PERMS}}]);
+    setNewName("");setNewEmail("");setAdding(false);
+  };
+
+  const togglePerm=(colleagueId,permId)=>{
+    setShares(p=>p.map(s=>s.colleagueId!==colleagueId?s:{...s,perms:{...s.perms,[permId]:!s.perms[permId]}}));
+  };
+
+  const removeShare=(colleagueId)=>{
+    setShares(p=>p.filter(s=>s.colleagueId!==colleagueId));
+  };
+
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.35)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000}} onClick={onClose}>
+      <div style={{background:t.surface,borderRadius:18,padding:"26px 28px",width:540,maxHeight:"85vh",overflowY:"auto",boxShadow:"0 24px 64px rgba(0,0,0,0.16)"}} onClick={e=>e.stopPropagation()}>
+
+        {/* Header */}
+        <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:18}}>
+          <div>
+            <div style={{fontSize:20,color:t.text,fontWeight:500,marginBottom:2}}>Share access</div>
+            <div style={{fontSize:13,color:t.muted}}>{title}</div>
           </div>
-          {groups.map(g=>(
-            <div key={g} style={{marginBottom:8}}><div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:6}}>{g}</div>
-              <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{PERM_DEFS.filter(p=>p.group===g).map(perm=>{const on=share.perms[perm.id]; return (
-                <button key={perm.id} onClick={()=>setShares(p=>p.map(s=>s.colleagueId!==col.id?s:{...s,perms:{...s.perms,[perm.id]:!s.perms[perm.id]}}))}
-                  style={{background:on?t.accentLight:t.surface,color:on?t.accentText:t.muted,border:`1px solid ${on?t.accentMid:t.border}`,borderRadius:6,padding:"4px 10px",fontSize:12,cursor:"pointer",fontFamily:"'DM Mono',monospace"}}>{on?"✓ ":""}{perm.label}</button>
-              );})}</div>
-            </div>
-          ))}
+          <button onClick={onClose} style={{background:"none",border:"none",cursor:"pointer",fontSize:20,color:t.faint,padding:4,lineHeight:1}}>✕</button>
         </div>
-      );})}
-      {adding?(<div style={{background:t.surfaceAlt,borderRadius:12,padding:"14px 16px",marginBottom:12}}><div style={{display:"flex",gap:8}}><select value={sel} onChange={e=>setSel(e.target.value)} style={{flex:1,border:`1px solid ${t.border}`,borderRadius:8,padding:"8px 12px",fontSize:14,fontFamily:"'DM Sans',system-ui,sans-serif",color:t.text,background:t.surface,outline:"none"}}><option value="">Select colleague...</option>{avail.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select><Btn T={t} small onClick={()=>{if(!sel)return;setShares(p=>[...p,{colleagueId:sel,perms:{...DEFAULT_PERMS}}]);setSel("");setAdding(false);}}>Add</Btn><Btn T={t} variant="secondary" small onClick={()=>setAdding(false)}>Cancel</Btn></div></div>)
-      :<button onClick={()=>setAdding(true)} style={{background:"none",border:`1px dashed ${t.border}`,borderRadius:10,padding:"10px 18px",fontSize:13,color:t.muted,cursor:"pointer",width:"100%",fontFamily:"'DM Mono',monospace",marginBottom:14}}>+ Add colleague</button>}
-      <div style={{display:"flex",justifyContent:"flex-end",gap:10,paddingTop:8,borderTop:`1px solid ${t.border}`}}><Btn T={t} variant="secondary" onClick={onClose}>Cancel</Btn><Btn T={t} onClick={()=>onSave(shares)}>Save</Btn></div>
+
+        {/* Current shares */}
+        {shares.length===0&&!adding&&(
+          <div style={{background:t.surfaceAlt,borderRadius:10,padding:18,textAlign:"center",fontSize:13,color:t.muted,marginBottom:14}}>
+            Not shared with anyone yet. Add a colleague below.
+          </div>
+        )}
+
+        {shares.map(share=>{
+          const col=COLLEAGUES.find(c=>c.id===share.colleagueId);
+          if(!col) return null;
+          return (
+            <div key={col.id} style={{background:t.surfaceAlt,borderRadius:12,padding:"14px 16px",marginBottom:12}}>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+                <div style={{display:"flex",alignItems:"center",gap:10}}>
+                  <Avatar initials={col.initials} size={34} color={col.color} textColor="#fff"/>
+                  <div>
+                    <div style={{fontSize:14,color:t.text,fontWeight:500}}>{col.name}</div>
+                    <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace"}}>{col.email}</div>
+                  </div>
+                </div>
+                <button onClick={()=>removeShare(col.id)}
+                  style={{background:"none",border:`1px solid ${S.red}30`,borderRadius:6,padding:"3px 10px",cursor:"pointer",fontSize:12,color:S.red,fontFamily:"'DM Mono',monospace"}}>
+                  Remove
+                </button>
+              </div>
+              {permGroups.map(g=>(
+                <div key={g} style={{marginBottom:8}}>
+                  <div style={{fontSize:10,color:t.faint,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:5}}>{g}</div>
+                  <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                    {PERM_DEFS.filter(p=>p.group===g).map(perm=>{
+                      const on=share.perms[perm.id];
+                      return (
+                        <button key={perm.id} onClick={()=>togglePerm(col.id,perm.id)}
+                          style={{background:on?t.accentLight:t.surface,color:on?t.accentText:t.muted,border:`1px solid ${on?t.accentMid:t.border}`,borderRadius:6,padding:"4px 10px",fontSize:12,cursor:"pointer",fontFamily:"'DM Mono',monospace",transition:"all 0.1s"}}>
+                          {on?"✓ ":""}{perm.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          );
+        })}
+
+        {/* Add form */}
+        {adding ? (
+          <div style={{background:t.surfaceAlt,border:`1px solid ${t.accentMid}`,borderRadius:12,padding:"16px 18px",marginBottom:14}}>
+            {/* Toggle existing vs new */}
+            <div style={{display:"flex",gap:0,border:`1px solid ${t.border}`,borderRadius:8,overflow:"hidden",marginBottom:14,width:"fit-content"}}>
+              {[["existing","Existing colleague"],["new","Add new person"]].map(([id,label],i)=>(
+                <button key={id} onClick={()=>setAddMode(id)}
+                  style={{background:addMode===id?t.accentLight:"none",color:addMode===id?t.accentText:t.muted,border:"none",borderRight:i===0?`1px solid ${t.border}`:"none",padding:"6px 14px",cursor:"pointer",fontSize:12,fontFamily:"'DM Mono',monospace"}}>
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {addMode==="existing" ? (
+              existing.length>0 ? (
+                <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                  <select value={sel} onChange={e=>setSel(e.target.value)}
+                    style={{flex:1,border:`1px solid ${t.border}`,borderRadius:8,padding:"8px 12px",fontSize:13,fontFamily:"inherit",color:t.text,background:t.surface,outline:"none"}}>
+                    <option value="">Select colleague...</option>
+                    {existing.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                  <button onClick={addExisting}
+                    style={{background:t.accent,color:"#fff",border:"none",borderRadius:8,padding:"8px 16px",cursor:"pointer",fontSize:13,fontWeight:500,fontFamily:"inherit",whiteSpace:"nowrap"}}>
+                    Add
+                  </button>
+                  <button onClick={()=>{setAdding(false);setSel("");}}
+                    style={{background:"none",border:`1px solid ${t.border}`,borderRadius:8,padding:"8px 12px",cursor:"pointer",fontSize:13,color:t.muted,fontFamily:"inherit"}}>
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <div style={{fontSize:13,color:t.faint,padding:"8px 0"}}>All colleagues already added. Switch to "Add new person" to add someone else.</div>
+              )
+            ) : (
+              <div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
+                  <div>
+                    <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:4}}>Name *</div>
+                    <input value={newName} onChange={e=>setNewName(e.target.value)} placeholder="Full name"
+                      style={{width:"100%",border:`1px solid ${t.border}`,borderRadius:8,padding:"7px 10px",fontSize:13,fontFamily:"inherit",color:t.text,background:t.bg,outline:"none",boxSizing:"border-box"}}/>
+                  </div>
+                  <div>
+                    <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:4}}>Email</div>
+                    <input value={newEmail} onChange={e=>setNewEmail(e.target.value)} placeholder="email@example.com" type="email"
+                      style={{width:"100%",border:`1px solid ${t.border}`,borderRadius:8,padding:"7px 10px",fontSize:13,fontFamily:"inherit",color:t.text,background:t.bg,outline:"none",boxSizing:"border-box"}}/>
+                  </div>
+                </div>
+                <div style={{display:"flex",gap:8}}>
+                  <button onClick={addNew}
+                    style={{background:t.accent,color:"#fff",border:"none",borderRadius:8,padding:"8px 16px",cursor:"pointer",fontSize:13,fontWeight:500,fontFamily:"inherit"}}>
+                    Add
+                  </button>
+                  <button onClick={()=>{setAdding(false);setNewName("");setNewEmail("");}}
+                    style={{background:"none",border:`1px solid ${t.border}`,borderRadius:8,padding:"8px 12px",cursor:"pointer",fontSize:13,color:t.muted,fontFamily:"inherit"}}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <button onClick={()=>{setAdding(true);setAddMode("existing");}}
+            style={{background:"none",border:`1px dashed ${t.border}`,borderRadius:10,padding:"10px 18px",fontSize:13,color:t.muted,cursor:"pointer",width:"100%",fontFamily:"'DM Mono',monospace",marginBottom:14,transition:"all 0.1s"}}
+            onMouseEnter={e=>{e.currentTarget.style.borderColor=t.accentMid;e.currentTarget.style.color=t.accentText;}}
+            onMouseLeave={e=>{e.currentTarget.style.borderColor=t.border;e.currentTarget.style.color=t.muted;}}>
+            + Add colleague
+          </button>
+        )}
+
+        {/* Footer */}
+        <div style={{display:"flex",justifyContent:"flex-end",gap:10,paddingTop:12,borderTop:`1px solid ${t.border}`}}>
+          <Btn T={t} variant="secondary" onClick={onClose}>Cancel</Btn>
+          <Btn T={t} onClick={()=>onSave(shares)}>Save</Btn>
+        </div>
+      </div>
     </div>
-  </div>;
+  );
 }
 
 // ── Export Modal ───────────────────────────────────────────────────────────
@@ -982,11 +1117,11 @@ function QuickActionModal({action, interns, groups, onClose, onUpdateIntern, T})
       date: TODAY(), type: sessionType,
       duration: `${duration} min`, notes: note.trim(), author:"Alyson"
     };
-    // Also credit hours to supervisor's hourLog
+    // Credit hours to supervisor's hourLog using current category IDs
     const hrs = Math.round((Number(duration)/60)*10)/10;
-    const catId = sessionType==="Individual"||sessionType==="Phone/Telehealth"||sessionType==="Emergency"
-      ? "individual_direct" : "individual_direct";
-    const catLabel = "Individual Supervision";
+    const isGroup = sessionType.toLowerCase().includes("group");
+    const catId = isGroup ? "group_supervision" : "individual_supervision";
+    const catLabel = isGroup ? "Group Supervision" : "Individual Supervision";
     const existingLog = intern.hourLog||[];
     const existingEntry = existingLog.find(e=>e.category===catId);
     const newLog = existingEntry
@@ -1224,10 +1359,11 @@ Use professional clinical language appropriate for licensure documentation. Be s
     // Determine if direct or indirect from session type
     const directTypes = ["Individual Supervision","Group Supervision","Triadic Supervision","Live Supervision","Phone / Telehealth","Group"];
     const isDirect = directTypes.some(d=>form.sessionType.includes(d.split(" ")[0]));
+    const isGroup = form.sessionType.toLowerCase().includes("group");
     const hrs = Math.round((Number(form.duration)/60)*10)/10;
-    const catId = isDirect ? "individual_direct" : "individual_indirect";
-    const catLabel = isDirect ? "Individual Supervision" : "Case Consultation";
-    const catType = isDirect ? "direct" : "indirect";
+    const catId = isGroup ? "group_supervision" : "individual_supervision";
+    const catLabel = isGroup ? "Group Supervision" : "Individual Supervision";
+    const catType = "direct";
     // Only credit hourLog if this is for an individual intern (not group)
     if(intern) {
       const existingLog = intern.hourLog||[];
@@ -2145,7 +2281,7 @@ function InternActionsMenu({T,intern,onConsult,onFlagOpen,onLinkOpen,onExportOpe
   </div>;
 }
 
-function InternProfile({intern,groups,lists,onBack,onUpdateIntern,onConsult,onOpenLab,onGroupClick,T}) {
+function InternProfile({intern,groups,lists,setLists,onBack,onUpdateIntern,onConsult,onOpenLab,onGroupClick,T}) {
   const t=T||THEMES.sage;
   const [tab,setTab]=useState("overview");
   const [shareOpen,setShareOpen]=useState(false);
@@ -2315,49 +2451,122 @@ function InternProfile({intern,groups,lists,onBack,onUpdateIntern,onConsult,onOp
         </div>
 
         <div style={{display:"flex",flexDirection:"column",gap:12}}>
-          {/* Lists — editable inline */}
-          <div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:12,padding:"14px 16px",boxShadow:"0 1px 3px rgba(0,0,0,0.04)"}}>
-            <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:8}}>Tags / Lists</div>
-            <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center"}}>
-              {memberLists.map(l=>(
-                <div key={l.id} style={{display:"flex",alignItems:"center",gap:3,background:l.colorLight,border:`1px solid ${l.color}40`,borderRadius:20,padding:"3px 10px 3px 12px"}}>
-                  <span style={{fontSize:12,color:l.color,fontWeight:500}}>{l.name}</span>
-                  <button onClick={()=>onUpdateIntern({...intern,listIds:intern.listIds.filter(id=>id!==l.id)})}
-                    title="Remove from this list"
-                    style={{background:"none",border:"none",cursor:"pointer",fontSize:12,color:l.color,opacity:0.6,padding:"0 0 0 4px",lineHeight:1,marginTop:1}}
-                    onMouseEnter={e=>e.currentTarget.style.opacity="1"}
-                    onMouseLeave={e=>e.currentTarget.style.opacity="0.6"}>✕</button>
-                </div>
-              ))}
-              {/* Add to list dropdown */}
-              {lists.filter(l=>!intern.listIds.includes(l.id)).length>0&&(
-                <select
-                  defaultValue=""
-                  onChange={e=>{
-                    if(e.target.value) onUpdateIntern({...intern,listIds:[...intern.listIds,e.target.value]});
-                    e.target.value="";
-                  }}
-                  style={{background:"none",border:`1px dashed ${t.border}`,borderRadius:20,padding:"3px 10px",fontSize:12,color:t.muted,cursor:"pointer",outline:"none",fontFamily:"inherit"}}>
-                  <option value="">+ Add tag</option>
-                  {lists.filter(l=>!intern.listIds.includes(l.id)).map(l=>(
-                    <option key={l.id} value={l.id}>{l.name}</option>
+          {/* Tags — type to create new, click × to remove */}
+          {(()=>{
+            const [tagInput,setTagInput]=React.useState("");
+            const [tagFocused,setTagFocused]=React.useState(false);
+            const addTag=(name)=>{
+              const trimmed=name.trim();
+              if(!trimmed) return;
+              // Check if list already exists
+              let list=lists.find(l=>l.name.toLowerCase()===trimmed.toLowerCase());
+              if(!list){
+                // Create a new list with a random color
+                const colors=[{c:S.teal,l:S.tealLight},{c:S.purple,l:S.purpleLight},{c:S.amber,l:S.amberLight},{c:S.coral,l:S.coralLight},{c:"#2563EB",l:"#EFF6FF"}];
+                const col=colors[lists.length%colors.length];
+                list={id:`l${Date.now()}`,name:trimmed,color:col.c,colorLight:col.l};
+                setLists&&setLists(p=>[...p,list]);
+              }
+              if(!intern.listIds.includes(list.id)){
+                onUpdateIntern({...intern,listIds:[...intern.listIds,list.id]});
+              }
+              setTagInput("");
+            };
+            const suggestions=tagInput.trim()
+              ? lists.filter(l=>l.name.toLowerCase().includes(tagInput.toLowerCase())&&!intern.listIds.includes(l.id))
+              : lists.filter(l=>!intern.listIds.includes(l.id));
+            return <div style={{background:t.surface,border:`1px solid ${tagFocused?t.accentMid:t.border}`,borderRadius:12,padding:"14px 16px",boxShadow:"0 1px 3px rgba(0,0,0,0.04)",transition:"border-color 0.1s"}}>
+              <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:8}}>Tags</div>
+              <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center",marginBottom:memberLists.length>0?8:0}}>
+                {memberLists.map(l=>(
+                  <div key={l.id} style={{display:"flex",alignItems:"center",gap:3,background:l.colorLight,border:`1px solid ${l.color}40`,borderRadius:20,padding:"3px 8px 3px 12px"}}>
+                    <span style={{fontSize:12,color:l.color,fontWeight:500}}>{l.name}</span>
+                    <button onClick={()=>onUpdateIntern({...intern,listIds:intern.listIds.filter(id=>id!==l.id)})}
+                      style={{background:"none",border:"none",cursor:"pointer",fontSize:12,color:l.color,opacity:0.5,padding:"0 2px",lineHeight:1}}
+                      onMouseEnter={e=>e.currentTarget.style.opacity="1"}
+                      onMouseLeave={e=>e.currentTarget.style.opacity="0.5"}>✕</button>
+                  </div>
+                ))}
+              </div>
+              {/* Type-to-create input */}
+              <div style={{position:"relative"}}>
+                <input
+                  value={tagInput}
+                  onChange={e=>setTagInput(e.target.value)}
+                  onFocus={()=>setTagFocused(true)}
+                  onBlur={()=>setTimeout(()=>setTagFocused(false),150)}
+                  onKeyDown={e=>{if(e.key==="Enter"&&tagInput.trim()){addTag(tagInput);}if(e.key==="Escape"){setTagInput("");setTagFocused(false);}}}
+                  placeholder="Type a tag and press Enter…"
+                  style={{width:"100%",border:`1px solid ${t.border}`,borderRadius:7,padding:"6px 10px",fontSize:12,fontFamily:"inherit",color:t.text,background:t.bg,outline:"none",boxSizing:"border-box"}}
+                />
+                {/* Dropdown of existing suggestions */}
+                {tagFocused&&suggestions.length>0&&<div style={{position:"absolute",top:"100%",left:0,right:0,background:t.surface,border:`1px solid ${t.border}`,borderRadius:8,boxShadow:"0 6px 20px rgba(0,0,0,0.1)",zIndex:100,marginTop:4,overflow:"hidden"}}>
+                  {suggestions.slice(0,6).map(l=>(
+                    <button key={l.id} onMouseDown={()=>addTag(l.name)}
+                      style={{display:"flex",alignItems:"center",gap:8,width:"100%",background:"none",border:"none",padding:"8px 12px",cursor:"pointer",textAlign:"left",fontSize:12,color:t.text,fontFamily:"inherit"}}
+                      onMouseEnter={e=>e.currentTarget.style.background=t.surfaceAlt}
+                      onMouseLeave={e=>e.currentTarget.style.background="none"}>
+                      <div style={{width:8,height:8,borderRadius:"50%",background:l.color,flexShrink:0}}/>
+                      {l.name}
+                    </button>
                   ))}
-                </select>
-              )}
-              {memberLists.length===0&&lists.length===0&&<span style={{fontSize:12,color:t.faint}}>No tags — create lists in Settings to organize supervisees</span>}
-              {memberLists.length===0&&lists.length>0&&<span style={{fontSize:12,color:t.faint,fontStyle:"italic"}}>No tags assigned</span>}
+                  {tagInput.trim()&&!lists.some(l=>l.name.toLowerCase()===tagInput.trim().toLowerCase())&&(
+                    <button onMouseDown={()=>addTag(tagInput)}
+                      style={{display:"flex",alignItems:"center",gap:8,width:"100%",background:"none",borderTop:`1px solid ${t.borderLight}`,border:"none",padding:"8px 12px",cursor:"pointer",textAlign:"left",fontSize:12,color:t.accentText,fontFamily:"'DM Mono',monospace"}}
+                      onMouseEnter={e=>e.currentTarget.style.background=t.accentLight}
+                      onMouseLeave={e=>e.currentTarget.style.background="none"}>
+                      + Create "{tagInput.trim()}"
+                    </button>
+                  )}
+                </div>}
+              </div>
+            </div>;
+          })()}
+
+          {/* Groups — with edit button */}
+          <div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:12,padding:"14px 16px",boxShadow:"0 1px 3px rgba(0,0,0,0.04)"}}>
+            <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:8,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+              <span>Groups</span>
+              <button onClick={()=>setEditProfileOpen(true)}
+                style={{background:"none",border:`1px solid ${t.border}`,borderRadius:6,padding:"1px 8px",cursor:"pointer",fontSize:10,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"none",letterSpacing:"normal"}}>
+                ✎ Edit
+              </button>
             </div>
+            {memberGroups.length>0
+              ? <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                  {memberGroups.map(g=>(
+                    <div key={g.id} onClick={()=>onGroupClick&&onGroupClick(g.id)}
+                      style={{display:"flex",alignItems:"center",gap:6,background:g.colorLight,border:`1px solid ${g.color}40`,borderRadius:20,padding:"3px 12px",cursor:"pointer"}}
+                      title={`Open ${g.name}`}>
+                      <div style={{width:6,height:6,borderRadius:"50%",background:g.color}}/>
+                      <span style={{fontSize:12,color:g.color,fontWeight:500}}>{g.name}</span>
+                    </div>
+                  ))}
+                </div>
+              : <span style={{fontSize:12,color:t.faint,fontStyle:"italic"}}>Not in any groups — click Edit to assign</span>}
           </div>
-          {/* Groups */}
-          {memberGroups.length>0&&<div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:12,padding:"14px 16px",boxShadow:"0 1px 3px rgba(0,0,0,0.04)"}}>
-            <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:8}}>Groups</div>
-            <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{memberGroups.map(g=><Badge key={g.id} color={g.color} bg={g.colorLight}>{g.name}</Badge>)}</div>
-          </div>}
-          {/* Sharing */}
-          {intern.sharedWith?.length>0&&<div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:12,padding:"14px 16px",boxShadow:"0 1px 3px rgba(0,0,0,0.04)"}}>
-            <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:8}}>Shared with</div>
-            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>{intern.sharedWith.map(s=>{const col=COLLEAGUES.find(c=>c.id===s.colleagueId);return col?<div key={s.colleagueId} style={{display:"flex",alignItems:"center",gap:6}}><Avatar initials={col.initials} size={24} color={col.color} textColor="#fff" T={t}/><span style={{fontSize:12,color:t.text}}>{col.name}</span></div>:null;})}</div>
-          </div>}
+          {/* Sharing — always visible with edit button */}
+          <div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:12,padding:"14px 16px",boxShadow:"0 1px 3px rgba(0,0,0,0.04)"}}>
+            <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:8,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+              <span>Shared with</span>
+              <button onClick={()=>setShareOpen(true)}
+                style={{background:"none",border:`1px solid ${t.border}`,borderRadius:6,padding:"1px 8px",cursor:"pointer",fontSize:10,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"none",letterSpacing:"normal"}}>
+                ✎ Edit
+              </button>
+            </div>
+            {intern.sharedWith?.length>0
+              ? <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                  {intern.sharedWith.map(s=>{
+                    const col=COLLEAGUES.find(c=>c.id===s.colleagueId);
+                    return col?<div key={s.colleagueId} style={{display:"flex",alignItems:"center",gap:6,background:t.surfaceAlt,borderRadius:8,padding:"5px 10px"}}>
+                      <Avatar initials={col.initials} size={22} color={col.color} textColor="#fff"/>
+                      <span style={{fontSize:12,color:t.text}}>{col.name}</span>
+                      <span style={{fontSize:10,color:t.faint,fontFamily:"'DM Mono',monospace"}}>{pmSum(s.perms)}</span>
+                    </div>:null;
+                  })}
+                </div>
+              : <span style={{fontSize:12,color:t.faint,fontStyle:"italic"}}>Not shared — click Edit to share access</span>}
+          </div>
           {/* Employment & Emergency Contact */}
           <EmploymentCard intern={intern} onUpdateIntern={onUpdateIntern} T={t}/>
 
@@ -2625,7 +2834,6 @@ function Dashboard({interns,groups,lists,onSelectIntern,onNavigate,onOpenOnboard
         {id:"agreements", label:"Agreements"},
         {id:"discover",   label:"🔭 Discover"},
         {id:"profile",    label:"My Profile"},
-        {id:"discover",   label:"🔭 Discover"},
         {id:"billing",    label:"Plan & Billing"},
         {id:"support",    label:"Support"},
         ...interns.filter(i=>i.status==="active").map(i=>({id:`intern:${i.id}`,label:`→ ${dn(i)}`})),
@@ -2779,7 +2987,7 @@ function Dashboard({interns,groups,lists,onSelectIntern,onNavigate,onOpenOnboard
           </button>
         </div>;
       })()}
-      {!sec.collapsed&&sec.id==="supervisees"&&<div style={{display:"flex",flexDirection:"column",gap:10}}>{filtered.map(intern=><InternCard key={intern.id} intern={intern} lists={lists} groups={groups} T={t} onClick={()=>onSelectIntern(intern)}/>)}</div>}
+      {!sec.collapsed&&sec.id==="supervisees"&&<div style={{display:"flex",flexDirection:"column",gap:10}}>{filtered.map(intern=><InternCard key={intern.id} intern={intern} lists={lists} groups={groups} T={t} onClick={()=>onSelectIntern(intern)} onGroupClick={(gid)=>onNavigate("groups",gid)}/>)}</div>}
       {!sec.collapsed&&sec.id==="grplist"&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>{groups.map(g=>{const members=interns.filter(i=>i.groupIds.includes(g.id));return <div key={g.id} onClick={()=>onNavigate("groups",g.id)} style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:14,padding:"18px 20px",boxShadow:"0 1px 4px rgba(0,0,0,0.04)",cursor:"pointer",transition:"box-shadow 0.15s"}}
         onMouseEnter={e=>e.currentTarget.style.boxShadow="0 6px 20px rgba(0,0,0,0.08)"}
         onMouseLeave={e=>e.currentTarget.style.boxShadow="0 1px 4px rgba(0,0,0,0.04)"}>
@@ -8680,7 +8888,7 @@ export default function SupTrack() {
   const [customTheme,setCustomTheme]=useState(null);
   const [interns,setInterns]=useState(INITIAL_INTERNS);
   const [groups,setGroups]=useState(INITIAL_GROUPS);
-  const [lists]=useState(INITIAL_LISTS);
+  const [lists,setLists]=useState(INITIAL_LISTS);
   const [page,setPage]=useState("dashboard");
   const [selectedInternId_sv,setSelectedInternId_sv]=useState(null);
   const selectedIntern = interns.find(i=>i.id===selectedInternId_sv)||null;
@@ -8983,7 +9191,7 @@ export default function SupTrack() {
           setQuickActionHidden(prev=>{const s=new Set(prev);s.has(id)?s.delete(id):s.add(id);return s;});
         }}
       />}
-      {page==="intern-profile"&&selectedIntern&&<InternProfile T={t} intern={selectedIntern} groups={groups} lists={lists} onBack={()=>{setSelectedInternId_sv(null);setPage("interns");}} onUpdateIntern={updateIntern} onConsult={i=>{setConsultIntern(i);setPage("consult");}} onOpenLab={()=>setPage("lab")}/>}
+      {page==="intern-profile"&&selectedIntern&&<InternProfile T={t} intern={selectedIntern} groups={groups} lists={lists} setLists={setLists} onBack={()=>{setSelectedInternId_sv(null);setPage("interns");}} onUpdateIntern={updateIntern} onConsult={i=>{setConsultIntern(i);setPage("consult");}} onOpenLab={()=>setPage("lab")}/>}
       {page==="interns"&&<InterneesPage T={t} interns={interns} groups={groups} lists={lists} internFilter={internFilter} setInternFilter={setInternFilter} internSort={internSort} setInternSort={setInternSort} internViewMode={internViewMode} setInternViewMode={setInternViewMode} onSelectIntern={i=>{setSelectedInternId_sv(i.id);setPage("intern-profile");}} onGroupClick={(gid)=>{setSelectedGroupId(gid);setPage("groups");}} onAddIntern={()=>setAddInternOpen(true)} onOpenOnboarding={()=>setOnboardingOpen(true)}/>}
       {page==="groups"&&<GroupsPage T={t} groups={groups} interns={interns} setGroups={setGroups} initialGroupId={selectedGroupId} updateInterns={addSessionCharge} updateIntern={updateIntern} onSelectIntern={i=>{setSelectedInternId_sv(i.id);setPage("intern-profile");}}/>}
 
