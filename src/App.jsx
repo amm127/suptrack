@@ -8625,6 +8625,8 @@ function SettingsPage({theme,setTheme,setCustomTheme,font,setFont,darkMode,setDa
             localStorage.removeItem("suptrack_theme");
             localStorage.removeItem("suptrack_font");
             localStorage.removeItem("suptrack_dark");
+            localStorage.removeItem("suptrack_page");
+            localStorage.removeItem("suptrack_intern_id");
             window.location.reload();
           }
         }}
@@ -8931,8 +8933,10 @@ export default function SupTrack() {
   React.useEffect(()=>{try{localStorage.setItem("suptrack_interns",JSON.stringify(interns));}catch{}},[interns]);
   React.useEffect(()=>{try{localStorage.setItem("suptrack_groups",JSON.stringify(groups));}catch{}},[groups]);
   React.useEffect(()=>{try{localStorage.setItem("suptrack_lists",JSON.stringify(lists));}catch{}},[lists]);
-  const [page,setPage]=useState("dashboard");
-  const [selectedInternId_sv,setSelectedInternId_sv]=useState(null);
+  const [page,setPage]=useState(()=>{try{return localStorage.getItem("suptrack_page")||"dashboard";}catch{return "dashboard";}});
+  React.useEffect(()=>{try{localStorage.setItem("suptrack_page",page);}catch{}},[page]);
+  const [selectedInternId_sv,setSelectedInternId_sv]=useState(()=>{try{const v=localStorage.getItem("suptrack_intern_id");return v?Number(v):null;}catch{return null;}});
+  React.useEffect(()=>{try{if(selectedInternId_sv)localStorage.setItem("suptrack_intern_id",String(selectedInternId_sv));else localStorage.removeItem("suptrack_intern_id");}catch{}},[selectedInternId_sv]);
   const selectedIntern = interns.find(i=>i.id===selectedInternId_sv)||null;
   const [internFilter,setInternFilter]=useState(null); // null = show all
   const [internSort,setInternSort]=useState("group"); // default: by group
