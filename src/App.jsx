@@ -5928,6 +5928,7 @@ function BillingPage({billing,setBilling,interns,T,F,colleagues=[]}) {
               </div>
             </div>;
           })}
+        </div>
       </div>
 
       {/* Additional seats pricing note */}
