@@ -9303,7 +9303,34 @@ function InternPortal({intern:initialIntern,groups,onExit,onUpdateIntern,supervi
 // ── App Shell ──────────────────────────────────────────────────────────────
 // ── Auth ──────────────────────────────────────────────────────────────────
 
-export default function SupTrack() {
+// ── Error Boundary — catches render errors so app doesn't go blank ──────────
+class ErrorBoundary extends React.Component {
+  constructor(props){super(props);this.state={hasError:false,error:null};}
+  static getDerivedStateFromError(error){return {hasError:true,error};}
+  componentDidCatch(error,info){console.error("SupTrack render error:",error,info);}
+  render(){
+    if(this.state.hasError){
+      return <div style={{padding:40,fontFamily:"system-ui",maxWidth:600,margin:"80px auto"}}>
+        <div style={{fontSize:24,fontWeight:600,color:"#1A1A2E",marginBottom:12}}>Something went wrong</div>
+        <div style={{fontSize:14,color:"#666",marginBottom:20,lineHeight:1.6}}>
+          SupTrack hit an unexpected error. This is usually caused by stale data in your browser.
+        </div>
+        <pre style={{fontSize:11,color:"#999",background:"#F5F5F5",padding:12,borderRadius:8,overflow:"auto",marginBottom:20}}>
+          {this.state.error?.message||"Unknown error"}
+        </pre>
+        <button onClick={()=>{
+          Object.keys(localStorage).filter(k=>k.startsWith("suptrack_")).forEach(k=>localStorage.removeItem(k));
+          window.location.reload();
+        }} style={{background:"#2A6080",color:"#fff",border:"none",borderRadius:8,padding:"10px 24px",cursor:"pointer",fontSize:14,fontWeight:500}}>
+          Clear data and reload
+        </button>
+      </div>;
+    }
+    return this.props.children;
+  }
+}
+
+function SupTrackInner() {
 
 
   const [theme,setTheme]=useState(()=>{try{return localStorage.getItem("suptrack_theme")||"suptrack";}catch{return "suptrack";}});
@@ -9339,7 +9366,7 @@ export default function SupTrack() {
   React.useEffect(()=>{try{localStorage.setItem("suptrack_groups",JSON.stringify(groups));}catch{}},[groups]);
   React.useEffect(()=>{try{localStorage.setItem("suptrack_lists",JSON.stringify(lists));}catch{}},[lists]);
   React.useEffect(()=>{try{localStorage.setItem("suptrack_colleagues",JSON.stringify(colleagues));}catch{}},[colleagues]);
-  const [page,setPage]=useState(()=>{try{return localStorage.getItem("suptrack_page")||"dashboard";}catch{return "dashboard";}});
+  const [page,setPage]=useState(()=>{try{const p=localStorage.getItem("suptrack_page");return p&&["dashboard","interns","intern-profile","groups","payments","billing","ce","calendar","consult","lab","resources","discover","agreements","reminders","support","admin","profile","settings"].includes(p)?p:"dashboard";}catch{return "dashboard";}});
   React.useEffect(()=>{try{localStorage.setItem("suptrack_page",page);}catch{}},[page]);
   const [selectedInternId_sv,setSelectedInternId_sv]=useState(()=>{try{const v=localStorage.getItem("suptrack_intern_id");return v?Number(v):null;}catch{return null;}});
   React.useEffect(()=>{try{if(selectedInternId_sv)localStorage.setItem("suptrack_intern_id",String(selectedInternId_sv));else localStorage.removeItem("suptrack_intern_id");}catch{}},[selectedInternId_sv]);
@@ -9639,6 +9666,7 @@ export default function SupTrack() {
           setQuickActionHidden(prev=>{const s=new Set(prev);s.has(id)?s.delete(id):s.add(id);return s;});
         }}
       />}
+      {page==="intern-profile"&&!selectedIntern&&(()=>{setTimeout(()=>setPage("interns"),0);return null;})()}
       {page==="intern-profile"&&selectedIntern&&<InternProfile T={t} intern={selectedIntern} groups={groups} lists={lists} setLists={setLists} colleagues={colleagues} setColleagues={setColleagues} onBack={()=>{setSelectedInternId_sv(null);setPage("interns");}} onUpdateIntern={updateIntern} onConsult={i=>{setConsultIntern(i);setPage("consult");}} onOpenLab={()=>setPage("lab")} onGroupClick={(gid)=>{setSelectedGroupId(gid);setPage("groups");}}/>}
       {page==="interns"&&<InterneesPage T={t} interns={interns} groups={groups} lists={lists} colleagues={colleagues} internFilter={internFilter} setInternFilter={setInternFilter} internSort={internSort} setInternSort={setInternSort} internViewMode={internViewMode} setInternViewMode={setInternViewMode} onSelectIntern={i=>{setSelectedInternId_sv(i.id);setPage("intern-profile");}} onGroupClick={(gid)=>{setSelectedGroupId(gid);setPage("groups");}} onAddIntern={()=>setAddInternOpen(true)} onOpenOnboarding={()=>setOnboardingOpen(true)}/>}
       {page==="groups"&&<GroupsPage T={t} groups={groups} interns={interns} colleagues={colleagues} setColleagues={setColleagues} setGroups={setGroups} initialGroupId={selectedGroupId} updateInterns={addSessionCharge} updateIntern={updateIntern} onSelectIntern={i=>{setSelectedInternId_sv(i.id);setPage("intern-profile");}}/>}
@@ -9659,6 +9687,7 @@ export default function SupTrack() {
       {page==="admin"&&!isAdmin&&<div style={{padding:40,color:t.muted,fontSize:14}}>Access restricted.</div>}
       {page==="profile"&&<PublicProfilePage T={t} supervisorPhoto={supervisorPhoto} setSupervisorPhoto={setSupervisorPhoto} supervisorName={supervisorName} setSupervisorName={setSupervisorName} supervisorInitials={supervisorInitials}/>}
       {page==="settings"&&<SettingsPage T={t} theme={theme} setTheme={setTheme} setCustomTheme={setCustomTheme} font={fontKey} setFont={setFontKey} darkMode={darkMode} setDarkMode={setDarkMode} highContrast={highContrast} setHighContrast={setHighContrast} supervisorName={supervisorName} setSupervisorName={setSupervisorName}/>}
+      {!["dashboard","interns","intern-profile","groups","payments","billing","ce","calendar","consult","lab","resources","discover","agreements","reminders","support","admin","profile","settings"].includes(page)&&<Dashboard T={t} interns={interns} groups={groups} lists={lists} colleagues={colleagues} supervisorName={supervisorName} onAddIntern={()=>setAddInternOpen(true)} onQuickAction={setQuickActionOpen} onSelectIntern={i=>{setSelectedInternId_sv(i.id);setPage("intern-profile");}} onNavigate={navigate} onOpenOnboarding={()=>setOnboardingOpen(true)} quickActionOrder={quickActionOrder} quickActionHidden={quickActionHidden} allQuickActions={ALL_QUICK_ACTIONS} onQuickActionReorder={setQuickActionOrder} onQuickActionToggle={(id)=>{setQuickActionHidden(prev=>{const s=new Set(prev);s.has(id)?s.delete(id):s.add(id);return s;});}}/>}
       {quickActionOpen&&<QuickActionModal T={t} action={quickActionOpen} interns={interns} groups={groups} onUpdateIntern={updateIntern} onClose={()=>setQuickActionOpen(null)}/>}
       {onboardingOpen&&<OnboardingModal T={t} supervisorName={supervisorName} onClose={()=>setOnboardingOpen(false)}/>}
       {addInternOpen&&<AddInternModal T={t} groups={groups} lists={lists}
@@ -9669,3 +9698,5 @@ export default function SupTrack() {
     </div>
   </div>;
 }
+
+export default function SupTrack(){return <ErrorBoundary><SupTrackInner/></ErrorBoundary>;}
