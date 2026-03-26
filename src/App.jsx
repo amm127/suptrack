@@ -1333,7 +1333,7 @@ Use professional clinical language appropriate for licensure documentation. Be s
     try {
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method:"POST",
-        headers:{"Content-Type":"application/json","x-api-key":window.__SUPTRACK_API_KEY||"","anthropic-dangerous-direct-browser-access":"true"},
+        headers:{"Content-Type":"application/json","x-api-key":window.__SUPTRACK_API_KEY||localStorage.getItem("suptrack_api_key")||"","anthropic-dangerous-direct-browser-access":"true"},
         body:JSON.stringify({
           model:"claude-sonnet-4-5",
           max_tokens:1000,
@@ -2868,12 +2868,12 @@ function Dashboard({interns,groups,lists,colleagues,onSelectIntern,onNavigate,on
         {id:"payments",   label:"Payments"},
         {id:"ce",         label:"CE Tracker"},
         {id:"agreements", label:"Agreements"},
-        {id:"reminders",   label:"🔔 Reminders"},
+        {id:"reminders",   label:"Reminders"},
         {id:"discover",   label:"🔭 Discover"},
         {id:"profile",    label:"My Profile"},
         {id:"billing",    label:"Plan & Billing"},
-        {id:"reminders",  label:"🔔 Reminders"},
-        {id:"reminders",  label:"🔔 Reminders"},
+        {id:"reminders",  label:"Reminders"},
+        {id:"reminders",  label:"Reminders"},
     {id:"support",    label:"Support"},
         ...interns.filter(i=>i.status==="active").map(i=>({id:`intern:${i.id}`,label:`→ ${dn(i)}`})),
       ];
@@ -4774,7 +4774,7 @@ function EvaluationTab({intern,onUpdateIntern,T}) {
     const ratingText=EVAL_QUESTIONS.map(q=>`- ${q.label}: ${ratings[q.id]}/5`).join("\n");
     const prompt=`You are a licensed clinical supervisor writing a formal evaluation of a supervisee. Write a professional, balanced evaluation summary based on these ratings and notes.\n\nSupervisee: ${intern.name}\nEvaluation type: ${evalType}\nCredential goal: ${intern.licenseGoal}\n\nRatings (1-5):\n${ratingText}\n\nStrengths: ${strengths||"Not specified"}\nGrowth areas: ${growth||"Not specified"}\nGoals: ${goals||"Not specified"}\n\nWrite a 2-3 paragraph professional evaluation in third person. Reference the supervisee by last name. Be specific, balanced, and clinically appropriate.`;
     try{
-      const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":window.__SUPTRACK_API_KEY||"","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-sonnet-4-5",max_tokens:600,messages:[{role:"user",content:prompt}]})});
+      const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":window.__SUPTRACK_API_KEY||localStorage.getItem("suptrack_api_key")||"","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-sonnet-4-5",max_tokens:600,messages:[{role:"user",content:prompt}]})});
       const data=await res.json();
       setGeneratedSummary(data.content?.filter(c=>c.type==="text").map(c=>c.text).join("")||"");
     }catch(e){setGeneratedSummary("Unable to generate. Please write manually.");}
@@ -6192,7 +6192,7 @@ function ConsultPage({interns,T,consultIntern}) {
   const [input,setInput]=useState(consultIntern ? `I want to consult about a supervisee situation involving ${consultIntern.preferredName||consultIntern.name.split(" ")[0]} (${consultIntern.discipline||consultIntern.internType}, ${consultIntern.credential}). ` : "");
   const [loading,setLoading]=useState(false);
   const [hipaaAck,setHipaaAck]=useState(false);
-  const [apiKey,setApiKey]=useState(()=>window.__SUPTRACK_API_KEY||"");
+  const [apiKey,setApiKey]=useState(()=>{const saved=localStorage.getItem("suptrack_api_key")||"";if(saved)window.__SUPTRACK_API_KEY=saved;return saved;});
   const [showKeyInput,setShowKeyInput]=useState(false);
   const [tempKey,setTempKey]=useState("");
 
@@ -6233,7 +6233,7 @@ Tone: Collegial, warm, confident. You're a trusted colleague, not a chatbot. Kee
     try {
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method:"POST",
-        headers:{"Content-Type":"application/json","x-api-key":window.__SUPTRACK_API_KEY||"","anthropic-dangerous-direct-browser-access":"true"},
+        headers:{"Content-Type":"application/json","x-api-key":window.__SUPTRACK_API_KEY||localStorage.getItem("suptrack_api_key")||"","anthropic-dangerous-direct-browser-access":"true"},
         body:JSON.stringify({
           model:"claude-sonnet-4-5",
           max_tokens:1000,
@@ -6297,9 +6297,9 @@ Tone: Collegial, warm, confident. You're a trusted colleague, not a chatbot. Kee
         <div style={{display:"flex",gap:8}}>
           <input type="password" value={tempKey} onChange={e=>setTempKey(e.target.value)} placeholder="sk-ant-..." autoFocus
             style={{flex:1,border:`1px solid ${t.border}`,borderRadius:7,padding:"7px 12px",fontSize:13,fontFamily:"'DM Mono',monospace",color:t.text,background:t.bg,outline:"none"}}/>
-          <button onClick={()=>{window.__SUPTRACK_API_KEY=tempKey;setApiKey(tempKey);setShowKeyInput(false);setTempKey("");}}
+          <button onClick={()=>{window.__SUPTRACK_API_KEY=tempKey;localStorage.setItem("suptrack_api_key",tempKey);setApiKey(tempKey);setShowKeyInput(false);setTempKey("");}}
             style={{background:t.accent,color:"#fff",border:"none",borderRadius:7,padding:"7px 16px",cursor:"pointer",fontSize:13,fontFamily:"inherit"}}>Save</button>
-          {apiKey&&<button onClick={()=>{window.__SUPTRACK_API_KEY="";setApiKey("");setShowKeyInput(false);setTempKey("");}}
+          {apiKey&&<button onClick={()=>{window.__SUPTRACK_API_KEY="";localStorage.removeItem("suptrack_api_key");setApiKey("");setShowKeyInput(false);setTempKey("");}}
             style={{background:"none",border:`1px solid ${S.red}40`,borderRadius:7,padding:"7px 12px",cursor:"pointer",fontSize:12,color:S.red,fontFamily:"'DM Mono',monospace"}}>Clear key</button>}
         </div>
       </div>}
@@ -6975,7 +6975,7 @@ function SupervisionLabPage({T}) {
     const hist = newTranscript.map(m=>`${m.role==="supervisor"?(isSpanish?"Supervisora":"Supervisor"):"You"}: ${m.text}`).join("\n");
     const systemPrompt = `${scenario.persona}\n\nYou are in a live supervision session. Stay fully in character. Do not break character or reveal you are an AI.\n${isSpanish?"IMPORTANTE: Responde SOLAMENTE en español natural. 2-5 oraciones máximo.":"Keep responses to 2-5 sentences of natural spoken dialogue."}\n\nConversation so far:\n${hist}\n\nRespond only with your character's next spoken words. No labels, no stage directions.`;
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":window.__SUPTRACK_API_KEY||"","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-sonnet-4-5",max_tokens:200,messages:[{role:"user",content:`[${isSpanish?"La supervisora dijo":"The supervisor said"}]: ${text}`}],system:systemPrompt})});
+      const res = await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":window.__SUPTRACK_API_KEY||localStorage.getItem("suptrack_api_key")||"","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-sonnet-4-5",max_tokens:200,messages:[{role:"user",content:`[${isSpanish?"La supervisora dijo":"The supervisor said"}]: ${text}`}],system:systemPrompt})});
       const data = await res.json();
       const reply = data.content?.filter(c=>c.type==="text").map(c=>c.text).join("")||(isSpanish?"¿Puedes repetir eso?":"Could you repeat that?");
       const updated = [...newTranscript, { role:"supervisee", text:reply, ts: fmt(sessionTime) }];
@@ -7032,7 +7032,7 @@ Provide feedback in ${isSpanish?"Spanish (Español)":"English"} with these secti
 
 Be direct, clinical, encouraging. Under 400 words.`;
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":window.__SUPTRACK_API_KEY||"","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-sonnet-4-5",max_tokens:600,messages:[{role:"user",content:prompt}]})});
+      const res = await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":window.__SUPTRACK_API_KEY||localStorage.getItem("suptrack_api_key")||"","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-sonnet-4-5",max_tokens:600,messages:[{role:"user",content:prompt}]})});
       const data = await res.json();
       const fb = data.content?.filter(c=>c.type==="text").map(c=>c.text).join("")||"";
       setFeedback(fb);
@@ -7329,7 +7329,7 @@ Write a professional Supervision of Supervision feedback letter that:
 
 Keep the tone warm, collegial, and clinically precise. Write in the voice of a senior LPC-S or LCSW-S writing to a newly credentialed supervisee-supervisor. 3-4 paragraphs.`;
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":window.__SUPTRACK_API_KEY||"","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-sonnet-4-5",max_tokens:700,messages:[{role:"user",content:prompt}]})});
+      const res = await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":window.__SUPTRACK_API_KEY||localStorage.getItem("suptrack_api_key")||"","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-sonnet-4-5",max_tokens:700,messages:[{role:"user",content:prompt}]})});
       const data = await res.json();
       setReviewLetter(data.content?.filter(c=>c.type==="text").map(c=>c.text).join("")||"");
     } catch(e) { setReviewLetter("Unable to generate letter. Please write feedback manually above."); }
@@ -8051,6 +8051,29 @@ function DeadlineAlertsPanel({interns, groups, T}) {
 }
 
 
+// ── Resources Hub — wraps Consult AI and Supervision Lab ─────────────────────
+function ResourcesHubPage({interns,consultIntern,T}) {
+  const t=T||THEMES.sage;
+  const [section,setSection]=useState(consultIntern?"consult":"consult");
+  React.useEffect(()=>{if(consultIntern)setSection("consult");},[consultIntern]);
+  return <div>
+    <div style={{marginBottom:24}}>
+      <h1 style={{fontFamily:"inherit",fontSize:28,fontWeight:400,color:t.text,margin:"0 0 4px",letterSpacing:"-0.02em"}}>Resources</h1>
+      <p style={{color:t.muted,fontSize:14,margin:0}}>AI-powered tools for supervisors</p>
+    </div>
+    <div style={{display:"flex",gap:0,border:`1px solid ${t.border}`,borderRadius:10,overflow:"hidden",marginBottom:28,width:"fit-content"}}>
+      {[["consult","✦ Consult AI"],["lab","✦ Supervision Lab"]].map(([id,label],i)=>(
+        <button key={id} onClick={()=>setSection(id)}
+          style={{background:section===id?t.accentLight:"none",color:section===id?t.accentText:t.muted,border:"none",borderRight:i<1?`1px solid ${t.border}`:"none",padding:"9px 22px",cursor:"pointer",fontSize:13,fontFamily:"inherit",fontWeight:section===id?500:400,transition:"all 0.1s"}}>
+          {label}
+        </button>
+      ))}
+    </div>
+    {section==="consult"&&<ConsultPage T={t} interns={interns} consultIntern={consultIntern}/>}
+    {section==="lab"&&<SupervisionLabPage T={t}/>}
+  </div>;
+}
+
 function ResourcesPage({T}) {
   const t=T||THEMES.sage;
   const [activeCategory,setActiveCategory]=useState("All");
@@ -8340,7 +8363,7 @@ Replace all bracketed placeholders with appropriate values based on the supervis
 
     try {
       const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method:"POST", headers:{"Content-Type":"application/json","x-api-key":window.__SUPTRACK_API_KEY||"","anthropic-dangerous-direct-browser-access":"true"},
+        method:"POST", headers:{"Content-Type":"application/json","x-api-key":window.__SUPTRACK_API_KEY||localStorage.getItem("suptrack_api_key")||"","anthropic-dangerous-direct-browser-access":"true"},
         body:JSON.stringify({ model:"claude-sonnet-4-5", max_tokens:2000, messages:[{role:"user",content:prompt}] })
       });
       const data = await res.json();
@@ -9258,6 +9281,12 @@ function InternPortal({intern:initialIntern,groups,onExit,onUpdateIntern,supervi
       </div>
     </div>
     <div style={{flex:1,padding:"36px 40px",maxWidth:800,overflowY:"auto"}}>
+      {/* Back to supervisor view — top */}
+      <div style={{display:"flex",justifyContent:"flex-end",marginBottom:16}}>
+        <button onClick={onExit} style={{background:"none",border:`1px solid ${t.border}`,borderRadius:8,padding:"6px 14px",cursor:"pointer",fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace",display:"flex",alignItems:"center",gap:6}}>
+          ← Back to supervisor view
+        </button>
+      </div>
       <h1 style={{fontFamily:f.display,fontSize:26,fontWeight:400,color:t.text,margin:"0 0 4px",letterSpacing:"-0.01em"}}>Welcome, {dn(intern)}</h1>
       <p style={{color:t.muted,fontSize:14,margin:"0 0 28px"}}>Your supervision hub</p>
       {tab==="hours"&&<InternPortalHours intern={intern} onUpdate={handleUpdate} T={t} F={f}/>}
@@ -9418,6 +9447,7 @@ function SupTrackInner() {
   React.useEffect(()=>{try{localStorage.setItem("suptrack_colleagues",JSON.stringify(colleagues));}catch{}},[colleagues]);
   const [page,setPage]=useState(()=>{try{const p=localStorage.getItem("suptrack_page");return p&&["dashboard","interns","intern-profile","groups","payments","billing","ce","calendar","consult","lab","resources","discover","agreements","reminders","support","admin","profile","settings"].includes(p)?p:"dashboard";}catch{return "dashboard";}});
   React.useEffect(()=>{try{localStorage.setItem("suptrack_page",page);}catch{}},[page]);
+  React.useEffect(()=>{const el=document.getElementById("suptrack-content");if(el)el.scrollTop=0;window.scrollTo(0,0);},[page]);
   const [selectedInternId_sv,setSelectedInternId_sv]=useState(()=>{try{const v=localStorage.getItem("suptrack_intern_id");return v?Number(v):null;}catch{return null;}});
   React.useEffect(()=>{try{if(selectedInternId_sv)localStorage.setItem("suptrack_intern_id",String(selectedInternId_sv));else localStorage.removeItem("suptrack_intern_id");}catch{}},[selectedInternId_sv]);
   const selectedIntern = interns.find(i=>i.id===selectedInternId_sv)||null;
@@ -9527,10 +9557,9 @@ function SupTrackInner() {
     {id:"calendar",   label:"Calendar"},
     {id:"payments",   label:"Payments"},
     {id:"ce",         label:"CE Tracker"},
-    {id:"consult",    label:"✦ Consult AI"},
-    {id:"lab",        label:"✦ Supervision Lab"},
+    {id:"resources",  label:"Resources"},
     {id:"agreements", label:"Agreements"},
-    {id:"reminders",   label:"🔔 Reminders"},
+    {id:"reminders",   label:"Reminders"},
     {id:"discover",   label:"🔭 Discover"},
     {id:"profile",    label:"My Profile"},
     {id:"billing",    label:"Plan & Billing"},
@@ -9690,7 +9719,8 @@ function SupTrackInner() {
       </div>
 
       <div style={{padding:"12px 24px",borderTop:`1px solid ${t.borderLight}`}}>
-        <div style={{display:"flex",alignItems:"center",gap:10}}><Avatar initials={supervisorInitials} size={32} T={t} photo={supervisorPhoto}/><div><div style={{fontSize:13,color:t.text,fontWeight:500}}>{supervisorName.split(" ")[0]}</div><div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace"}}>Supervisor</div></div></div>
+        <div onClick={()=>setPage("profile")} style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer"}} title="My profile" onMouseEnter={e=>e.currentTarget.style.opacity="0.7"} onMouseLeave={e=>e.currentTarget.style.opacity="1"}><Avatar initials={supervisorInitials} size={32} T={t} photo={supervisorPhoto}/><div><div style={{fontSize:13,color:t.text,fontWeight:500}}>{supervisorName.split(" ")[0]}</div><div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace"}}>Supervisor</div></div></div><div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace"}}>Supervisor</div></div>
+        </div>
         {/* Admin inbox — only shown to account owner, subtle */}
         {isAdmin&&<button onClick={()=>setPage("admin")}
           style={{marginTop:8,background:"none",border:"none",cursor:"pointer",fontSize:10,color:page==="admin"?t.accent:t.faint,fontFamily:"'DM Mono',monospace",padding:0,display:"flex",alignItems:"center",gap:4}}>
@@ -9700,7 +9730,7 @@ function SupTrackInner() {
     </div>
 
     {/* Main content */}
-    <div style={{flex:1,padding:"38px 44px",maxWidth:980,overflowY:"auto"}}>
+    <div id="suptrack-content" style={{flex:1,padding:"38px 44px",maxWidth:980,overflowY:"auto"}}>
       {page==="dashboard"&&<Dashboard T={t} interns={interns} groups={groups} lists={lists} colleagues={colleagues} supervisorName={supervisorName}
         onAddIntern={()=>setAddInternOpen(true)}
         onQuickAction={setQuickActionOpen}
@@ -9717,7 +9747,7 @@ function SupTrackInner() {
         }}
       />}
       {page==="intern-profile"&&!selectedIntern&&(()=>{setTimeout(()=>setPage("interns"),0);return null;})()}
-      {page==="intern-profile"&&selectedIntern&&<InternProfile T={t} intern={selectedIntern} groups={groups} lists={lists} setLists={setLists} colleagues={colleagues} setColleagues={setColleagues} onBack={()=>{setSelectedInternId_sv(null);setPage("interns");}} onUpdateIntern={updateIntern} onDelete={(id)=>{setInterns(p=>p.filter(i=>i.id!==id));setSelectedInternId_sv(null);setPage("interns");}} onConsult={i=>{setConsultIntern(i);setPage("consult");}} onOpenLab={()=>setPage("lab")} onGroupClick={(gid)=>{setSelectedGroupId(gid);setPage("groups");}}/>}
+      {page==="intern-profile"&&selectedIntern&&<InternProfile T={t} intern={selectedIntern} groups={groups} lists={lists} setLists={setLists} colleagues={colleagues} setColleagues={setColleagues} onBack={()=>{setSelectedInternId_sv(null);setPage("interns");}} onUpdateIntern={updateIntern} onDelete={(id)=>{setInterns(p=>p.filter(i=>i.id!==id));setSelectedInternId_sv(null);setPage("interns");}} onConsult={i=>{setConsultIntern(i);setPage("resources");}} onOpenLab={()=>setPage("lab")} onGroupClick={(gid)=>{setSelectedGroupId(gid);setPage("groups");}}/>}
       {page==="interns"&&<InterneesPage T={t} interns={interns} groups={groups} lists={lists} colleagues={colleagues} internFilter={internFilter} setInternFilter={setInternFilter} internSort={internSort} setInternSort={setInternSort} internViewMode={internViewMode} setInternViewMode={setInternViewMode} onSelectIntern={i=>{setSelectedInternId_sv(i.id);setPage("intern-profile");}} onGroupClick={(gid)=>{setSelectedGroupId(gid);setPage("groups");}} onAddIntern={()=>setAddInternOpen(true)} onOpenOnboarding={()=>setOnboardingOpen(true)}/>}
       {page==="groups"&&<GroupsPage T={t} groups={groups} interns={interns} colleagues={colleagues} setColleagues={setColleagues} setGroups={setGroups} initialGroupId={selectedGroupId} updateInterns={addSessionCharge} updateIntern={updateIntern} onSelectIntern={i=>{setSelectedInternId_sv(i.id);setPage("intern-profile");}}/>}
 
@@ -9725,8 +9755,7 @@ function SupTrackInner() {
       {page==="billing"&&<BillingPage T={t} F={f} colleagues={colleagues} billing={billing} setBilling={setBilling} interns={interns}/>}
       {page==="ce"&&<CETrackerPage T={t} ceData={ceData} setCeData={setCeData}/>}
       {page==="calendar"&&<CalendarPage T={t}/>}
-      {page==="consult"&&<ConsultPage T={t} interns={interns} consultIntern={consultIntern}/>}
-      {page==="lab"&&<SupervisionLabPage T={t}/>}
+      {page==="resources"&&<ResourcesHubPage T={t} interns={interns} consultIntern={consultIntern}/>}
       {page==="resources"&&<ResourcesPage T={t}/>}
       {page==="discover"&&<DiscoverPage T={t} interns={interns} onAddIntern={newIntern=>setInterns(p=>[...p,newIntern])}/>}
       {page==="agreements"&&<AgreementsPage T={t} interns={interns} supervisorName={supervisorName}/>}
