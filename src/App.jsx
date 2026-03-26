@@ -2250,7 +2250,7 @@ function EmploymentCard({intern,onUpdateIntern,T}) {
 }
 
 // ── InternActionsMenu — proper component so hooks are at top level ───────────
-function InternActionsMenu({T,intern,onConsult,onFlagOpen,onLinkOpen,onExportOpen,onShareOpen,onAiSession,onComplete,onEditProfile}) {
+function InternActionsMenu({T,intern,onConsult,onFlagOpen,onLinkOpen,onExportOpen,onShareOpen,onAiSession,onComplete,onEditProfile,onDelete}) {
   const t=T||THEMES.sage;
   const [open,setOpen]=useState(false);
   React.useEffect(()=>{
@@ -2273,6 +2273,13 @@ function InternActionsMenu({T,intern,onConsult,onFlagOpen,onLinkOpen,onExportOpe
           style={{display:"block",width:"100%",background:"none",border:"none",padding:"9px 16px",cursor:"pointer",fontSize:13,color:t.text,textAlign:"left",fontFamily:"inherit"}}
           onMouseEnter={e=>e.currentTarget.style.background=t.surfaceAlt}
           onMouseLeave={e=>e.currentTarget.style.background="none"}>{item.label}</button>)}
+        <div style={{borderTop:`1px solid ${t.border}`,margin:"4px 0"}}/>
+        <button onClick={()=>{onDelete&&onDelete();setOpen(false);}}
+          style={{display:"block",width:"100%",background:"none",border:"none",padding:"9px 16px",cursor:"pointer",fontSize:13,color:S.red,textAlign:"left",fontFamily:"inherit"}}
+          onMouseEnter={e=>e.currentTarget.style.background=S.redLight}
+          onMouseLeave={e=>e.currentTarget.style.background="none"}>
+          🗑 Delete supervisee
+        </button>
       </div>}
     </div>
     {intern.status==="active"&&<Btn T={t} variant="soft" small onClick={()=>onConsult&&onConsult(intern)}>✦ Consult AI</Btn>}
@@ -2356,7 +2363,7 @@ function TagsBox({intern,lists,memberLists,t,onUpdateIntern,setLists}) {
   </div>;
 }
 
-function InternProfile({intern,groups,lists,setLists,colleagues,setColleagues,onBack,onUpdateIntern,onConsult,onOpenLab,onGroupClick,T}) {
+function InternProfile({intern,groups,lists,setLists,colleagues,setColleagues,onBack,onUpdateIntern,onDelete,onConsult,onOpenLab,onGroupClick,T}) {
   const t=T||THEMES.sage;
   const [tab,setTab]=useState("overview");
   const [shareOpen,setShareOpen]=useState(false);
@@ -2367,6 +2374,7 @@ function InternProfile({intern,groups,lists,setLists,colleagues,setColleagues,on
   const [aiSessionOpen,setAiSessionOpen]=useState(false);
   const [showConfetti,setShowConfetti]=useState(false);
   const [showCompleteConfirm,setShowCompleteConfirm]=useState(false);
+  const [showDeleteConfirm,setShowDeleteConfirm]=useState(false);
   const tabs=["overview","hours","sessions","cases","evaluations","documents",...(!intern.proBono?["payments"]:[])];
   const tabLabel={overview:"Overview",hours:"Hours",sessions:"Notes",cases:"Cases",evaluations:"Evaluations",documents:"Documents",payments:"Payments"};
   const memberGroups=groups.filter(g=>(intern.groupIds||[]).includes(g.id));
@@ -2383,6 +2391,28 @@ function InternProfile({intern,groups,lists,setLists,colleagues,setColleagues,on
   const rs=retSt(intern); const af=activeFlags(intern);
 
   return <div>
+    {/* Delete confirmation modal */}
+    {showDeleteConfirm&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.45)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000}} onClick={()=>setShowDeleteConfirm(false)}>
+      <div style={{background:"#fff",borderRadius:16,padding:"32px 36px",width:440,boxShadow:"0 24px 64px rgba(0,0,0,0.2)"}} onClick={e=>e.stopPropagation()}>
+        <div style={{fontSize:22,fontWeight:600,color:"#1A1A2E",marginBottom:8}}>Delete {intern.name}?</div>
+        <div style={{fontSize:14,color:"#666",lineHeight:1.7,marginBottom:6}}>
+          This will permanently remove {dn(intern)} from your SupTrack account, including all session notes, hours, documents, and case records.
+        </div>
+        <div style={{background:"#FEF2F2",border:"1px solid #FECACA",borderRadius:8,padding:"10px 14px",fontSize:13,color:"#991B1B",marginBottom:24,lineHeight:1.6}}>
+          ⚠ This cannot be undone. Export their records first if you need them.
+        </div>
+        <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
+          <button onClick={()=>setShowDeleteConfirm(false)}
+            style={{background:"none",border:"1px solid #E5E5E5",borderRadius:9,padding:"9px 20px",cursor:"pointer",fontSize:14,color:"#666",fontFamily:"inherit"}}>
+            Cancel
+          </button>
+          <button onClick={()=>{setShowDeleteConfirm(false);onDelete&&onDelete(intern.id);}}
+            style={{background:S.red,color:"#fff",border:"none",borderRadius:9,padding:"9px 20px",cursor:"pointer",fontSize:14,fontWeight:600,fontFamily:"inherit"}}>
+            Yes, delete permanently
+          </button>
+        </div>
+      </div>
+    </div>}
     {shareOpen&&<ShareModal T={t} title={dn(intern)} sharedWith={intern.sharedWith||[]} colleagues={colleagues} setColleagues={setColleagues} onSave={s=>{onUpdateIntern({...intern,sharedWith:s});setShareOpen(false);}} onClose={()=>setShareOpen(false)}/>}
     {linkOpen&&<ShareLinkModal T={t} intern={intern} onClose={()=>setLinkOpen(false)}/>}
     {exportOpen&&<ExportModal T={t} intern={intern} groups={groups} onClose={()=>setExportOpen(false)}/>}
@@ -2424,7 +2454,7 @@ function InternProfile({intern,groups,lists,setLists,colleagues,setColleagues,on
           </div>
         </div>
         <div style={{display:"flex",gap:6,flexShrink:0,alignItems:"flex-start",position:"relative"}}>
-          <InternActionsMenu T={t} intern={intern} onConsult={onConsult} onFlagOpen={()=>setFlagOpen(true)} onLinkOpen={()=>setLinkOpen(true)} onExportOpen={()=>setExportOpen(true)} onShareOpen={()=>setShareOpen(true)} onAiSession={()=>setAiSessionOpen(true)} onComplete={()=>setShowCompleteConfirm(true)} onEditProfile={()=>setEditProfileOpen(true)}/>
+          <InternActionsMenu T={t} intern={intern} onConsult={onConsult} onFlagOpen={()=>setFlagOpen(true)} onLinkOpen={()=>setLinkOpen(true)} onExportOpen={()=>setExportOpen(true)} onShareOpen={()=>setShareOpen(true)} onAiSession={()=>setAiSessionOpen(true)} onComplete={()=>setShowCompleteConfirm(true)} onEditProfile={()=>setEditProfileOpen(true)} onDelete={()=>setShowDeleteConfirm(true)}/>
         </div>
       </div>
 
@@ -9687,7 +9717,7 @@ function SupTrackInner() {
         }}
       />}
       {page==="intern-profile"&&!selectedIntern&&(()=>{setTimeout(()=>setPage("interns"),0);return null;})()}
-      {page==="intern-profile"&&selectedIntern&&<InternProfile T={t} intern={selectedIntern} groups={groups} lists={lists} setLists={setLists} colleagues={colleagues} setColleagues={setColleagues} onBack={()=>{setSelectedInternId_sv(null);setPage("interns");}} onUpdateIntern={updateIntern} onConsult={i=>{setConsultIntern(i);setPage("consult");}} onOpenLab={()=>setPage("lab")} onGroupClick={(gid)=>{setSelectedGroupId(gid);setPage("groups");}}/>}
+      {page==="intern-profile"&&selectedIntern&&<InternProfile T={t} intern={selectedIntern} groups={groups} lists={lists} setLists={setLists} colleagues={colleagues} setColleagues={setColleagues} onBack={()=>{setSelectedInternId_sv(null);setPage("interns");}} onUpdateIntern={updateIntern} onDelete={(id)=>{setInterns(p=>p.filter(i=>i.id!==id));setSelectedInternId_sv(null);setPage("interns");}} onConsult={i=>{setConsultIntern(i);setPage("consult");}} onOpenLab={()=>setPage("lab")} onGroupClick={(gid)=>{setSelectedGroupId(gid);setPage("groups");}}/>}
       {page==="interns"&&<InterneesPage T={t} interns={interns} groups={groups} lists={lists} colleagues={colleagues} internFilter={internFilter} setInternFilter={setInternFilter} internSort={internSort} setInternSort={setInternSort} internViewMode={internViewMode} setInternViewMode={setInternViewMode} onSelectIntern={i=>{setSelectedInternId_sv(i.id);setPage("intern-profile");}} onGroupClick={(gid)=>{setSelectedGroupId(gid);setPage("groups");}} onAddIntern={()=>setAddInternOpen(true)} onOpenOnboarding={()=>setOnboardingOpen(true)}/>}
       {page==="groups"&&<GroupsPage T={t} groups={groups} interns={interns} colleagues={colleagues} setColleagues={setColleagues} setGroups={setGroups} initialGroupId={selectedGroupId} updateInterns={addSessionCharge} updateIntern={updateIntern} onSelectIntern={i=>{setSelectedInternId_sv(i.id);setPage("intern-profile");}}/>}
 
