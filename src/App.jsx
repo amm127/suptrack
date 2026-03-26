@@ -615,17 +615,17 @@ const buildReport = (intern,groups,opts) => {
       });
     } L.push("");
   }
-  if(opts.sessions&&intern.sessions.length){ L.push(sep); L.push("SESSION NOTES");
+  if(opts.sessions&&(intern.sessions||[]).length){ L.push(sep); L.push("SESSION NOTES");
     intern.sessions.forEach(s=>{ L.push(`${s.date} | ${s.type} | ${s.duration} | by ${s.author}`); L.push(`  ${s.notes}`); L.push(""); });
-    groups.filter(g=>intern.groupIds.includes(g.id)).forEach(g=>g.sessions.forEach(s=>{ L.push(`${s.date} | ${g.name} (group) | by ${s.author}`); L.push(`  ${s.notes}`); L.push(""); }));
+    groups.filter(g=>(intern.groupIds||[]).includes(g.id)).forEach(g=>g.sessions.forEach(s=>{ L.push(`${s.date} | ${g.name} (group) | by ${s.author}`); L.push(`  ${s.notes}`); L.push(""); }));
   }
-  if(opts.cases&&intern.cases.length){ L.push(sep); L.push("CASES STAFFED");
+  if(opts.cases&&(intern.cases||[]).length){ L.push(sep); L.push("CASES STAFFED");
     intern.cases.forEach(c=>{ L.push(`${c.id} — ${c.presenting}`); L.push(`  ${c.sessions} sessions | Last: ${c.lastStaffed}`); L.push(`  ${c.notes}`); L.push(""); });
   }
   if(opts.flags&&intern.flags?.length){ L.push(sep); L.push("FLAGS");
     intern.flags.forEach(f=>{ L.push(`[${f.resolved?"RESOLVED":"OPEN"}] ${f.category.toUpperCase()} — ${f.date}`); L.push(`  ${f.note}`); L.push(""); });
   }
-  if(opts.documents&&intern.documents.length){ L.push(sep); L.push("DOCUMENTS ON FILE");
+  if(opts.documents&&(intern.documents||[]).length){ L.push(sep); L.push("DOCUMENTS ON FILE");
     intern.documents.forEach(d=>L.push(`  ${d.type.padEnd(12)} ${d.name} (${d.date}, by ${d.uploadedBy})`)); L.push("");
   }
   if(opts.payments&&!intern.proBono&&intern.payments.length){ L.push(sep); L.push("PAYMENT HISTORY");
@@ -1063,8 +1063,8 @@ function ExportModal({intern,groups,onClose,T}) {
 // ── Intern Card ────────────────────────────────────────────────────────────
 const InternCard = ({intern,lists,groups,colleagues,onClick,onGroupClick,T}) => {
   const t=T||THEMES.sage; const rs=retSt(intern); const af=activeFlags(intern);
-  const memberLists  = lists.filter(l=>intern.listIds.includes(l.id));
-  const memberGroups = groups.filter(g=>intern.groupIds.includes(g.id));
+  const memberLists  = lists.filter(l=>(intern.listIds||[]).includes(l.id));
+  const memberGroups = groups.filter(g=>(intern.groupIds||[]).includes(g.id));
   return <div onClick={onClick} style={{background:t.surface,border:`1px solid ${t.border}`,borderLeft:af.length?`3px solid ${FLAG_CATS.find(c=>c.id===af[0]?.category)?.color||"#B87D2A"}`:undefined,borderRadius:14,padding:"16px 20px",cursor:"pointer",display:"flex",alignItems:"flex-start",gap:14,opacity:intern.status==="inactive"?0.75:1,boxShadow:"0 1px 4px rgba(0,0,0,0.04)",transition:"box-shadow 0.15s",overflow:"hidden"}}
     onMouseEnter={e=>e.currentTarget.style.boxShadow="0 6px 20px rgba(0,0,0,0.08)"}
     onMouseLeave={e=>e.currentTarget.style.boxShadow="0 1px 4px rgba(0,0,0,0.04)"}>
@@ -2285,6 +2285,77 @@ function InternActionsMenu({T,intern,onConsult,onFlagOpen,onLinkOpen,onExportOpe
   </div>;
 }
 
+// ── TagsBox — extracted to comply with Rules of Hooks (no hooks in IIFEs) ─────
+function TagsBox({intern,lists,memberLists,t,onUpdateIntern,setLists}) {
+  const [tagInput,setTagInput]=useState("");
+  const [tagFocused,setTagFocused]=useState(false);
+
+  const addTag=(name)=>{
+    const trimmed=name.trim();
+    if(!trimmed) return;
+    let list=lists.find(l=>l.name.toLowerCase()===trimmed.toLowerCase());
+    if(!list){
+      const colors=[{c:S.teal,l:S.tealLight},{c:S.purple,l:S.purpleLight},{c:S.amber,l:S.amberLight},{c:S.coral,l:S.coralLight},{c:"#2563EB",l:"#EFF6FF"}];
+      const col=colors[lists.length%colors.length];
+      list={id:`l${Date.now()}`,name:trimmed,color:col.c,colorLight:col.l};
+      setLists&&setLists(p=>[...p,list]);
+    }
+    if(!(intern.listIds||[]).includes(list.id)){
+      onUpdateIntern({...intern,listIds:[...(intern.listIds||[]),list.id]});
+    }
+    setTagInput("");
+  };
+
+  const suggestions=tagInput.trim()
+    ? lists.filter(l=>l.name.toLowerCase().includes(tagInput.toLowerCase())&&!(intern.listIds||[]).includes(l.id))
+    : lists.filter(l=>!(intern.listIds||[]).includes(l.id));
+
+  return <div style={{background:t.surface,border:`1px solid ${tagFocused?t.accentMid:t.border}`,borderRadius:12,padding:"14px 16px",boxShadow:"0 1px 3px rgba(0,0,0,0.04)",transition:"border-color 0.1s"}}>
+    <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:8}}>Tags</div>
+    <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center",marginBottom:memberLists.length>0?8:0}}>
+      {memberLists.map(l=>(
+        <div key={l.id} style={{display:"flex",alignItems:"center",gap:3,background:l.colorLight,border:`1px solid ${l.color}40`,borderRadius:20,padding:"3px 8px 3px 12px"}}>
+          <span style={{fontSize:12,color:l.color,fontWeight:500}}>{l.name}</span>
+          <button onClick={()=>onUpdateIntern({...intern,listIds:(intern.listIds||[]).filter(id=>id!==l.id)})}
+            style={{background:"none",border:"none",cursor:"pointer",fontSize:12,color:l.color,opacity:0.5,padding:"0 2px",lineHeight:1}}
+            onMouseEnter={e=>e.currentTarget.style.opacity="1"}
+            onMouseLeave={e=>e.currentTarget.style.opacity="0.5"}>✕</button>
+        </div>
+      ))}
+    </div>
+    <div style={{position:"relative"}}>
+      <input
+        value={tagInput}
+        onChange={e=>setTagInput(e.target.value)}
+        onFocus={()=>setTagFocused(true)}
+        onBlur={()=>setTimeout(()=>setTagFocused(false),150)}
+        onKeyDown={e=>{if(e.key==="Enter"&&tagInput.trim()){addTag(tagInput);}if(e.key==="Escape"){setTagInput("");setTagFocused(false);}}}
+        placeholder="Type a tag and press Enter…"
+        style={{width:"100%",border:`1px solid ${t.border}`,borderRadius:7,padding:"6px 10px",fontSize:12,fontFamily:"inherit",color:t.text,background:t.bg,outline:"none",boxSizing:"border-box"}}
+      />
+      {tagFocused&&suggestions.length>0&&<div style={{position:"absolute",top:"100%",left:0,right:0,background:t.surface,border:`1px solid ${t.border}`,borderRadius:8,boxShadow:"0 6px 20px rgba(0,0,0,0.1)",zIndex:100,marginTop:4,overflow:"hidden"}}>
+        {suggestions.slice(0,6).map(l=>(
+          <button key={l.id} onMouseDown={()=>addTag(l.name)}
+            style={{display:"flex",alignItems:"center",gap:8,width:"100%",background:"none",border:"none",padding:"8px 12px",cursor:"pointer",textAlign:"left",fontSize:12,color:t.text,fontFamily:"inherit"}}
+            onMouseEnter={e=>e.currentTarget.style.background=t.surfaceAlt}
+            onMouseLeave={e=>e.currentTarget.style.background="none"}>
+            <div style={{width:8,height:8,borderRadius:"50%",background:l.color,flexShrink:0}}/>
+            {l.name}
+          </button>
+        ))}
+        {tagInput.trim()&&!lists.some(l=>l.name.toLowerCase()===tagInput.trim().toLowerCase())&&(
+          <button onMouseDown={()=>addTag(tagInput)}
+            style={{display:"flex",alignItems:"center",gap:8,width:"100%",background:"none",borderTop:`1px solid ${t.borderLight}`,border:"none",padding:"8px 12px",cursor:"pointer",textAlign:"left",fontSize:12,color:t.accentText,fontFamily:"'DM Mono',monospace"}}
+            onMouseEnter={e=>e.currentTarget.style.background=t.accentLight}
+            onMouseLeave={e=>e.currentTarget.style.background="none"}>
+            + Create "{tagInput.trim()}"
+          </button>
+        )}
+      </div>}
+    </div>
+  </div>;
+}
+
 function InternProfile({intern,groups,lists,setLists,colleagues,setColleagues,onBack,onUpdateIntern,onConsult,onOpenLab,onGroupClick,T}) {
   const t=T||THEMES.sage;
   const [tab,setTab]=useState("overview");
@@ -2298,8 +2369,8 @@ function InternProfile({intern,groups,lists,setLists,colleagues,setColleagues,on
   const [showCompleteConfirm,setShowCompleteConfirm]=useState(false);
   const tabs=["overview","hours","sessions","cases","evaluations","documents",...(!intern.proBono?["payments"]:[])];
   const tabLabel={overview:"Overview",hours:"Hours",sessions:"Notes",cases:"Cases",evaluations:"Evaluations",documents:"Documents",payments:"Payments"};
-  const memberGroups=groups.filter(g=>intern.groupIds.includes(g.id));
-  const memberLists=lists.filter(l=>intern.listIds.includes(l.id));
+  const memberGroups=groups.filter(g=>(intern.groupIds||[]).includes(g.id));
+  const memberLists=lists.filter(l=>(intern.listIds||[]).includes(l.id));
 
   const handleCompleteIntern=()=>{
     setShowCompleteConfirm(false);
@@ -2381,8 +2452,8 @@ function InternProfile({intern,groups,lists,setLists,colleagues,setColleagues,on
     {tab==="overview"&&<div style={{display:"flex",flexDirection:"column",gap:14}}>
       {/* Stats row */}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:12}}>
-        <StatCard T={t} label="Hours Completed" value={intern.hoursCompleted.toLocaleString()} sub={`of ${intern.hoursTotal.toLocaleString()} required`} color={t.accent}/>
-        <StatCard T={t} label="Completion" value={`${Math.round(intern.hoursCompleted/intern.hoursTotal*100)}%`} sub="Toward licensure goal"/>
+        <StatCard T={t} label="Hours Completed" value={(intern.hoursCompleted||0).toLocaleString()} sub={`of ${intern.hoursTotal.toLocaleString()} required`} color={t.accent}/>
+        <StatCard T={t} label="Completion" value={`${Math.round((intern.hoursCompleted||0)/(intern.hoursTotal||1)*100)}%`} sub="Toward licensure goal"/>
         <StatCard T={t} label="Sessions logged" value={intern.sessions?.length||0}/>
         <StatCard T={t} label="Cases staffed" value={intern.cases?.length||0}/>
       </div>
@@ -2456,76 +2527,7 @@ function InternProfile({intern,groups,lists,setLists,colleagues,setColleagues,on
 
         <div style={{display:"flex",flexDirection:"column",gap:12}}>
           {/* Tags — type to create new, click × to remove */}
-          {(()=>{
-            const [tagInput,setTagInput]=React.useState("");
-            const [tagFocused,setTagFocused]=React.useState(false);
-            const addTag=(name)=>{
-              const trimmed=name.trim();
-              if(!trimmed) return;
-              // Check if list already exists
-              let list=lists.find(l=>l.name.toLowerCase()===trimmed.toLowerCase());
-              if(!list){
-                // Create a new list with a random color
-                const colors=[{c:S.teal,l:S.tealLight},{c:S.purple,l:S.purpleLight},{c:S.amber,l:S.amberLight},{c:S.coral,l:S.coralLight},{c:"#2563EB",l:"#EFF6FF"}];
-                const col=colors[lists.length%colors.length];
-                list={id:`l${Date.now()}`,name:trimmed,color:col.c,colorLight:col.l};
-                setLists&&setLists(p=>[...p,list]);
-              }
-              if(!intern.listIds.includes(list.id)){
-                onUpdateIntern({...intern,listIds:[...intern.listIds,list.id]});
-              }
-              setTagInput("");
-            };
-            const suggestions=tagInput.trim()
-              ? lists.filter(l=>l.name.toLowerCase().includes(tagInput.toLowerCase())&&!intern.listIds.includes(l.id))
-              : lists.filter(l=>!intern.listIds.includes(l.id));
-            return <div style={{background:t.surface,border:`1px solid ${tagFocused?t.accentMid:t.border}`,borderRadius:12,padding:"14px 16px",boxShadow:"0 1px 3px rgba(0,0,0,0.04)",transition:"border-color 0.1s"}}>
-              <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:8}}>Tags</div>
-              <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center",marginBottom:memberLists.length>0?8:0}}>
-                {memberLists.map(l=>(
-                  <div key={l.id} style={{display:"flex",alignItems:"center",gap:3,background:l.colorLight,border:`1px solid ${l.color}40`,borderRadius:20,padding:"3px 8px 3px 12px"}}>
-                    <span style={{fontSize:12,color:l.color,fontWeight:500}}>{l.name}</span>
-                    <button onClick={()=>onUpdateIntern({...intern,listIds:intern.listIds.filter(id=>id!==l.id)})}
-                      style={{background:"none",border:"none",cursor:"pointer",fontSize:12,color:l.color,opacity:0.5,padding:"0 2px",lineHeight:1}}
-                      onMouseEnter={e=>e.currentTarget.style.opacity="1"}
-                      onMouseLeave={e=>e.currentTarget.style.opacity="0.5"}>✕</button>
-                  </div>
-                ))}
-              </div>
-              {/* Type-to-create input */}
-              <div style={{position:"relative"}}>
-                <input
-                  value={tagInput}
-                  onChange={e=>setTagInput(e.target.value)}
-                  onFocus={()=>setTagFocused(true)}
-                  onBlur={()=>setTimeout(()=>setTagFocused(false),150)}
-                  onKeyDown={e=>{if(e.key==="Enter"&&tagInput.trim()){addTag(tagInput);}if(e.key==="Escape"){setTagInput("");setTagFocused(false);}}}
-                  placeholder="Type a tag and press Enter…"
-                  style={{width:"100%",border:`1px solid ${t.border}`,borderRadius:7,padding:"6px 10px",fontSize:12,fontFamily:"inherit",color:t.text,background:t.bg,outline:"none",boxSizing:"border-box"}}
-                />
-                {/* Dropdown of existing suggestions */}
-                {tagFocused&&suggestions.length>0&&<div style={{position:"absolute",top:"100%",left:0,right:0,background:t.surface,border:`1px solid ${t.border}`,borderRadius:8,boxShadow:"0 6px 20px rgba(0,0,0,0.1)",zIndex:100,marginTop:4,overflow:"hidden"}}>
-                  {suggestions.slice(0,6).map(l=>(
-                    <button key={l.id} onMouseDown={()=>addTag(l.name)}
-                      style={{display:"flex",alignItems:"center",gap:8,width:"100%",background:"none",border:"none",padding:"8px 12px",cursor:"pointer",textAlign:"left",fontSize:12,color:t.text,fontFamily:"inherit"}}
-                      onMouseEnter={e=>e.currentTarget.style.background=t.surfaceAlt}
-                      onMouseLeave={e=>e.currentTarget.style.background="none"}>
-                      <div style={{width:8,height:8,borderRadius:"50%",background:l.color,flexShrink:0}}/>
-                      {l.name}
-                    </button>
-                  ))}
-                  {tagInput.trim()&&!lists.some(l=>l.name.toLowerCase()===tagInput.trim().toLowerCase())&&(
-                    <button onMouseDown={()=>addTag(tagInput)}
-                      style={{display:"flex",alignItems:"center",gap:8,width:"100%",background:"none",borderTop:`1px solid ${t.borderLight}`,border:"none",padding:"8px 12px",cursor:"pointer",textAlign:"left",fontSize:12,color:t.accentText,fontFamily:"'DM Mono',monospace"}}
-                      onMouseEnter={e=>e.currentTarget.style.background=t.accentLight}
-                      onMouseLeave={e=>e.currentTarget.style.background="none"}>
-                      + Create "{tagInput.trim()}"
-                    </button>
-                  )}
-                </div>}
-              </div>
-            </div>;
-          })()}
+          <TagsBox intern={intern} lists={lists} memberLists={memberLists} t={t} onUpdateIntern={onUpdateIntern} setLists={setLists}/>
 
           {/* Groups — with edit button */}
           <div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:12,padding:"14px 16px",boxShadow:"0 1px 3px rgba(0,0,0,0.04)"}}>
@@ -2560,7 +2562,7 @@ function InternProfile({intern,groups,lists,setLists,colleagues,setColleagues,on
             </div>
             {intern.sharedWith?.length>0
               ? <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                  {intern.sharedWith.map(s=>{
+                  {(intern.sharedWith||[]).map(s=>{
                     const col=(colleagues||[]).find(c=>c.id===s.colleagueId);
                     return col?<div key={s.colleagueId} style={{display:"flex",alignItems:"center",gap:6,background:t.surfaceAlt,borderRadius:8,padding:"5px 10px"}}>
                       <Avatar initials={col.initials} size={22} color={col.color} textColor="#fff"/>
@@ -2722,7 +2724,7 @@ function Dashboard({interns,groups,lists,colleagues,onSelectIntern,onNavigate,on
   const active=interns.filter(i=>i.status==="active");
   const inactive=interns.filter(i=>i.status==="inactive");
   const display=showInactive?interns:active;
-  const filtered=activeList==="all"?display:display.filter(i=>i.listIds.includes(activeList));
+  const filtered=activeList==="all"?display:display.filter(i=>(i.listIds||[]).includes(activeList));
 
   const sv=(id)=>({active:active.length,hours:active.reduce((s,i)=>s+i.hoursCompleted,0).toLocaleString(),groups:groups.length,overdue:active.filter(i=>!i.proBono&&i.paymentStatus==="overdue").length,primary:active.filter(i=>i.supervisorRole==="primary").length,secondary:active.filter(i=>i.supervisorRole==="secondary").length,student:active.filter(i=>i.discipline==="student").length,licensed:active.filter(i=>i.discipline!=="student"&&i.discipline!=="sos").length,sos:active.filter(i=>i.discipline==="sos").length,flagged:active.filter(i=>activeFlags(i).length>0).length}[id]);
   const sc=(id)=>{
@@ -2996,14 +2998,14 @@ function Dashboard({interns,groups,lists,colleagues,onSelectIntern,onNavigate,on
         </div>;
       })()}
       {!sec.collapsed&&sec.id==="supervisees"&&<div style={{display:"flex",flexDirection:"column",gap:10}}>{filtered.map(intern=><InternCard key={intern.id} intern={intern} lists={lists} groups={groups} colleagues={colleagues} T={t} onClick={()=>onSelectIntern(intern)} onGroupClick={(gid)=>onNavigate("groups",gid)}/>)}</div>}
-      {!sec.collapsed&&sec.id==="grplist"&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>{groups.map(g=>{const members=interns.filter(i=>i.groupIds.includes(g.id));return <div key={g.id} onClick={()=>onNavigate("groups",g.id)} style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:14,padding:"18px 20px",boxShadow:"0 1px 4px rgba(0,0,0,0.04)",cursor:"pointer",transition:"box-shadow 0.15s"}}
+      {!sec.collapsed&&sec.id==="grplist"&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>{groups.map(g=>{const members=interns.filter(i=>(i.groupIds||[]).includes(g.id));return <div key={g.id} onClick={()=>onNavigate("groups",g.id)} style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:14,padding:"18px 20px",boxShadow:"0 1px 4px rgba(0,0,0,0.04)",cursor:"pointer",transition:"box-shadow 0.15s"}}
         onMouseEnter={e=>e.currentTarget.style.boxShadow="0 6px 20px rgba(0,0,0,0.08)"}
         onMouseLeave={e=>e.currentTarget.style.boxShadow="0 1px 4px rgba(0,0,0,0.04)"}>
         <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}><div style={{width:10,height:10,borderRadius:"50%",background:g.color}}/><span style={{fontFamily:"inherit",fontSize:16,color:t.text}}>{g.name}</span><Badge color={g.color} bg={g.colorLight}>{members.length}</Badge>{g.sharedWith?.length>0&&<SharedAvatars sharedWith={g.sharedWith} colleagues={colleagues||[]}/>}</div>
         <div style={{display:"flex",gap:6}}>{members.map(m=><div key={m.id} title={dn(m)} onClick={e=>{e.stopPropagation();onSelectIntern(m);}} style={{cursor:"pointer"}}><Avatar initials={m.initials} size={30} T={t}/></div>)}</div>
         {g.sessions[0]&&<div style={{fontSize:12,color:t.muted,marginTop:10}}>Last: {g.sessions[0].date}</div>}
       </div>;})} </div>}
-      {!sec.collapsed&&sec.id==="sharedwithme"&&<div>{sharedInterns.length===0?<div style={{color:t.muted,fontSize:14}}>Nothing shared with you yet.</div>:sharedInterns.flatMap(intern=>intern.sharedWith.map(share=>{const col=(colleagues||[]).find(c=>c.id===share.colleagueId);if(!col)return null;return <div key={`${intern.id}-${col.id}`} onClick={()=>onSelectIntern(intern)} style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:12,padding:"16px 20px",marginBottom:10,display:"flex",alignItems:"center",gap:14,boxShadow:"0 1px 4px rgba(0,0,0,0.04)",cursor:"pointer"}}
+      {!sec.collapsed&&sec.id==="sharedwithme"&&<div>{sharedInterns.length===0?<div style={{color:t.muted,fontSize:14}}>Nothing shared with you yet.</div>:sharedInterns.flatMap(intern=>(intern.sharedWith||[]).map(share=>{const col=(colleagues||[]).find(c=>c.id===share.colleagueId);if(!col)return null;return <div key={`${intern.id}-${col.id}`} onClick={()=>onSelectIntern(intern)} style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:12,padding:"16px 20px",marginBottom:10,display:"flex",alignItems:"center",gap:14,boxShadow:"0 1px 4px rgba(0,0,0,0.04)",cursor:"pointer"}}
         onMouseEnter={e=>e.currentTarget.style.boxShadow="0 6px 20px rgba(0,0,0,0.08)"}
         onMouseLeave={e=>e.currentTarget.style.boxShadow="0 1px 4px rgba(0,0,0,0.04)"}>
         <Avatar initials={col.initials} size={36} color={col.color} textColor="#fff"/>
@@ -3403,8 +3405,8 @@ function PaymentsTab({intern,onUpdateIntern,T}) {
   ];
   const METHOD_ICONS={cash:"💵",check:"📄",venmo:"💜",zelle:"⚡",paypal:"🅿",stripe:"💳",other:"●"};
 
-  const totalOwed=intern.payments.filter(p=>p.status==="overdue").reduce((s,p)=>s+p.amount,0);
-  const totalPaid=intern.payments.filter(p=>p.status==="paid").reduce((s,p)=>s+p.amount,0);
+  const totalOwed=(intern.payments||[]).filter(p=>p.status==="overdue").reduce((s,p)=>s+p.amount,0);
+  const totalPaid=(intern.payments||[]).filter(p=>p.status==="paid").reduce((s,p)=>s+p.amount,0);
 
   const addCharge=()=>{
     const newPay={month:TODAY(),amount:Number(chargeAmount)||0,status:"overdue",date:"—",note:chargeNote||undefined};
@@ -3431,7 +3433,7 @@ function PaymentsTab({intern,onUpdateIntern,T}) {
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12}}>
       <StatCard T={t} label="Total paid" value={`$${totalPaid}`} color={t.accent}/>
       <StatCard T={t} label="Outstanding" value={`$${totalOwed}`} color={totalOwed>0?S.red:t.text}/>
-      <StatCard T={t} label="Transactions" value={intern.payments.length}/>
+      <StatCard T={t} label="Transactions" value={(intern.payments||[]).length}/>
     </div>
 
     {/* Billing setup */}
@@ -3522,7 +3524,7 @@ function PaymentsTab({intern,onUpdateIntern,T}) {
     {/* Transaction list */}
     <div>
       <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:10}}>Transaction history</div>
-      {intern.payments.length===0&&<div style={{background:t.surfaceAlt,borderRadius:10,padding:"24px",textAlign:"center",color:t.muted,fontSize:14}}>No transactions yet</div>}
+      {(intern.payments||[]).length===0&&<div style={{background:t.surfaceAlt,borderRadius:10,padding:"24px",textAlign:"center",color:t.muted,fontSize:14}}>No transactions yet</div>}
       {(intern.payments||[]).map((p,i)=>{
         const isMarking=markingIdx===i;
         return <div key={i} style={{background:t.surface,border:`1px solid ${p.status==="overdue"?t.accentMid:t.border}`,borderLeft:p.status==="overdue"?`3px solid ${t.accent}`:"none",borderRadius:12,padding:"14px 18px",marginBottom:10}}>
@@ -4149,7 +4151,7 @@ function GroupsPage({groups,interns,colleagues,setColleagues,setGroups,onSelectI
   const gC  = GROUP_COLORS.map(c=>c.color);
   const gCL = GROUP_COLORS.map(c=>c.light);
   const ag=groups.find(g=>g.id===selected);
-  const members=ag?interns.filter(i=>i.groupIds.includes(ag.id)):[];
+  const members=ag?interns.filter(i=>(i.groupIds||[]).includes(ag.id)):[];
 
   const addGroup=()=>{
     if(!newName.trim())return;
@@ -4241,7 +4243,7 @@ function GroupsPage({groups,interns,colleagues,setColleagues,setGroups,onSelectI
               <div style={{width:8,height:8,borderRadius:"50%",background:g.color,flexShrink:0}}/>
               <span style={{fontSize:14,color:t.text,fontWeight:selected===g.id?500:400}}>{g.name}</span>
             </div>
-            <div style={{fontSize:12,color:t.muted,marginTop:4,paddingLeft:24}}>{interns.filter(i=>i.groupIds.includes(g.id)).length} members · {g.sessions.length} sessions</div>
+            <div style={{fontSize:12,color:t.muted,marginTop:4,paddingLeft:24}}>{interns.filter(i=>(i.groupIds||[]).includes(g.id)).length} members · {g.sessions.length} sessions</div>
             {g.sharedWith?.length>0&&<div style={{paddingLeft:24,marginTop:4}}><SharedAvatars sharedWith={g.sharedWith} size={18} colleagues={colleagues||[]}/></div>}
           </button>
         </div>)}
@@ -4813,7 +4815,7 @@ function AddInternModal({onSave, onClose, onSendLink, groups, lists, T}) {
     discipline:"counseling", credential:"LPC-Intern", credentialBody:"CACREP",
     licenseGoal:"LPC", startDate: new Date().toLocaleDateString("en-US",{month:"short",year:"numeric"}),
     supervisorRole:"primary", proBono:false, groupIds:[], listIds:[], dob:"",
-    university:"", paymentAmount:150, paymentFrequency:"monthly",
+    university:"", paymentAmount:"", paymentFrequency:"monthly",
   });
   const [step, setStep] = useState(1); // 1=personal, 2=credential, 3=settings
   const [error, setError] = useState("");
@@ -5688,7 +5690,7 @@ const PLANS = {
     tagline:"\"I don't have to worry about my supervision anymore\"",
     features:[
       "Everything in Starter",
-      "Discrepancy detection — catch mismatches before board submission",
+      "Discrepancy detection & board export",
       "Audit-ready hour reports & board exports",
       "Payment tracking with reminders",
       "Colleague sharing & permissions",
@@ -5907,22 +5909,25 @@ function BillingPage({billing,setBilling,interns,T,F,colleagues=[]}) {
             const active=plan.id===billing.plan;
             const price=cycle==="annual"?plan.annual/12:plan.monthly;
             return <div key={plan.id} onClick={()=>setBilling(p=>({...p,plan:plan.id,cycle}))}
-              style={{background:active?plan.colorLight:t.surface,border:`2px solid ${active?plan.color:t.border}`,borderRadius:14,padding:"20px 20px",cursor:"pointer",transition:"all 0.15s",boxShadow:active?"0 4px 16px rgba(0,0,0,0.08)":"0 1px 4px rgba(0,0,0,0.04)"}}>
+              style={{background:active?plan.colorLight:t.surface,border:`2px solid ${active?plan.color:t.border}`,borderRadius:14,padding:"18px 20px",cursor:"pointer",transition:"all 0.15s",display:"flex",flexDirection:"column"}}>
+              {/* Badge row — always reserves height so all three cards align */}
+              <div style={{height:24,marginBottom:6}}>
+                {plan.badge&&<span style={{fontSize:11,color:plan.color,background:plan.colorLight,border:`1px solid ${plan.color}40`,borderRadius:20,padding:"2px 10px",fontFamily:"'DM Mono',monospace",fontWeight:500}}>{plan.badge}</span>}
+              </div>
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
-                <span style={{fontFamily:"inherit",fontSize:17,color:t.text}}>{plan.name}</span>
+                <span style={{fontFamily:"inherit",fontSize:17,color:t.text,fontWeight:500}}>{plan.name}</span>
                 {active&&<Badge color={plan.color} bg={active?plan.colorLight+"80":"transparent"}>Current</Badge>}
               </div>
-              <div style={{fontFamily:"inherit",fontSize:24,color:active?plan.color:t.text,marginBottom:4}}>${price.toFixed(2)}<span style={{fontSize:13,color:t.muted}}>/mo</span></div>
+              <div style={{fontFamily:"inherit",fontSize:24,color:active?plan.color:t.text,marginBottom:4}}>${price.toFixed(2)}<span style={{fontSize:13,color:t.muted,fontWeight:400}}>/mo</span></div>
               {cycle==="annual"&&<div style={{fontSize:12,color:t.muted,marginBottom:10}}>${plan.annual}/yr</div>}
               <div style={{fontSize:12,color:t.muted,marginBottom:14,fontFamily:"'DM Mono',monospace"}}>{plan.internLimit}</div>
-              <div style={{display:"flex",flexDirection:"column",gap:5}}>
+              <div style={{display:"flex",flexDirection:"column",gap:5,flex:1}}>
                 {plan.features.map(f=><div key={f} style={{fontSize:12,color:t.muted,display:"flex",gap:6,alignItems:"flex-start"}}>
                   <span style={{color:plan.color,flexShrink:0}}>✓</span>{f}
                 </div>)}
               </div>
             </div>;
           })}
-        </div>
       </div>
 
       {/* Additional seats pricing note */}
@@ -9198,7 +9203,7 @@ function InternPortal({intern:initialIntern,groups,onExit,onUpdateIntern,supervi
   const [tab,setTab]=useState("hours");
   const tabs=["hours","sessions","documents","supervisor",...(!intern.proBono?["payments"]:[])];
   const tabLabel={hours:"My Hours",sessions:"Session Notes",documents:"My Documents",supervisor:"My Supervisor",payments:"Payments"};
-  const memberGroups=groups.filter(g=>intern.groupIds.includes(g.id));
+  const memberGroups=groups.filter(g=>(intern.groupIds||[]).includes(g.id));
 
   return <div style={{display:"flex",minHeight:"100vh",background:t.bg,fontFamily:f.body}}>
     <link href={f.url} rel="stylesheet"/>
@@ -9228,7 +9233,7 @@ function InternPortal({intern:initialIntern,groups,onExit,onUpdateIntern,supervi
       {tab==="sessions"&&<div>
         {(intern.sessions||[]).map((s,i)=><div key={i} style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:12,padding:"16px 18px",marginBottom:12}}><div style={{display:"flex",gap:8,marginBottom:8}}><Badge color={t.muted} bg={t.surfaceAlt}>{s.date}</Badge><Badge color={t.accentText} bg={t.accentLight}>{s.type}</Badge></div><p style={{fontSize:14,color:t.text,margin:0,lineHeight:1.7}}>{s.notes}</p></div>)}
         {memberGroups.map(g=>(g.sessions||[]).map((s,i)=><div key={`${g.id}-${i}`} style={{background:t.surface,borderLeft:`3px solid ${g.color}`,borderRadius:12,padding:"16px 18px",marginBottom:10,border:`1px solid ${g.color}40`}}><div style={{display:"flex",gap:8,marginBottom:8}}><Badge color={t.muted} bg={t.surfaceAlt}>{s.date}</Badge><Badge color={g.color} bg={g.colorLight}>{g.name}</Badge></div><p style={{fontSize:14,color:t.text,margin:0,lineHeight:1.7}}>{s.notes}</p></div>))}
-        {intern.sessions.length===0&&memberGroups.every(g=>g.sessions.length===0)&&<div style={{fontSize:14,color:t.faint,textAlign:"center",padding:"32px 0"}}>No sessions logged yet.</div>}
+        {(intern.sessions||[]).length===0&&memberGroups.every(g=>g.sessions.length===0)&&<div style={{fontSize:14,color:t.faint,textAlign:"center",padding:"32px 0"}}>No sessions logged yet.</div>}
       </div>}
       {tab==="documents"&&<DocumentsTab key={intern.id} intern={intern} onUpdateIntern={handleUpdate} T={t}/>}
       {tab==="supervisor"&&<div>
