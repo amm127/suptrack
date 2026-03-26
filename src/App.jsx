@@ -1061,7 +1061,7 @@ function ExportModal({intern,groups,onClose,T}) {
 }
 
 // ── Intern Card ────────────────────────────────────────────────────────────
-const InternCard = ({intern,lists,groups,onClick,onGroupClick,T}) => {
+const InternCard = ({intern,lists,groups,colleagues,onClick,onGroupClick,T}) => {
   const t=T||THEMES.sage; const rs=retSt(intern); const af=activeFlags(intern);
   const memberLists  = lists.filter(l=>intern.listIds.includes(l.id));
   const memberGroups = groups.filter(g=>intern.groupIds.includes(g.id));
@@ -5724,7 +5724,7 @@ const SEAT_PRICE_MONTHLY = 9.99;
 const SEAT_PRICE_ANNUAL  = 99.90;
 
 // ── BillingPage ────────────────────────────────────────────────────────────
-function BillingPage({billing,setBilling,interns,T,F}) {
+function BillingPage({billing,setBilling,interns,T,F,colleagues=[]}) {
   const t=T||THEMES.sage;
   const [tab,setTab]=useState("plan");
   const [cycle,setCycle]=useState(billing.cycle);
@@ -9672,7 +9672,7 @@ function SupTrackInner() {
       {page==="groups"&&<GroupsPage T={t} groups={groups} interns={interns} colleagues={colleagues} setColleagues={setColleagues} setGroups={setGroups} initialGroupId={selectedGroupId} updateInterns={addSessionCharge} updateIntern={updateIntern} onSelectIntern={i=>{setSelectedInternId_sv(i.id);setPage("intern-profile");}}/>}
 
       {page==="payments"&&<PaymentsPage T={t} interns={interns} groups={groups} onSelectIntern={i=>{setSelectedInternId_sv(i.id);setPage("intern-profile");}}/>}
-      {page==="billing"&&<BillingPage T={t} F={f} billing={billing} setBilling={setBilling} interns={interns}/>}
+      {page==="billing"&&<BillingPage T={t} F={f} colleagues={colleagues} billing={billing} setBilling={setBilling} interns={interns}/>}
       {page==="ce"&&<CETrackerPage T={t} ceData={ceData} setCeData={setCeData}/>}
       {page==="calendar"&&<CalendarPage T={t}/>}
       {page==="consult"&&<ConsultPage T={t} interns={interns} consultIntern={consultIntern}/>}
