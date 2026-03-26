@@ -8001,7 +8001,7 @@ function DeadlineAlertsPanel({interns, groups, T}) {
 }
 
 // ── Intern Onboarding Form — what interns see when they open their invite link ──
-function InternOnboardingForm({supervisorName, onComplete, T}) {
+) {
   const t=T||THEMES.sage;
   const [step,setStep]=useState(0);
   const [form,setForm]=useState({
@@ -8142,14 +8142,14 @@ function InternOnboardingForm({supervisorName, onComplete, T}) {
 
           {/* Step 1: Credentials */}
           {step===1&&<div>
-            <div style={{fontSize:18,color:"#1A1A2E",fontWeight:500,marginBottom:4}}>Credentials &amp; licensure</div>
+            <div style={{fontSize:18,color:"#1A1A2E",fontWeight:500,marginBottom:4}}>Credentials & licensure</div>
             <div style={{fontSize:13,color:"#888",marginBottom:20}}>Your current license/credential and goal</div>
             <div style={{marginBottom:12}}>
               <Label>Discipline</Label>
               <select value={form.discipline} onChange={e=>setForm(p=>({...p,discipline:e.target.value}))} style={{...iStyle,cursor:"pointer"}}>
                 <option value="counseling">Counseling (LPC)</option>
                 <option value="social_work">Social Work (LCSW)</option>
-                <option value="mft">Marriage &amp; Family (LMFT)</option>
+                <option value="mft">Marriage & Family (LMFT)</option>
                 <option value="substance_use">Substance Use (CADC)</option>
                 <option value="student">Practicum Student</option>
               </select>
@@ -9528,7 +9528,7 @@ function InternPortal({intern:initialIntern,groups,onExit,onUpdateIntern,supervi
 // Prototype auth — localStorage-based session, no real backend
 const DEMO_SUPERVISOR = { email:"alyson@questcounseling.org", password:"suptrack2026", name:"Alyson K.", role:"supervisor" };
 
-function LoginScreen({onLogin,T}) {
+) {
   const t=T||THEMES.sage;
   const [email,setEmail]=useState("");
   const [password,setPassword]=useState("");
@@ -9616,20 +9616,7 @@ function LoginScreen({onLogin,T}) {
 }
 
 export default function SupTrack() {
-  // ── Auth ──
-  const [session,setSession]=useState(()=>{
-    try{const s=localStorage.getItem("suptrack_session");return s?JSON.parse(s):null;}
-    catch{return null;}
-  });
-  const login=(user)=>{
-    const s={...user,loginTime:Date.now()};
-    try{localStorage.setItem("suptrack_session",JSON.stringify(s));}catch{}
-    setSession(s);
-  };
-  const logout=()=>{
-    try{localStorage.removeItem("suptrack_session");}catch{}
-    setSession(null);
-  };
+
 
   const [theme,setTheme]=useState(()=>{try{return localStorage.getItem("suptrack_theme")||"suptrack";}catch{return "suptrack";}});
   const [darkMode,setDarkMode]=useState(()=>{try{return localStorage.getItem("suptrack_dark")==="true";}catch{return false;}});
@@ -9916,22 +9903,7 @@ export default function SupTrack() {
 
       {/* Controls: HC + dark mode — themes in Settings */}
       <div style={{padding:"12px 24px",borderTop:`1px solid ${t.borderLight}`}}>
-        {/* Signed-in user + sign out */}
-        {session&&<div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
-          <div style={{width:28,height:28,borderRadius:"50%",background:t.accentLight,border:`1px solid ${t.accentMid}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,color:t.accentText,fontWeight:600,flexShrink:0}}>
-            {(session.name||"?").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()}
-          </div>
-          <div style={{flex:1,minWidth:0}}>
-            <div style={{fontSize:12,color:t.text,fontWeight:500,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{session.name||session.email}</div>
-            <div style={{fontSize:10,color:t.faint,fontFamily:"'DM Mono',monospace"}}>Supervisor</div>
-          </div>
-          <button onClick={logout} title="Sign out"
-            style={{background:"none",border:"none",cursor:"pointer",fontSize:11,color:t.faint,fontFamily:"'DM Mono',monospace",padding:"2px 4px",flexShrink:0}}
-            onMouseEnter={e=>e.currentTarget.style.color=t.text}
-            onMouseLeave={e=>e.currentTarget.style.color=t.faint}>
-            Sign out
-          </button>
-        </div>}
+
         <div style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:6}}>
           <button onClick={()=>setHighContrast(h=>!h)} title={highContrast?"High contrast on":"High contrast off"}
             style={{background:highContrast?t.accent:t.surfaceAlt,border:`1px solid ${t.border}`,borderRadius:6,padding:"2px 7px",cursor:"pointer",fontSize:10,color:highContrast?"#fff":t.faint,fontFamily:"'DM Mono',monospace",transition:"all 0.2s"}}>
