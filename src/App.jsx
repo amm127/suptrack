@@ -2602,11 +2602,11 @@ function InternProfile({intern,groups,lists,setLists,colleagues,setColleagues,on
         <Btn T={t} small onClick={()=>setAiSessionOpen(true)}>✦ Log Session with AI</Btn>
       </div>
       <div style={{background:t.accentLight,borderRadius:10,padding:"11px 16px",fontSize:13,color:t.accentText,marginBottom:16,border:`1px solid ${t.accentMid}`}}>Individual notes for {dn(intern)}. Notes by colleagues are marked. Group sessions are linked automatically.</div>
-      {intern.sessions.map((s,i)=>{const byCol=s.author!=="Alyson"; return <div key={i} style={{background:t.surface,border:`1px solid ${t.border}`,borderLeft:`3px solid ${byCol?S.purple:t.accent}`,borderRadius:12,padding:"16px 20px",marginBottom:12,boxShadow:"0 1px 3px rgba(0,0,0,0.04)"}}>
+      {(intern.sessions||[]).map((s,i)=>{const byCol=s.author!=="Alyson"; return <div key={i} style={{background:t.surface,border:`1px solid ${t.border}`,borderLeft:`3px solid ${byCol?S.purple:t.accent}`,borderRadius:12,padding:"16px 20px",marginBottom:12,boxShadow:"0 1px 3px rgba(0,0,0,0.04)"}}>
         <div style={{display:"flex",gap:8,marginBottom:8,alignItems:"center"}}><Badge color={t.muted} bg={t.surfaceAlt}>{s.date}</Badge><Badge color={t.accentText} bg={t.accentLight}>{s.type}</Badge><Badge color={t.muted} bg={t.surfaceAlt}>{s.duration}</Badge><span style={{fontSize:12,color:t.accent,opacity:byCol?0.65:1,fontFamily:"'DM Mono',monospace",marginLeft:"auto"}}>{s.author}</span></div>
         <p style={{fontSize:14,color:t.text,margin:0,lineHeight:1.7}}>{s.notes}</p>
       </div>;})}
-      {memberGroups.map(g=>g.sessions.map((s,i)=><div key={`${g.id}-${i}`} style={{background:t.surface,border:`1px solid ${g.color}40`,borderLeft:`3px solid ${g.color}`,borderRadius:12,padding:"16px 18px",marginBottom:10}}>
+      {memberGroups.map(g=>(g.sessions||[]).map((s,i)=><div key={`${g.id}-${i}`} style={{background:t.surface,border:`1px solid ${g.color}40`,borderLeft:`3px solid ${g.color}`,borderRadius:12,padding:"16px 18px",marginBottom:10}}>
         <div style={{display:"flex",gap:8,marginBottom:8,alignItems:"center"}}><Badge color={t.muted} bg={t.surfaceAlt}>{s.date}</Badge><Badge color={g.color} bg={g.colorLight}>{g.name}</Badge><span style={{fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace",marginLeft:"auto"}}>{s.author}</span></div>
         <p style={{fontSize:14,color:t.text,margin:0,lineHeight:1.7}}>{s.notes}</p>
       </div>))}
@@ -3413,7 +3413,7 @@ function PaymentsTab({intern,onUpdateIntern,T}) {
   };
 
   const markPaid=(idx)=>{
-    const updated={...intern,payments:intern.payments.map((p,i)=>i!==idx?p:{...p,status:"paid",date:TODAY(),receivedVia:markMethod,note:markNote||undefined})};
+    const updated={...intern,payments:(intern.payments||[]).map((p,i)=>i!==idx?p:{...p,status:"paid",date:TODAY(),receivedVia:markMethod,note:markNote||undefined})};
     const stillOwed=updated.payments.some(p=>p.status==="overdue");
     onUpdateIntern({...updated,paymentStatus:stillOwed?"overdue":"current"});
     setMarkingIdx(null);setMarkNote("");
@@ -3523,7 +3523,7 @@ function PaymentsTab({intern,onUpdateIntern,T}) {
     <div>
       <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:10}}>Transaction history</div>
       {intern.payments.length===0&&<div style={{background:t.surfaceAlt,borderRadius:10,padding:"24px",textAlign:"center",color:t.muted,fontSize:14}}>No transactions yet</div>}
-      {intern.payments.map((p,i)=>{
+      {(intern.payments||[]).map((p,i)=>{
         const isMarking=markingIdx===i;
         return <div key={i} style={{background:t.surface,border:`1px solid ${p.status==="overdue"?t.accentMid:t.border}`,borderLeft:p.status==="overdue"?`3px solid ${t.accent}`:"none",borderRadius:12,padding:"14px 18px",marginBottom:10}}>
           <div style={{display:"flex",alignItems:"flex-start",gap:12}}>
@@ -3536,7 +3536,7 @@ function PaymentsTab({intern,onUpdateIntern,T}) {
             {p.status==="paid"
               ? <div style={{display:"flex",gap:6,alignItems:"center"}}>
                   <Badge color={t.accentText} bg={t.accentLight}>✓ Paid</Badge>
-                  <button onClick={()=>{const u={...intern,payments:intern.payments.map((px,ix)=>ix!==i?px:{...px,status:"overdue",date:"—",receivedVia:undefined,note:undefined})};onUpdateIntern({...u,paymentStatus:"overdue"});}}
+                  <button onClick={()=>{const u={...intern,payments:(intern.payments||[]).map((px,ix)=>ix!==i?px:{...px,status:"overdue",date:"—",receivedVia:undefined,note:undefined})};onUpdateIntern({...u,paymentStatus:"overdue"});}}
                     style={{background:"none",border:"none",cursor:"pointer",fontSize:11,color:t.faint,fontFamily:"'DM Mono',monospace"}}>Undo</button>
                 </div>
               : <div>
@@ -4450,7 +4450,7 @@ function GroupsPage({groups,interns,colleagues,setColleagues,setGroups,onSelectI
           ? <div style={{color:t.muted,fontSize:14,textAlign:"center",padding:"20px 0"}}>No sessions logged yet — use the form above to log your first.</div>
           : <div>
               <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:10}}>Session history</div>
-              {ag.sessions.map((s,i)=>{
+              {a(g.sessions||[]).map((s,i)=>{
                 const byCol=s.author!=="Alyson";
                 const presentNames=s.attendees?.map(id=>members.find(m=>m.id===id)).filter(Boolean).map(m=>dn(m).split(" ")[0]);
                 return <div key={i} style={{background:t.surface,border:`1px solid ${ag.color}40`,borderLeft:`3px solid ${byCol?S.purple:ag.color}`,borderRadius:12,padding:"16px 18px",marginBottom:12}}>
@@ -9435,8 +9435,8 @@ function InternPortal({intern:initialIntern,groups,onExit,onUpdateIntern,supervi
       <p style={{color:t.muted,fontSize:14,margin:"0 0 28px"}}>Your supervision hub</p>
       {tab==="hours"&&<InternPortalHours intern={intern} onUpdate={handleUpdate} T={t} F={f}/>}
       {tab==="sessions"&&<div>
-        {intern.sessions.map((s,i)=><div key={i} style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:12,padding:"16px 18px",marginBottom:12}}><div style={{display:"flex",gap:8,marginBottom:8}}><Badge color={t.muted} bg={t.surfaceAlt}>{s.date}</Badge><Badge color={t.accentText} bg={t.accentLight}>{s.type}</Badge></div><p style={{fontSize:14,color:t.text,margin:0,lineHeight:1.7}}>{s.notes}</p></div>)}
-        {memberGroups.map(g=>g.sessions.map((s,i)=><div key={`${g.id}-${i}`} style={{background:t.surface,borderLeft:`3px solid ${g.color}`,borderRadius:12,padding:"16px 18px",marginBottom:10,border:`1px solid ${g.color}40`}}><div style={{display:"flex",gap:8,marginBottom:8}}><Badge color={t.muted} bg={t.surfaceAlt}>{s.date}</Badge><Badge color={g.color} bg={g.colorLight}>{g.name}</Badge></div><p style={{fontSize:14,color:t.text,margin:0,lineHeight:1.7}}>{s.notes}</p></div>))}
+        {(intern.sessions||[]).map((s,i)=><div key={i} style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:12,padding:"16px 18px",marginBottom:12}}><div style={{display:"flex",gap:8,marginBottom:8}}><Badge color={t.muted} bg={t.surfaceAlt}>{s.date}</Badge><Badge color={t.accentText} bg={t.accentLight}>{s.type}</Badge></div><p style={{fontSize:14,color:t.text,margin:0,lineHeight:1.7}}>{s.notes}</p></div>)}
+        {memberGroups.map(g=>(g.sessions||[]).map((s,i)=><div key={`${g.id}-${i}`} style={{background:t.surface,borderLeft:`3px solid ${g.color}`,borderRadius:12,padding:"16px 18px",marginBottom:10,border:`1px solid ${g.color}40`}}><div style={{display:"flex",gap:8,marginBottom:8}}><Badge color={t.muted} bg={t.surfaceAlt}>{s.date}</Badge><Badge color={g.color} bg={g.colorLight}>{g.name}</Badge></div><p style={{fontSize:14,color:t.text,margin:0,lineHeight:1.7}}>{s.notes}</p></div>))}
         {intern.sessions.length===0&&memberGroups.every(g=>g.sessions.length===0)&&<div style={{fontSize:14,color:t.faint,textAlign:"center",padding:"32px 0"}}>No sessions logged yet.</div>}
       </div>}
       {tab==="documents"&&<DocumentsTab key={intern.id} intern={intern} onUpdateIntern={handleUpdate} T={t}/>}
@@ -9505,7 +9505,7 @@ function InternPortal({intern:initialIntern,groups,onExit,onUpdateIntern,supervi
         <div style={{background:t.isGradient?(t.gradientSubtle||t.accentLight):t.accentLight,border:`1px solid ${t.isGradient?"transparent":t.accentMid}`,borderRadius:10,padding:"12px 16px",marginBottom:20,fontSize:13,color:t.accentText}}>
           Monthly supervision fee: <strong>${intern.payments[0]?.amount}/month</strong>
         </div>
-        {intern.payments.map((p,i)=>{
+        {(intern.payments||[]).map((p,i)=>{
           const methodIcons={cash:"💵",check:"📄",venmo:"💜",zelle:"⚡",paypal:"🅿",stripe:"💳",other:"●"};
           return <div key={i} style={{background:t.surface,border:`1px solid ${p.status==="overdue"?t.accentMid:t.border}`,borderLeftWidth:p.status==="overdue"?3:1,borderLeftColor:p.status==="overdue"?t.accent:t.border,borderRadius:12,padding:"14px 18px",display:"flex",alignItems:"center",marginBottom:10}}>
             <div style={{flex:1}}>
@@ -9815,12 +9815,6 @@ export default function SupTrack() {
     setPortalInternId(null);
   }} onUpdateIntern={updateIntern} supervisorPhoto={supervisorPhoto} supervisorInitials={supervisorInitials} supervisorName={supervisorName}/>;
 
-  // Check if there's a pending intern onboarding to complete
-  const pendingOnboard=React.useMemo(()=>{try{const p=localStorage.getItem("suptrack_pending_onboard");if(!p)return null;const parsed=JSON.parse(p);const completed=localStorage.getItem("suptrack_completed_onboard");if(completed)return null;return parsed;}catch{return null;}},[]);
-  if(pendingOnboard&&!session) return <InternOnboardingForm T={t} supervisorName={pendingOnboard.supervisorName} onComplete={(data)=>{try{localStorage.setItem("suptrack_completed_onboard",JSON.stringify(data));}catch{}window.location.reload();}}/>;
-
-  if(!session) return <LoginScreen T={t} onLogin={login}/>;
-
   return <div style={{display:"flex",minHeight:"100vh",background:t.bg,fontFamily:f.body}}>
     <link href={f.url} rel="stylesheet"/>
     <style>{`
@@ -9985,7 +9979,7 @@ export default function SupTrack() {
           setQuickActionHidden(prev=>{const s=new Set(prev);s.has(id)?s.delete(id):s.add(id);return s;});
         }}
       />}
-      {page==="intern-profile"&&selectedIntern&&<InternProfile T={t} intern={selectedIntern} groups={groups} lists={lists} setLists={setLists} colleagues={colleagues} setColleagues={setColleagues} onBack={()=>{setSelectedInternId_sv(null);setPage("interns");}} onUpdateIntern={updateIntern} onConsult={i=>{setConsultIntern(i);setPage("consult");}} onOpenLab={()=>setPage("lab")}/>}
+      {page==="intern-profile"&&selectedIntern&&<InternProfile T={t} intern={selectedIntern} groups={groups} lists={lists} setLists={setLists} colleagues={colleagues} setColleagues={setColleagues} onBack={()=>{setSelectedInternId_sv(null);setPage("interns");}} onUpdateIntern={updateIntern} onConsult={i=>{setConsultIntern(i);setPage("consult");}} onOpenLab={()=>setPage("lab")} onGroupClick={(gid)=>{setSelectedGroupId(gid);setPage("groups");}}/>}
       {page==="interns"&&<InterneesPage T={t} interns={interns} groups={groups} lists={lists} colleagues={colleagues} internFilter={internFilter} setInternFilter={setInternFilter} internSort={internSort} setInternSort={setInternSort} internViewMode={internViewMode} setInternViewMode={setInternViewMode} onSelectIntern={i=>{setSelectedInternId_sv(i.id);setPage("intern-profile");}} onGroupClick={(gid)=>{setSelectedGroupId(gid);setPage("groups");}} onAddIntern={()=>setAddInternOpen(true)} onOpenOnboarding={()=>setOnboardingOpen(true)}/>}
       {page==="groups"&&<GroupsPage T={t} groups={groups} interns={interns} colleagues={colleagues} setColleagues={setColleagues} setGroups={setGroups} initialGroupId={selectedGroupId} updateInterns={addSessionCharge} updateIntern={updateIntern} onSelectIntern={i=>{setSelectedInternId_sv(i.id);setPage("intern-profile");}}/>}
 
@@ -9998,11 +9992,7 @@ export default function SupTrack() {
       {page==="resources"&&<ResourcesPage T={t}/>}
       {page==="discover"&&<DiscoverPage T={t} interns={interns} onAddIntern={newIntern=>setInterns(p=>[...p,newIntern])}/>}
       {page==="agreements"&&<AgreementsPage T={t} interns={interns} supervisorName={supervisorName}/>}
-      {page==="reminders"&&<div>
-        <h1 style={{fontFamily:"inherit",fontSize:28,fontWeight:400,color:t.text,margin:"0 0 6px",letterSpacing:"-0.02em"}}>Reminders &amp; Deadlines</h1>
-        <p style={{color:t.muted,fontSize:14,margin:"0 0 24px"}}>Upcoming deadlines, overdue items, and things that need your attention</p>
-        <DeadlineAlertsPanel T={t} interns={interns} groups={groups}/>
-      </div>}
+
       {page==="support"&&<SupportPage T={t} supervisorName={supervisorName} supervisorEmail={`${(supervisorName||"Alyson K.").toLowerCase().replace(/[^a-z0-9]/g,".")}@questcounseling.org`} tickets={tickets} setTickets={setTickets}/>}
       {page==="reminders"&&<RemindersPanel T={t} interns={interns} groups={groups} onNavigate={(dest,ctx)=>{setPage(dest);if(ctx)setSelectedGroupId(ctx);}} onSelectIntern={i=>{setSelectedInternId_sv(i.id);setPage("intern-profile");}}/>}
       {page==="admin"&&isAdmin&&<AdminInboxPage T={t} tickets={tickets} setTickets={setTickets}/>}
