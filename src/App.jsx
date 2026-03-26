@@ -5909,9 +5909,9 @@ function BillingPage({billing,setBilling,interns,T,F,colleagues=[]}) {
             const active=plan.id===billing.plan;
             const price=cycle==="annual"?plan.annual/12:plan.monthly;
             return <div key={plan.id} onClick={()=>setBilling(p=>({...p,plan:plan.id,cycle}))}
-              style={{background:active?plan.colorLight:t.surface,border:`2px solid ${active?plan.color:t.border}`,borderRadius:14,padding:"18px 20px",cursor:"pointer",transition:"all 0.15s",display:"flex",flexDirection:"column"}}>
+              style={{background:active?plan.colorLight:t.surface,border:`2px solid ${active?plan.color:t.border}`,borderRadius:14,padding:"18px 20px",cursor:"pointer",transition:"all 0.15s",display:"flex",flexDirection:"column",textAlign:"left"}}>
               {/* Badge row — always reserves height so all three cards align */}
-              <div style={{height:24,marginBottom:6}}>
+              <div style={{height:24,marginBottom:6,display:"flex",alignItems:"center"}}>
                 {plan.badge&&<span style={{fontSize:11,color:plan.color,background:plan.colorLight,border:`1px solid ${plan.color}40`,borderRadius:20,padding:"2px 10px",fontFamily:"'DM Mono',monospace",fontWeight:500}}>{plan.badge}</span>}
               </div>
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
