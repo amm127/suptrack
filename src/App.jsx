@@ -4201,7 +4201,7 @@ function GroupsPage({groups,interns,colleagues,setColleagues,setGroups,onSelectI
     {confirmDelete&&ag&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000}} onClick={()=>setConfirmDelete(false)}>
       <div style={{background:t.surface,borderRadius:16,padding:"28px 32px",width:400,boxShadow:"0 24px 64px rgba(0,0,0,0.18)"}} onClick={e=>e.stopPropagation()}>
         <div style={{fontSize:20,color:t.text,fontWeight:500,marginBottom:8}}>Delete "{ag.name}"?</div>
-        <div style={{fontSize:13,color:t.muted,marginBottom:20,lineHeight:1.6}}>This will permanently delete the group and all {ag.sessions.length} session{ag.sessions.length!==1?"s":""} logged for it. Members won't be deleted — they'll just be removed from this group. This cannot be undone.</div>
+        <div style={{fontSize:13,color:t.muted,marginBottom:20,lineHeight:1.6}}>This will permanently delete the group and all {(ag.sessions||[]).length} session{(ag.sessions||[]).length!==1?"s":""} logged for it. Members won't be deleted — they'll just be removed from this group. This cannot be undone.</div>
         <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
           <Btn T={t} variant="secondary" onClick={()=>setConfirmDelete(false)}>Cancel</Btn>
           <button onClick={deleteGroup} style={{background:S.red,color:"#fff",border:"none",borderRadius:8,padding:"8px 20px",cursor:"pointer",fontSize:13,fontFamily:"inherit",fontWeight:500}}>Delete group</button>
@@ -4427,7 +4427,7 @@ function GroupsPage({groups,interns,colleagues,setColleagues,setGroups,onSelectI
             <div style={{display:"flex",alignItems:"center",gap:10}}>
               <div style={{width:8,height:8,borderRadius:"50%",background:ag.color}}/>
               <span style={{fontSize:15,color:t.text,fontWeight:500}}>Log a session</span>
-              <span style={{fontSize:12,color:t.muted}}>{ag.sessions.length} logged</span>
+              <span style={{fontSize:12,color:t.muted}}>{(ag.sessions||[]).length} logged</span>
             </div>
             <div style={{display:"flex",gap:8}}>
               {!showNewSess&&<button onClick={()=>setShowNewSess(true)}
@@ -4446,11 +4446,11 @@ function GroupsPage({groups,interns,colleagues,setColleagues,setGroups,onSelectI
         </div>
 
         {/* ── Past sessions ── */}
-        {ag.sessions.length===0
+        {(ag.sessions||[]).length===0
           ? <div style={{color:t.muted,fontSize:14,textAlign:"center",padding:"20px 0"}}>No sessions logged yet — use the form above to log your first.</div>
           : <div>
               <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:10}}>Session history</div>
-              {a(g.sessions||[]).map((s,i)=>{
+              {(ag.sessions||[]).map((s,i)=>{
                 const byCol=s.author!=="Alyson";
                 const presentNames=s.attendees?.map(id=>members.find(m=>m.id===id)).filter(Boolean).map(m=>dn(m).split(" ")[0]);
                 return <div key={i} style={{background:t.surface,border:`1px solid ${ag.color}40`,borderLeft:`3px solid ${byCol?S.purple:ag.color}`,borderRadius:12,padding:"16px 18px",marginBottom:12}}>
