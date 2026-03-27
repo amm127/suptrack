@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { supabase } from '../lib/supabase'
 import Auth from './Auth'
+const ANTHROPIC_API_KEY = import.meta.env.VITE_ANTHROPIC_API_KEY || "";
 // ── Date helpers — no hardcoded dates in runtime logic ─────────────────────
 const TODAY = () => new Date().toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});
 const TODAY_MONTH = () => new Date().toLocaleDateString("en-US",{month:"long",year:"numeric"});
@@ -1298,14 +1299,12 @@ function AISessionModal({intern,groupContext,onSave,onClose,T}) {
   const [result,setResult]=useState("");
   const [editing,setEditing]=useState(false);
   const [error,setError]=useState("");
-  const apiKey = window.__SUPTRACK_API_KEY||"";
-
   const internName = intern ? (intern.preferredName || intern.name.split(" ")[0]) : "";
   const fullName   = intern ? intern.name : groupContext?.name || "Group";
 
   const generate = async () => {
     if (!form.summary.trim()) { setError("Please enter at least a brief summary."); return; }
-    if (!apiKey) { setError("No API key set — go to ✦ Consult AI or ✦ Supervision Lab and click 'Set API key' first."); return; }
+    if (!ANTHROPIC_API_KEY) { setError("No API key configured — set VITE_ANTHROPIC_API_KEY in your .env file."); return; }
     setError("");
     setStep("generating");
 
@@ -1334,7 +1333,7 @@ Use professional clinical language appropriate for licensure documentation. Be s
     try {
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method:"POST",
-        headers:{"Content-Type":"application/json","x-api-key":window.__SUPTRACK_API_KEY||localStorage.getItem("suptrack_api_key")||"","anthropic-dangerous-direct-browser-access":"true"},
+        headers:{"Content-Type":"application/json","x-api-key":ANTHROPIC_API_KEY,"anthropic-dangerous-direct-browser-access":"true"},
         body:JSON.stringify({
           model:"claude-sonnet-4-5",
           max_tokens:1000,
@@ -4773,7 +4772,7 @@ function EvaluationTab({intern,onUpdateIntern,T}) {
     const ratingText=EVAL_QUESTIONS.map(q=>`- ${q.label}: ${ratings[q.id]}/5`).join("\n");
     const prompt=`You are a licensed clinical supervisor writing a formal evaluation of a supervisee. Write a professional, balanced evaluation summary based on these ratings and notes.\n\nSupervisee: ${intern.name}\nEvaluation type: ${evalType}\nCredential goal: ${intern.licenseGoal}\n\nRatings (1-5):\n${ratingText}\n\nStrengths: ${strengths||"Not specified"}\nGrowth areas: ${growth||"Not specified"}\nGoals: ${goals||"Not specified"}\n\nWrite a 2-3 paragraph professional evaluation in third person. Reference the supervisee by last name. Be specific, balanced, and clinically appropriate.`;
     try{
-      const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":window.__SUPTRACK_API_KEY||localStorage.getItem("suptrack_api_key")||"","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-sonnet-4-5",max_tokens:600,messages:[{role:"user",content:prompt}]})});
+      const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":ANTHROPIC_API_KEY,"anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-sonnet-4-5",max_tokens:600,messages:[{role:"user",content:prompt}]})});
       const data=await res.json();
       setGeneratedSummary(data.content?.filter(c=>c.type==="text").map(c=>c.text).join("")||"");
     }catch(e){setGeneratedSummary("Unable to generate. Please write manually.");}
@@ -6191,9 +6190,7 @@ function ConsultPage({interns,T,consultIntern}) {
   const [input,setInput]=useState(consultIntern ? `I want to consult about a supervisee situation involving ${consultIntern.preferredName||consultIntern.name.split(" ")[0]} (${consultIntern.discipline||consultIntern.internType}, ${consultIntern.credential}). ` : "");
   const [loading,setLoading]=useState(false);
   const [hipaaAck,setHipaaAck]=useState(false);
-  const [apiKey,setApiKey]=useState(()=>{const saved=localStorage.getItem("suptrack_api_key")||"";if(saved)window.__SUPTRACK_API_KEY=saved;return saved;});
-  const [showKeyInput,setShowKeyInput]=useState(false);
-  const [tempKey,setTempKey]=useState("");
+  const apiKey=ANTHROPIC_API_KEY;
 
   const activeInternSummary = interns.filter(i=>i.status==="active").map(i=>
     `- ${dn(i)} (${i.discipline||i.internType}, ${i.credential}, ${i.supervisorRole} intern, ${Math.round(i.hoursCompleted/i.hoursTotal*100)}% through hours)`
@@ -6220,7 +6217,7 @@ Tone: Collegial, warm, confident. You're a trusted colleague, not a chatbot. Kee
     const userText = (text || input).trim();
     if (!userText || loading) return;
     if (!apiKey) {
-      setMessages(p=>[...p,{role:"user",content:userText},{role:"assistant",content:"⚠ No API key set. Click **'Set API key'** above and enter your Anthropic API key to enable AI consultation."}]);
+      setMessages(p=>[...p,{role:"user",content:userText},{role:"assistant",content:"⚠ No API key configured. Set VITE_ANTHROPIC_API_KEY in your .env file."}]);
       setInput("");
       return;
     }
@@ -6232,7 +6229,7 @@ Tone: Collegial, warm, confident. You're a trusted colleague, not a chatbot. Kee
     try {
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method:"POST",
-        headers:{"Content-Type":"application/json","x-api-key":window.__SUPTRACK_API_KEY||localStorage.getItem("suptrack_api_key")||"","anthropic-dangerous-direct-browser-access":"true"},
+        headers:{"Content-Type":"application/json","x-api-key":ANTHROPIC_API_KEY,"anthropic-dangerous-direct-browser-access":"true"},
         body:JSON.stringify({
           model:"claude-sonnet-4-5",
           max_tokens:1000,
@@ -6282,29 +6279,13 @@ Tone: Collegial, warm, confident. You're a trusted colleague, not a chatbot. Kee
           </p>
         </div>
         <div style={{display:"flex",gap:8,alignItems:"center"}}>
-          <button onClick={()=>setShowKeyInput(k=>!k)}
-            style={{background:apiKey?"none":t.accent,color:apiKey?t.muted:"#fff",border:`1px solid ${apiKey?t.border:t.accent}`,borderRadius:7,padding:"5px 12px",cursor:"pointer",fontSize:11,fontFamily:"'DM Mono',monospace"}}>
-            {apiKey?"🔑 Key set":"🔑 Set API key"}
-          </button>
+          {apiKey&&<span style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace"}}>🔑 Key set</span>}
           {messages.length>0&&<Btn T={t} variant="secondary" small onClick={()=>setMessages([])}>Clear</Btn>}
         </div>
       </div>
 
-      {/* API key setup */}
-      {showKeyInput&&<div style={{background:t.surfaceAlt,border:`1px solid ${t.border}`,borderRadius:10,padding:"12px 16px",marginBottom:12,flexShrink:0}}>
-        <div style={{fontSize:13,color:t.text,marginBottom:8}}>Enter your Anthropic API key to enable AI features. Get one at <span style={{color:t.accentText}}>console.anthropic.com</span>. Key is stored in this browser session only.</div>
-        <div style={{display:"flex",gap:8}}>
-          <input type="password" value={tempKey} onChange={e=>setTempKey(e.target.value)} placeholder="sk-ant-..." autoFocus
-            style={{flex:1,border:`1px solid ${t.border}`,borderRadius:7,padding:"7px 12px",fontSize:13,fontFamily:"'DM Mono',monospace",color:t.text,background:t.bg,outline:"none"}}/>
-          <button onClick={()=>{window.__SUPTRACK_API_KEY=tempKey;localStorage.setItem("suptrack_api_key",tempKey);setApiKey(tempKey);setShowKeyInput(false);setTempKey("");}}
-            style={{background:t.accent,color:"#fff",border:"none",borderRadius:7,padding:"7px 16px",cursor:"pointer",fontSize:13,fontFamily:"inherit"}}>Save</button>
-          {apiKey&&<button onClick={()=>{window.__SUPTRACK_API_KEY="";localStorage.removeItem("suptrack_api_key");setApiKey("");setShowKeyInput(false);setTempKey("");}}
-            style={{background:"none",border:`1px solid ${S.red}40`,borderRadius:7,padding:"7px 12px",cursor:"pointer",fontSize:12,color:S.red,fontFamily:"'DM Mono',monospace"}}>Clear key</button>}
-        </div>
-      </div>}
-
       {!apiKey&&<div style={{background:S.amberLight,border:"1px solid #E8C98A",borderRadius:8,padding:"10px 14px",marginBottom:12,fontSize:13,color:"#7A5A00",flexShrink:0}}>
-        ⚠ AI features require an Anthropic API key. Click <strong>"Set API key"</strong> above to get started. Free trial keys available at <strong>console.anthropic.com</strong>.
+        ⚠ AI features require an API key. Set <strong>VITE_ANTHROPIC_API_KEY</strong> in your .env file.
       </div>}
 
       {/* HIPAA reminder strip */}
@@ -6841,9 +6822,7 @@ function SupervisionLabPage({T}) {
   const [elKey, setElKey] = useState("");
   const [elKeyInput, setElKeyInput] = useState("");
   const [elKeySaved, setElKeySaved] = useState(false);
-  const [apiKey, setApiKey] = useState(()=>window.__SUPTRACK_API_KEY||"");
-  const [showApiSetup, setShowApiSetup] = useState(false);
-  const [tempApiKey, setTempApiKey] = useState("");
+  const apiKey=ANTHROPIC_API_KEY;
   const [filterLang, setFilterLang] = useState("all");
   // Pre-load browser voices async (Chrome loads them lazily)
   const [browserVoices, setBrowserVoices] = useState([]);
@@ -6974,7 +6953,7 @@ function SupervisionLabPage({T}) {
     const hist = newTranscript.map(m=>`${m.role==="supervisor"?(isSpanish?"Supervisora":"Supervisor"):"You"}: ${m.text}`).join("\n");
     const systemPrompt = `${scenario.persona}\n\nYou are in a live supervision session. Stay fully in character. Do not break character or reveal you are an AI.\n${isSpanish?"IMPORTANTE: Responde SOLAMENTE en español natural. 2-5 oraciones máximo.":"Keep responses to 2-5 sentences of natural spoken dialogue."}\n\nConversation so far:\n${hist}\n\nRespond only with your character's next spoken words. No labels, no stage directions.`;
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":window.__SUPTRACK_API_KEY||localStorage.getItem("suptrack_api_key")||"","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-sonnet-4-5",max_tokens:200,messages:[{role:"user",content:`[${isSpanish?"La supervisora dijo":"The supervisor said"}]: ${text}`}],system:systemPrompt})});
+      const res = await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":ANTHROPIC_API_KEY,"anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-sonnet-4-5",max_tokens:200,messages:[{role:"user",content:`[${isSpanish?"La supervisora dijo":"The supervisor said"}]: ${text}`}],system:systemPrompt})});
       const data = await res.json();
       const reply = data.content?.filter(c=>c.type==="text").map(c=>c.text).join("")||(isSpanish?"¿Puedes repetir eso?":"Could you repeat that?");
       const updated = [...newTranscript, { role:"supervisee", text:reply, ts: fmt(sessionTime) }];
@@ -7031,7 +7010,7 @@ Provide feedback in ${isSpanish?"Spanish (Español)":"English"} with these secti
 
 Be direct, clinical, encouraging. Under 400 words.`;
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":window.__SUPTRACK_API_KEY||localStorage.getItem("suptrack_api_key")||"","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-sonnet-4-5",max_tokens:600,messages:[{role:"user",content:prompt}]})});
+      const res = await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":ANTHROPIC_API_KEY,"anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-sonnet-4-5",max_tokens:600,messages:[{role:"user",content:prompt}]})});
       const data = await res.json();
       const fb = data.content?.filter(c=>c.type==="text").map(c=>c.text).join("")||"";
       setFeedback(fb);
@@ -7056,10 +7035,7 @@ Be direct, clinical, encouraging. Under 400 words.`;
       <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:4}}>
         <h1 style={{fontFamily:"inherit",fontSize:28,fontWeight:400,color:t.text,margin:0,letterSpacing:"-0.02em"}}>✦ Supervision Lab</h1>
         <div style={{display:"flex",gap:8,alignItems:"center"}}>
-          <button onClick={()=>setShowApiSetup(k=>!k)}
-            style={{background:apiKey?"none":t.accent,color:apiKey?t.muted:"#fff",border:`1px solid ${apiKey?t.border:t.accent}`,borderRadius:7,padding:"5px 12px",cursor:"pointer",fontSize:11,fontFamily:"'DM Mono',monospace",flexShrink:0}}>
-            {apiKey?"🔑 AI key set":"🔑 Set AI key"}
-          </button>
+          {apiKey&&<span style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace"}}>🔑 AI key set</span>}
           {sessionHistory.length>0&&<button onClick={()=>setPhase("history")}
             style={{background:t.accentLight,color:t.accentText,border:`1px solid ${t.accentMid}`,borderRadius:8,padding:"7px 14px",cursor:"pointer",fontSize:12,fontFamily:"'DM Mono',monospace",flexShrink:0}}>
             Session history ({sessionHistory.length})
@@ -7072,21 +7048,8 @@ Be direct, clinical, encouraging. Under 400 words.`;
       </div>
     </div>
 
-    {/* API key setup */}
-    {showApiSetup&&<div style={{background:t.surfaceAlt,border:`1px solid ${t.border}`,borderRadius:10,padding:"14px 16px",marginBottom:14}}>
-      <div style={{fontSize:13,color:t.text,marginBottom:8}}>Anthropic API key (powers the AI responses). Get one free at <strong>console.anthropic.com</strong>. Stored in this browser session only.</div>
-      <div style={{display:"flex",gap:8}}>
-        <input type="password" value={tempApiKey} onChange={e=>setTempApiKey(e.target.value)} placeholder="sk-ant-..."
-          style={{flex:1,border:`1px solid ${t.border}`,borderRadius:7,padding:"7px 12px",fontSize:13,fontFamily:"'DM Mono',monospace",color:t.text,background:t.bg,outline:"none"}}/>
-        <button onClick={()=>{window.__SUPTRACK_API_KEY=tempApiKey;setApiKey(tempApiKey);setShowApiSetup(false);setTempApiKey("");}}
-          style={{background:t.accent,color:"#fff",border:"none",borderRadius:7,padding:"7px 16px",cursor:"pointer",fontSize:13,fontFamily:"inherit"}}>Save</button>
-        {apiKey&&<button onClick={()=>{window.__SUPTRACK_API_KEY="";setApiKey("");setShowApiSetup(false);}}
-          style={{background:"none",border:`1px solid ${S.red}40`,borderRadius:7,padding:"7px 12px",cursor:"pointer",fontSize:12,color:S.red}}>Clear</button>}
-      </div>
-    </div>}
-
     {!apiKey&&<div style={{background:S.amberLight,border:"1px solid #E8C98A",borderRadius:8,padding:"10px 14px",marginBottom:14,fontSize:13,color:"#7A5A00"}}>
-      ⚠ Add an Anthropic API key above to enable AI responses. Without it the lab scenarios won't respond.
+      ⚠ AI features require an API key. Set <strong>VITE_ANTHROPIC_API_KEY</strong> in your .env file.
     </div>}
 
     {/* Voice settings */}
@@ -7328,7 +7291,7 @@ Write a professional Supervision of Supervision feedback letter that:
 
 Keep the tone warm, collegial, and clinically precise. Write in the voice of a senior LPC-S or LCSW-S writing to a newly credentialed supervisee-supervisor. 3-4 paragraphs.`;
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":window.__SUPTRACK_API_KEY||localStorage.getItem("suptrack_api_key")||"","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-sonnet-4-5",max_tokens:700,messages:[{role:"user",content:prompt}]})});
+      const res = await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":ANTHROPIC_API_KEY,"anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-sonnet-4-5",max_tokens:700,messages:[{role:"user",content:prompt}]})});
       const data = await res.json();
       setReviewLetter(data.content?.filter(c=>c.type==="text").map(c=>c.text).join("")||"");
     } catch(e) { setReviewLetter("Unable to generate letter. Please write feedback manually above."); }
@@ -8362,7 +8325,7 @@ Replace all bracketed placeholders with appropriate values based on the supervis
 
     try {
       const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method:"POST", headers:{"Content-Type":"application/json","x-api-key":window.__SUPTRACK_API_KEY||localStorage.getItem("suptrack_api_key")||"","anthropic-dangerous-direct-browser-access":"true"},
+        method:"POST", headers:{"Content-Type":"application/json","x-api-key":ANTHROPIC_API_KEY,"anthropic-dangerous-direct-browser-access":"true"},
         body:JSON.stringify({ model:"claude-sonnet-4-5", max_tokens:2000, messages:[{role:"user",content:prompt}] })
       });
       const data = await res.json();
@@ -8573,7 +8536,7 @@ Replace all bracketed placeholders with appropriate values based on the supervis
               ))}
             </div>
             <Btn T={t} onClick={async()=>{
-              if(!window.__SUPTRACK_API_KEY){setGeneratedLetter("⚠ No API key set. Add your Anthropic API key in ✦ Consult AI first.");return;}
+              if(!ANTHROPIC_API_KEY){setGeneratedLetter("⚠ No API key configured. Set VITE_ANTHROPIC_API_KEY in your .env file.");return;}
               setGeneratingLetter(true);setGeneratedLetter("");
               const prompt=`Write a formal supervisor attestation letter for a clinical intern's licensing board application.
 
@@ -8600,7 +8563,7 @@ Write a formal attestation letter for submission to a state licensing board. Inc
 
 Professional, formal tone. Leave blanks for anything unknown.`;
               try{
-                const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":window.__SUPTRACK_API_KEY,"anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-sonnet-4-5",max_tokens:1500,messages:[{role:"user",content:prompt}]})});
+                const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":ANTHROPIC_API_KEY,"anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-sonnet-4-5",max_tokens:1500,messages:[{role:"user",content:prompt}]})});
                 const data=await res.json();
                 setGeneratedLetter(data.content?.filter(c=>c.type==="text").map(c=>c.text).join("")||"Error — check API key.");
               }catch{setGeneratedLetter("Unable to generate. Check your Anthropic API key.");}
