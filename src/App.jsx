@@ -2785,7 +2785,6 @@ function Dashboard({interns,groups,lists,colleagues,onSelectIntern,onNavigate,on
       </div>
       <Btn T={t} variant="secondary" onClick={()=>setCustomizing(c=>!c)}>{customizing?"Done":"Customize"}</Btn>
 <button onClick={async()=>{await supabase.auth.signOut();window.location.reload();}} title="Sign Out" style={{background:"none",border:"none",cursor:"pointer",padding:"8px",borderRadius:"8px",color:t.muted,display:"flex",alignItems:"center"}} onMouseEnter={e=>e.currentTarget.style.color=t.text} onMouseLeave={e=>e.currentTarget.style.color=t.muted}>
-<button
   onClick={async () => { await supabase.auth.signOut(); window.location.reload(); }}
   title="Sign Out"
   style={{background:"none", border:"none", cursor:"pointer", padding:"8px", color:t.muted, display:"flex", alignItems:"center"}}
