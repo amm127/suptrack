@@ -3054,8 +3054,6 @@ function Dashboard({interns,groups,lists,colleagues,onSelectIntern,onNavigate,on
       </div>;}))}</div>}
     </div>)}
   </div>;
-}
-
 // ── Payments Page ──────────────────────────────────────────────────────────
 // ── PaymentsTab — per-intern payments inside InternProfile ───────────────────
 // ── DocumentsTab — file upload, preview, delete, signature pad ───────────────
