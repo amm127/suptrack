@@ -4,21 +4,47 @@ import { supabase } from '../lib/supabase'
 export default function Auth() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [inviteCode, setInviteCode] = useState('')
   const [isSignUp, setIsSignUp] = useState(false)
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
+  const [isError, setIsError] = useState(false)
 
   const handleSubmit = async () => {
     setLoading(true)
     setMessage('')
+    setIsError(false)
 
     if (isSignUp) {
+      // Check invite code first
+      const { data: invite, error: inviteError } = await supabase
+        .from('invites')
+        .select('*')
+        .eq('code', inviteCode.trim())
+        .eq('used', false)
+        .single()
+
+      if (inviteError || !invite) {
+        setMessage('Invalid or already used invite code.')
+        setIsError(true)
+        setLoading(false)
+        return
+      }
+
+      // Create the account
       const { error } = await supabase.auth.signUp({ email, password })
-      if (error) setMessage(error.message)
-      else setMessage('Check your email to confirm your account!')
+      if (error) {
+        setMessage(error.message)
+        setIsError(true)
+      } else {
+        setMessage('Check your email to confirm your account!')
+      }
     } else {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
-      if (error) setMessage(error.message)
+      if (error) {
+        setMessage(error.message)
+        setIsError(true)
+      }
     }
     setLoading(false)
   }
@@ -54,14 +80,30 @@ export default function Auth() {
           value={password}
           onChange={e => setPassword(e.target.value)}
           style={{
-            width: '100%', padding: '12px', marginBottom: '20px',
+            width: '100%', padding: '12px', marginBottom: '12px',
             border: '1px solid #E2DDD8', borderRadius: '8px',
             fontSize: '15px', boxSizing: 'border-box'
           }}
         />
 
+        {isSignUp && (
+          <input
+            type="text"
+            placeholder="Invite code"
+            value={inviteCode}
+            onChange={e => setInviteCode(e.target.value)}
+            style={{
+              width: '100%', padding: '12px', marginBottom: '20px',
+              border: '1px solid #E2DDD8', borderRadius: '8px',
+              fontSize: '15px', boxSizing: 'border-box'
+            }}
+          />
+        )}
+
+        {!isSignUp && <div style={{ marginBottom: '20px' }} />}
+
         {message && (
-          <p style={{ color: '#7B9FD4', marginBottom: '16px', fontSize: '14px' }}>
+          <p style={{ color: isError ? '#e57373' : '#7B9FD4', marginBottom: '16px', fontSize: '14px' }}>
             {message}
           </p>
         )}
@@ -81,7 +123,7 @@ export default function Auth() {
         <p style={{ textAlign: 'center', fontSize: '14px', color: '#7A7268' }}>
           {isSignUp ? 'Already have an account? ' : "Don't have an account? "}
           <span
-            onClick={() => setIsSignUp(!isSignUp)}
+            onClick={() => { setIsSignUp(!isSignUp); setMessage('') }}
             style={{ color: '#7B9FD4', cursor: 'pointer' }}
           >
             {isSignUp ? 'Sign In' : 'Sign Up'}
