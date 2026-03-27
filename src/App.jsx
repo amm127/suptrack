@@ -9513,7 +9513,10 @@ useEffect(() => {
         const newSessions=updated.sessions.slice(0,updated.sessions.length-(old.sessions||[]).length);
         newSessions.forEach(s=>{
           const {_hourLog,_newTotal,...fields}=s;
-          supabase.from("sessions").insert({intern_id:updated.id,supervisor_id:session.user.id,date:fields.date,type:fields.type,duration:fields.duration,notes:fields.notes||"",author:fields.author||""}).then(({error})=>{if(error)console.error("Session insert error:",error);});
+          const isoDate=(()=>{const d=new Date(fields.date);return isNaN(d)?fields.date:d.toISOString().slice(0,10);})();
+          const row={intern_id:updated.id,supervisor_id:session.user.id,date:isoDate,type:fields.type||"",duration:fields.duration||"",notes:fields.notes||"",author:fields.author||""};
+          console.log("[updateIntern] Inserting session:",row);
+          supabase.from("sessions").insert(row).then(({error})=>{if(error){console.error("Session insert error:",error);alert("Session save failed: "+error.message);}else{console.log("[updateIntern] Session saved OK");}});
         });
       }
       // Sync hour_logs to Supabase — upsert by intern + category
