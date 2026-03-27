@@ -9434,7 +9434,7 @@ useEffect(() => {
   const [interns,setInterns]=useState([]);
   React.useEffect(()=>{
     if(!session?.user)return;
-    supabase.from("interns").select("*").eq("supervisor_id",session.user.id).then(({data})=>{if(data)setInterns(data);});
+    supabase.from("interns").select("*").eq("supervisor_id",session.user.id).then(({data})=>{if(data)setInterns(data.map(r=>({...r,preferredName:r.preferred_name||"",internType:r.intern_type||r.discipline||"",credentialBody:r.credential_body||"",licenseGoal:r.license_goal||"",supervisorRole:r.supervisor_role||"",startDate:r.start_date||"",proBono:r.pro_bono||false,groupIds:r.group_ids||[],listIds:r.list_ids||[],hoursCompleted:r.hours_completed||0,hoursTotal:r.hours_total||0,individualHours:r.individual_hours||0,groupHours:r.group_hours||0,billingRate:r.billing_rate||0,billingSchedule:r.billing_schedule||"monthly",initials:(r.name||"").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase(),sessions:r.sessions||[],cases:r.cases||[],documents:r.documents||[],evaluations:r.evaluations||[],hourLog:r.hour_log||[],internHourLog:r.intern_hour_log||[],customHourCategories:r.custom_hour_categories||[],payments:r.payments||[],paymentStatus:r.payment_status||"current",sharedWith:r.shared_with||[],flags:r.flags||[],photo:r.photo||null})));});
   },[session]);
   const [groups,setGroups]=useState(()=>{
     try{const s=localStorage.getItem("suptrack_groups");return s?JSON.parse(s):INITIAL_GROUPS;}
