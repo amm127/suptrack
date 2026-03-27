@@ -9783,7 +9783,7 @@ if (!session) return <Auth />
       {quickActionOpen&&<QuickActionModal T={t} action={quickActionOpen} interns={interns} groups={groups} onUpdateIntern={updateIntern} onClose={()=>setQuickActionOpen(null)}/>}
       {onboardingOpen&&<OnboardingModal T={t} supervisorName={supervisorName} onClose={()=>setOnboardingOpen(false)}/>}
       {addInternOpen&&<AddInternModal T={t} groups={groups} lists={lists}
-        onSave={async newIntern=>{const {data}=await supabase.from("interns").insert({...newIntern,supervisor_id:session.user.id}).select().single();if(data)setInterns(p=>[...p,data]);}}
+        onSave={async newIntern=>{const row={id:newIntern.id,supervisor_id:session.user.id,name:newIntern.name,preferred_name:newIntern.preferredName||"",pronouns:newIntern.pronouns||"",discipline:newIntern.discipline||"",credential:newIntern.credential||"",license_goal:newIntern.licenseGoal||"",hours_completed:0,hours_total:newIntern.hoursTotal||0,billing_rate:newIntern.billingRate||0,billing_schedule:newIntern.billingSchedule||"monthly",status:"active",start_date:newIntern.startDate||null,pro_bono:newIntern.proBono||false};const {data,error}=await supabase.from("interns").insert(row).select().single();if(data)setInterns(p=>[...p,{...newIntern,...data}]);else console.error(error);}}
         onClose={()=>setAddInternOpen(false)}
         onSendLink={()=>{setAddInternOpen(false);setOnboardingOpen(true);}}
       />}
