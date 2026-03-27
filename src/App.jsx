@@ -648,7 +648,7 @@ const Avatar = ({initials,size=40,color,textColor,T,photo,editable,onPhotoChange
       <span style={{fontSize:Math.max(10,size*0.28),color:"#fff"}}>📷</span>
       <input type="file" accept="image/*" onChange={handleFile} style={{display:"none"}}/>
     </label>}
-  </div>
+  </div>;
 };
 
 const Badge = ({children,color,bg}) => (
@@ -673,7 +673,7 @@ const Btn = ({children,onClick,variant="primary",small,disabled,style={},T}) => 
 const PBar = ({value,total,T}) => {
   const t=T||THEMES.sage; const pct=Math.min(100,Math.round(value/total*100));
   const barBg = t.isGradient ? t.gradient : t.accent;
-  return <div style={{width:"100%"}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}><span style={{fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace"}}>{value.toLocaleString()} / {total.toLocaleString()} hrs</span><span style={{fontSize:12,color:t.accent,fontFamily:"'DM Mono',monospace",fontWeight:600}}>{pct}%</span></div><div style={{height:7,background:t.borderLight,borderRadius:999,overflow:"hidden"}}><div style={{height:"100%",width:`${pct}%`,background:barBg,backgroundSize:"200% 200%",animation:t.isGradient?"gradientShift 5s ease infinite":undefined,borderRadius:999,transition:"width 0.7s cubic-bezier(.4,0,.2,1)"}}/></div></div>
+  return <div style={{width:"100%"}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}><span style={{fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace"}}>{value.toLocaleString()} / {total.toLocaleString()} hrs</span><span style={{fontSize:12,color:t.accent,fontFamily:"'DM Mono',monospace",fontWeight:600}}>{pct}%</span></div><div style={{height:7,background:t.borderLight,borderRadius:999,overflow:"hidden"}}><div style={{height:"100%",width:`${pct}%`,background:barBg,backgroundSize:"200% 200%",animation:t.isGradient?"gradientShift 5s ease infinite":undefined,borderRadius:999,transition:"width 0.7s cubic-bezier(.4,0,.2,1)"}}/></div></div>;
 };
 
 const StatCard = ({label,value,sub,color,onClick,T}) => {
@@ -684,7 +684,7 @@ const StatCard = ({label,value,sub,color,onClick,T}) => {
     <div style={{fontSize:11,color:t.muted,marginBottom:8,fontFamily:"'DM Mono',monospace",letterSpacing:"0.05em",textTransform:"uppercase"}}>{label}{onClick&&<span style={{marginLeft:6,color:t.faint}}>→</span>}</div>
     <div style={{fontSize:28,fontFamily:"inherit",color:color||t.text,lineHeight:1}}>{value}</div>
     {sub&&<div style={{fontSize:12,color:t.muted,marginTop:5}}>{sub}</div>}
-  </div>
+  </div>;
 };
 
 const RoleBadge = ({role}) => { const s=rlSty(role); return <Badge color={s.color} bg={s.bg}>{s.label}</Badge>; };
@@ -701,15 +701,15 @@ const FlagDots = ({intern}) => {
   return <div style={{display:"flex",gap:3,alignItems:"center"}}>
     {af.slice(0,4).map(f=>{ const cat=FLAG_CATS.find(c=>c.id===f.category)||FLAG_CATS[5]; return <div key={f.id} title={`${cat.label}: ${f.note}`} style={{width:8,height:8,borderRadius:"50%",background:cat.color,flexShrink:0}}/> })}
     {af.length>4&&<span style={{fontSize:10,color:"#7A7060",fontFamily:"'DM Mono',monospace"}}>+{af.length-4}</span>}
-  </div>
+  </div>;
 };
 
 const SharedAvatars = ({sharedWith,size=22,colleagues=[]}) => {
   if(!sharedWith?.length) return null;
   return <div style={{display:"flex",alignItems:"center",gap:2}}>
-    {sharedWith.map((s,i)=>{ const c=colleagues.find(x=>x.id===s.colleagueId); if(!c) return null; return <div key={c.id} title={`${c.name}: ${pmSum(s.perms)}`} style={{width:size,height:size,borderRadius:"50%",background:c.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:size*0.38,color:"#fff",border:"2px solid white",marginLeft:i>0?-6:0,zIndex:10-i,flexShrink:0}}>{c.initials}</div> })}
+    {sharedWith.map((s,i)=>{ const c=colleagues.find(x=>x.id===s.colleagueId); if(!c) return null; return <div key={c.id} title={`${c.name}: ${pmSum(s.perms)}`} style={{width:size,height:size,borderRadius:"50%",background:c.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:size*0.38,color:"#fff",border:"2px solid white",marginLeft:i>0?-6:0,zIndex:10-i,flexShrink:0}}>{c.initials}</div>; })}
     <span style={{fontSize:11,color:"#9A9185",fontFamily:"'DM Mono',monospace",marginLeft:4}}>shared</span>
-  </div>
+  </div>;
 };
 
 // ── Flag Modal ─────────────────────────────────────────────────────────────
@@ -761,7 +761,7 @@ function FlagModal({intern,onSave,onClose,T}) {
         <Btn T={t} onClick={()=>onSave(flags)}>Save flags</Btn>
       </div>
     </div>
-  </div>
+  </div>;
 }
 
 // ── Share Link Modal ───────────────────────────────────────────────────────
@@ -815,7 +815,7 @@ function ShareLinkModal({intern,onClose,T}) {
       <div style={{fontSize:12,color:t.muted,marginBottom:16}}>This link will give {dn(intern)} read-only access to the selected sections of their file. Payment info is read-only; they cannot edit supervision notes through this link.</div>
       <div style={{display:"flex",justifyContent:"flex-end"}}><Btn T={t} variant="secondary" onClick={onClose}>Close</Btn></div>
     </div>
-  </div>
+  </div>;
 }
 
 // ── Share Modal (colleagues) ───────────────────────────────────────────────
@@ -1058,7 +1058,7 @@ function ExportModal({intern,groups,onClose,T}) {
         <Btn T={t} onClick={()=>{downloadTXT(buildReport(intern,groups,opts),`SupTrack_${intern.name.replace(/ /g,"_")}_Report.txt`);onClose();}}>Download report</Btn>
       </div>
     </div>
-  </div>
+  </div>;
 }
 
 // ── Intern Card ────────────────────────────────────────────────────────────
@@ -1097,7 +1097,7 @@ const InternCard = ({intern,lists,groups,colleagues,onClick,onGroupClick,T}) => 
           {intern.sharedWith?.length>0&&<SharedAvatars sharedWith={intern.sharedWith} colleagues={colleagues||[]}/>}
         </div>}
     </div>
-  </div>
+  </div>;
 };
 
 // ── Hours Comparison Tab ───────────────────────────────────────────────────
@@ -1168,7 +1168,7 @@ function QuickActionModal({action, interns, groups, onClose, onUpdateIntern, T})
         <Avatar initials={i.initials} size={18} T={t}/>{dn(i).split(" ")[0]}
       </button>)}
     </div>
-  </div>
+  </div>;
 
   const titles = {
     logsession: "Log Individual Session",
@@ -1282,7 +1282,7 @@ function QuickActionModal({action, interns, groups, onClose, onUpdateIntern, T})
             </div>}
       </div>}
     </div>
-  </div>
+  </div>;
 }
 
 function AISessionModal({intern,groupContext,onSave,onClose,T}) {
@@ -1692,7 +1692,7 @@ function HoursBreakdown({intern,onUpdateIntern,T}) {
               {cat.min&&<div style={{color:metMin?S.green:t.faint}}>min {cat.min}{metMin?" ✓":""}</div>}
               {cat.max&&<div style={{color:atMax?S.amber:t.faint}}>max {cat.max}{atMax?" ⚠":""}</div>}
             </div>
-          </div>
+          </div>;
         })}
         <div style={{display:"grid",gridTemplateColumns:"2.5fr .7fr 1fr .8fr",padding:"13px 18px",gap:8,borderTop:`2px solid ${t.border}`,background:t.surfaceAlt}}>
           <div style={{fontSize:14,color:t.text,fontWeight:700}}>Grand total</div>
@@ -1734,7 +1734,7 @@ function HoursBreakdown({intern,onUpdateIntern,T}) {
       </div>
       <InternHoursEditor key={`sup-adj-${intern.id}`} T={t} intern={intern} onUpdate={onUpdateIntern} supervisorMode={true}/>
     </div>}
-  </div>
+  </div>;
 }
 // ── InternHoursEditor (intern portal — can log & add categories) ───────────
 function InternHoursEditor({intern,onUpdate,T,supervisorMode}) {
@@ -1867,7 +1867,7 @@ function InternHoursEditor({intern,onUpdate,T,supervisorMode}) {
             {cat.max&&<div style={{color:atMax?S.amber:t.faint}}>max {cat.max}{atMax?" ⚠":""}</div>}
           </div>
           <div>{isCustom&&<button onClick={()=>removeCustom(cat.id)} title="Remove" style={{background:"none",border:"none",cursor:"pointer",color:t.faint,fontSize:14,padding:0}}>✕</button>}</div>
-        </div>
+        </div>;
       })}
       <div style={{display:"grid",gridTemplateColumns:"2.5fr .7fr 1fr .8fr 40px",padding:"11px 18px",gap:8,borderTop:`2px solid ${t.border}`,background:t.surfaceAlt}}>
         <div style={{fontSize:13,color:t.text,fontWeight:600}}>Direct (client contact)</div><div/>
@@ -1921,7 +1921,7 @@ function InternHoursEditor({intern,onUpdate,T,supervisorMode}) {
         ⬇ Download hours (.csv)
       </button>
     </div>
-  </div>
+  </div>;
 }
 
 // ── Confetti burst component ───────────────────────────────────────────────
@@ -1948,7 +1948,7 @@ function Confetti({active}) {
   if(!particles.length) return null;
   return <div style={{position:"fixed",inset:0,pointerEvents:"none",zIndex:9999,overflow:"hidden"}}>
     {particles.map(p=><ConfettiParticle key={p.id} p={p}/>)}
-  </div>
+  </div>;
 }
 
 function ConfettiParticle({p}) {
@@ -2031,9 +2031,9 @@ function EditProfileModal({intern,onSave,onClose,T}) {
     <input type={type} value={form[key]} onChange={e=>set(key,e.target.value)} placeholder={placeholder}
       style={{width:"100%",border:`1px solid ${errors[key]?"#E05050":t.border}`,borderRadius:8,padding:"8px 12px",fontSize:13,fontFamily:"inherit",color:t.text,background:t.bg,outline:"none",boxSizing:"border-box"}}/>
     {errors[key]&&<div style={{fontSize:10,color:"#E05050",marginTop:2,fontFamily:"'DM Mono',monospace"}}>{errors[key]}</div>}
-  </div>
+  </div>;
 
-  const iLabel=(txt)=><div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:4}}>{txt}</div>
+  const iLabel=(txt)=><div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:4}}>{txt}</div>;
 
   const SECTIONS=[
     {id:"personal",label:"Personal"},
@@ -2140,7 +2140,7 @@ function EditProfileModal({intern,onSave,onClose,T}) {
         <Btn T={t} onClick={save}>✓ Save changes</Btn>
       </div>
     </div>
-  </div>
+  </div>;
 }
 
 function EmploymentCard({intern,onUpdateIntern,T}) {
@@ -2192,7 +2192,7 @@ function EmploymentCard({intern,onUpdateIntern,T}) {
     <input type={type} value={form[key]} onChange={ev=>setForm(p=>({...p,[key]:ev.target.value}))} placeholder={placeholder}
       style={{width:"100%",border:`1px solid ${errors[key]?"#E05050":t.border}`,borderRadius:7,padding:"7px 10px",fontSize:12,fontFamily:"inherit",color:t.text,background:t.bg,outline:"none",boxSizing:"border-box"}}/>
     {errors[key]&&<div style={{fontSize:10,color:"#E05050",marginTop:2,fontFamily:"'DM Mono',monospace"}}>{errors[key]}</div>}
-  </div>
+  </div>;
 
   return <div style={{background:t.surface,border:`1px solid ${!hasData&&intern.status==="active"?t.accentMid:t.border}`,borderRadius:12,padding:"16px 18px",boxShadow:"0 1px 3px rgba(0,0,0,0.04)"}}>
     <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
@@ -2247,7 +2247,7 @@ function EmploymentCard({intern,onUpdateIntern,T}) {
         </div>
       ))}
     </div>}
-  </div>
+  </div>;
 }
 
 // ── InternActionsMenu — proper component so hooks are at top level ───────────
@@ -2290,7 +2290,7 @@ function InternActionsMenu({T,intern,onConsult,onFlagOpen,onLinkOpen,onExportOpe
         🎓 Complete
       </Btn>
     )}
-  </div>
+  </div>;
 }
 
 // ── TagsBox — extracted to comply with Rules of Hooks (no hooks in IIFEs) ─────
@@ -2361,7 +2361,7 @@ function TagsBox({intern,lists,memberLists,t,onUpdateIntern,setLists}) {
         )}
       </div>}
     </div>
-  </div>
+  </div>;
 }
 
 function InternProfile({intern,groups,lists,setLists,colleagues,setColleagues,onBack,onUpdateIntern,onDelete,onConsult,onOpenLab,onGroupClick,T}) {
@@ -2430,7 +2430,7 @@ function InternProfile({intern,groups,lists,setLists,colleagues,setColleagues,on
     <div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:16,padding:"24px 28px",marginBottom:20,boxShadow:"0 2px 8px rgba(0,0,0,0.05)"}}>
       {af.length>0&&<div style={{display:"flex",gap:8,marginBottom:14,padding:"10px 14px",background:t.accentLight,borderRadius:10,flexWrap:"wrap"}}>
         <span style={{fontSize:12,color:t.accentText,fontFamily:"'DM Mono',monospace",fontWeight:600}}>OPEN FLAGS</span>
-        {af.map(f=>{const cat=FLAG_CATS.find(c=>c.id===f.category)||FLAG_CATS[5]; return <div key={f.id} style={{display:"flex",gap:5,alignItems:"center"}}><div style={{width:7,height:7,borderRadius:"50%",background:cat.color}}/><span style={{fontSize:12,color:cat.color,fontFamily:"'DM Mono',monospace"}}>{cat.label}</span><span style={{fontSize:12,color:t.muted}}>— {f.note.slice(0,50)}{f.note.length>50?"...":""}</span></div>})}
+        {af.map(f=>{const cat=FLAG_CATS.find(c=>c.id===f.category)||FLAG_CATS[5]; return <div key={f.id} style={{display:"flex",gap:5,alignItems:"center"}}><div style={{width:7,height:7,borderRadius:"50%",background:cat.color}}/><span style={{fontSize:12,color:cat.color,fontFamily:"'DM Mono',monospace"}}>{cat.label}</span><span style={{fontSize:12,color:t.muted}}>— {f.note.slice(0,50)}{f.note.length>50?"...":""}</span></div>;})}
         <button onClick={()=>setFlagOpen(true)} style={{background:"none",border:"none",cursor:"pointer",fontSize:12,color:t.accentText,fontFamily:"'DM Mono',monospace",marginLeft:"auto"}}>Manage flags →</button>
       </div>}
 
@@ -2510,7 +2510,7 @@ function InternProfile({intern,groups,lists,setLists,colleagues,setColleagues,on
               {diff>0?"+":""}{diff} vs your log ⚠
             </span>}
             {diff===0&&<span style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace"}}>✓ matches your log</span>}
-          </div>
+          </div>;
         })()}
       </div>
 
@@ -2638,7 +2638,7 @@ function InternProfile({intern,groups,lists,setLists,colleagues,setColleagues,on
       {(intern.sessions||[]).map((s,i)=>{const byCol=s.author!=="Alyson"; return <div key={i} style={{background:t.surface,border:`1px solid ${t.border}`,borderLeft:`3px solid ${byCol?S.purple:t.accent}`,borderRadius:12,padding:"16px 20px",marginBottom:12,boxShadow:"0 1px 3px rgba(0,0,0,0.04)"}}>
         <div style={{display:"flex",gap:8,marginBottom:8,alignItems:"center"}}><Badge color={t.muted} bg={t.surfaceAlt}>{s.date}</Badge><Badge color={t.accentText} bg={t.accentLight}>{s.type}</Badge><Badge color={t.muted} bg={t.surfaceAlt}>{s.duration}</Badge><span style={{fontSize:12,color:t.accent,opacity:byCol?0.65:1,fontFamily:"'DM Mono',monospace",marginLeft:"auto"}}>{s.author}</span></div>
         <p style={{fontSize:14,color:t.text,margin:0,lineHeight:1.7}}>{s.notes}</p>
-      </div>})}
+      </div>;})}
       {memberGroups.map(g=>(g.sessions||[]).map((s,i)=><div key={`${g.id}-${i}`} style={{background:t.surface,border:`1px solid ${g.color}40`,borderLeft:`3px solid ${g.color}`,borderRadius:12,padding:"16px 18px",marginBottom:10}}>
         <div style={{display:"flex",gap:8,marginBottom:8,alignItems:"center"}}><Badge color={t.muted} bg={t.surfaceAlt}>{s.date}</Badge><Badge color={g.color} bg={g.colorLight}>{g.name}</Badge><span style={{fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace",marginLeft:"auto"}}>{s.author}</span></div>
         <p style={{fontSize:14,color:t.text,margin:0,lineHeight:1.7}}>{s.notes}</p>
@@ -2653,7 +2653,7 @@ function InternProfile({intern,groups,lists,setLists,colleagues,setColleagues,on
 
     {tab==="payments"&&!intern.proBono&&<PaymentsTab key={intern.id} intern={intern} onUpdateIntern={onUpdateIntern} T={t}/>}
 
-  </div>
+  </div>;
 }
 
 // ── Dashboard ──────────────────────────────────────────────────────────────
@@ -2707,10 +2707,10 @@ function AlertsSection({visible,interns,t,onNavigate,onSelectIntern,todos,setTod
               </div>}
             </div>
           </div>
-        </div>
+        </div>;
       })}
     </div>
-  </div>
+  </div>;
 }
 
 function Dashboard({interns,groups,lists,colleagues,onSelectIntern,onNavigate,onOpenOnboarding,onAddIntern,onQuickAction,supervisorName,quickActionOrder,quickActionHidden,allQuickActions,onQuickActionReorder,onQuickActionToggle,T}) {
@@ -2784,6 +2784,7 @@ function Dashboard({interns,groups,lists,colleagues,onSelectIntern,onNavigate,on
         <p style={{color:t.muted,fontSize:14,margin:0}}>{dateStr} · <span style={{fontFamily:"'DM Mono',monospace",fontSize:13}}>{timeStr}</span></p>
       </div>
       <Btn T={t} variant="secondary" onClick={()=>setCustomizing(c=>!c)}>{customizing?"Done":"Customize"}</Btn>
+<button onClick={async()=>{await supabase.auth.signOut();window.location.reload();}} title="Sign Out" style={{background:"none",border:"none",cursor:"pointer",padding:"8px",borderRadius:"8px",color:t.muted,display:"flex",alignItems:"center"}} onMouseEnter={e=>e.currentTarget.style.color=t.text} onMouseLeave={e=>e.currentTarget.style.color=t.muted}>
   onClick={async () => { await supabase.auth.signOut(); window.location.reload(); }}
   title="Sign Out"
   style={{background:"none", border:"none", cursor:"pointer", padding:"8px", color:t.muted, display:"flex", alignItems:"center"}}
@@ -2794,6 +2795,7 @@ function Dashboard({interns,groups,lists,colleagues,onSelectIntern,onNavigate,on
     <polyline points="16 17 21 12 16 7"/>
     <line x1="21" y1="12" x2="9" y2="12"/>
   </svg>
+  </div>
 </button>    {/* Add Intern shortcut — left aligned */}
     <div style={{marginBottom:26,display:"flex",justifyContent:"flex-start"}}>
       <button onClick={()=>onAddIntern&&onAddIntern()}
@@ -2833,7 +2835,7 @@ function Dashboard({interns,groups,lists,colleagues,onSelectIntern,onNavigate,on
               style={{background:hidden?"none":t.accent,border:`1px solid ${hidden?t.border:t.accent}`,borderRadius:4,width:34,height:18,cursor:"pointer",position:"relative",transition:"all 0.15s",flexShrink:0}}>
               <span style={{position:"absolute",top:2,left:hidden?2:16,width:14,height:14,borderRadius:"50%",background:hidden?t.muted:"#fff",transition:"left 0.15s"}}/>
             </button>
-          </div>
+          </div>;
         })}
         <button onClick={()=>{
           onQuickActionReorder&&onQuickActionReorder((allQuickActions||[]).map(a=>a.id));
@@ -2959,11 +2961,11 @@ function Dashboard({interns,groups,lists,colleagues,onSelectIntern,onNavigate,on
                 style={{background:"none",border:"none",cursor:"pointer",fontSize:13,color:t.faint,padding:0,lineHeight:1,opacity:0,transition:"opacity 0.1s",flexShrink:0}}
                 onMouseEnter={e=>e.currentTarget.style.opacity="1"}
                 onMouseLeave={e=>e.currentTarget.style.opacity="0"}>✕</button>
-            </div>
+            </div>;
           })}
           {todos.length===0&&<div style={{fontSize:13,color:t.faint,padding:"8px 0"}}>Nothing to do — enjoy it!</div>}
         </div>
-      </div>
+      </div>;
     })()}
 
     {/* ── Alerts ── */}
@@ -3034,7 +3036,7 @@ function Dashboard({interns,groups,lists,colleagues,onSelectIntern,onNavigate,on
             style={{background:"none",border:"none",cursor:"pointer",fontSize:11,color:t.faint,fontFamily:"'DM Mono',monospace",padding:0}}>
             ⠿ customize quick actions
           </button>
-        </div>
+        </div>;
       })()}
       {!sec.collapsed&&sec.id==="supervisees"&&<div style={{display:"flex",flexDirection:"column",gap:10}}>{filtered.map(intern=><InternCard key={intern.id} intern={intern} lists={lists} groups={groups} colleagues={colleagues} T={t} onClick={()=>onSelectIntern(intern)} onGroupClick={(gid)=>onNavigate("groups",gid)}/>)}</div>}
       {!sec.collapsed&&sec.id==="grplist"&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>{groups.map(g=>{const members=interns.filter(i=>(i.groupIds||[]).includes(g.id));return <div key={g.id} onClick={()=>onNavigate("groups",g.id)} style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:14,padding:"18px 20px",boxShadow:"0 1px 4px rgba(0,0,0,0.04)",cursor:"pointer",transition:"box-shadow 0.15s"}}
@@ -3043,14 +3045,14 @@ function Dashboard({interns,groups,lists,colleagues,onSelectIntern,onNavigate,on
         <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}><div style={{width:10,height:10,borderRadius:"50%",background:g.color}}/><span style={{fontFamily:"inherit",fontSize:16,color:t.text}}>{g.name}</span><Badge color={g.color} bg={g.colorLight}>{members.length}</Badge>{g.sharedWith?.length>0&&<SharedAvatars sharedWith={g.sharedWith} colleagues={colleagues||[]}/>}</div>
         <div style={{display:"flex",gap:6}}>{members.map(m=><div key={m.id} title={dn(m)} onClick={e=>{e.stopPropagation();onSelectIntern(m);}} style={{cursor:"pointer"}}><Avatar initials={m.initials} size={30} T={t}/></div>)}</div>
         {g.sessions[0]&&<div style={{fontSize:12,color:t.muted,marginTop:10}}>Last: {g.sessions[0].date}</div>}
-      </div>})} </div>}
+      </div>;})} </div>}
       {!sec.collapsed&&sec.id==="sharedwithme"&&<div>{sharedInterns.length===0?<div style={{color:t.muted,fontSize:14}}>Nothing shared with you yet.</div>:sharedInterns.flatMap(intern=>(intern.sharedWith||[]).map(share=>{const col=(colleagues||[]).find(c=>c.id===share.colleagueId);if(!col)return null;return <div key={`${intern.id}-${col.id}`} onClick={()=>onSelectIntern(intern)} style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:12,padding:"16px 20px",marginBottom:10,display:"flex",alignItems:"center",gap:14,boxShadow:"0 1px 4px rgba(0,0,0,0.04)",cursor:"pointer"}}
         onMouseEnter={e=>e.currentTarget.style.boxShadow="0 6px 20px rgba(0,0,0,0.08)"}
         onMouseLeave={e=>e.currentTarget.style.boxShadow="0 1px 4px rgba(0,0,0,0.04)"}>
         <Avatar initials={col.initials} size={36} color={col.color} textColor="#fff"/>
         <div style={{flex:1}}><div style={{fontSize:13,color:t.muted,marginBottom:3}}><strong style={{color:t.text}}>{col.name}</strong> shared an intern</div><div style={{fontFamily:"inherit",fontSize:16,color:t.text,marginBottom:3}}>{dn(intern)}</div><div style={{fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace"}}>{pmSum(share.perms)}</div></div>
         <RoleBadge role={intern.supervisorRole}/>
-      </div>}))}</div>}
+      </div>;}))}</div>}
     </div>)}
   </div>
 // ── Payments Page ──────────────────────────────────────────────────────────
@@ -3081,7 +3083,7 @@ function CasesTab({intern,onUpdateIntern,T}) {
   const deleteCase=(i)=>{save(cases.filter((_,idx)=>idx!==i));setConfirmDel(null);};
 
   const iStyle={width:"100%",border:`1px solid ${t.border}`,borderRadius:8,padding:"8px 12px",fontSize:13,fontFamily:"inherit",color:t.text,background:t.bg,outline:"none",boxSizing:"border-box"};
-  const Label=({children})=><div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:5}}>{children}</div>
+  const Label=({children})=><div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:5}}>{children}</div>;
 
   return <div>
     {/* Delete confirm */}
@@ -3178,7 +3180,7 @@ function CasesTab({intern,onUpdateIntern,T}) {
         {c.notes&&<p style={{fontSize:13,color:t.text,margin:0,lineHeight:1.7}}>{c.notes}</p>}
       </div>
     ))}
-  </div>
+  </div>;
 }
 
 function DocumentsTab({intern,onUpdateIntern,T}) {
@@ -3411,10 +3413,10 @@ function DocumentsTab({intern,onUpdateIntern,T}) {
             <button onClick={()=>deleteDoc(i)}
               style={{background:"none",border:`1px solid ${S.red}30`,borderRadius:6,padding:"4px 8px",cursor:"pointer",fontSize:11,color:S.red,fontFamily:"'DM Mono',monospace"}} title="Delete">✕</button>
           </div>
-        </div>
+        </div>;
       })}
     </div>
-  </div>
+  </div>;
 }
 
 function PaymentsTab({intern,onUpdateIntern,T}) {
@@ -3597,10 +3599,10 @@ function PaymentsTab({intern,onUpdateIntern,T}) {
                       </div>}
                 </div>}
           </div>
-        </div>
+        </div>;
       })}
     </div>
-  </div>
+  </div>;
 }
 
 function PaymentsPage({interns,groups,onSelectIntern,T}) {
@@ -3731,7 +3733,7 @@ function PaymentsPage({interns,groups,onSelectIntern,T}) {
               {paid===0&&owed===0&&<div style={{fontSize:12,color:t.faint,fontFamily:"'DM Mono',monospace"}}>No activity</div>}
             </div>
             <span style={{fontSize:12,color:t.faint}}>›</span>
-          </div>
+          </div>;
         })}
       </div>
     </div>}
@@ -3766,7 +3768,7 @@ function PaymentsPage({interns,groups,onSelectIntern,T}) {
         </div>
       ))}
     </div>
-  </div>
+  </div>;
 }
 
 // ── Groups Page ────────────────────────────────────────────────────────────
@@ -3851,7 +3853,7 @@ function SessionLogForm({T,ag,members,newNotes,setNewNotes,setGroups,selected,se
             {ag.chargePerSession&&<div style={{width:24,fontSize:11,color:present&&charges[m.id]>0?t.accentText:t.faint,fontFamily:"'DM Mono',monospace",textAlign:"center"}}>
               {present&&charges[m.id]>0?"💳":""}
             </div>}
-          </div>
+          </div>;
         })}
       </div>
 
@@ -3879,7 +3881,7 @@ function SessionLogForm({T,ag,members,newNotes,setNewNotes,setGroups,selected,se
         {attendees.length} intern{attendees.length!==1?"s":""} will be charged
       </span>}
     </div>
-  </div>
+  </div>;
 }
 
 
@@ -4101,7 +4103,7 @@ function InterneesPage({interns,groups,lists,colleagues,internFilter,setInternFi
               <div style={{fontSize:11,color:t.faint,fontFamily:"'DM Mono',monospace"}}>{pct}% · {intern.hoursCompleted}/{intern.hoursTotal} hrs</div>
               {af.length>0&&<div style={{marginTop:6,fontSize:11,color:t.accentText}}>⚑ {af.length} flag{af.length>1?"s":""}</div>}
               {intern.paymentStatus==="overdue"&&!intern.proBono&&<div style={{marginTop:4,fontSize:11,color:t.accentText}}>⚠ Payment overdue</div>}
-            </div>
+            </div>;
           })}
         </div>}
         {internViewMode==="compact"&&<div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:12,overflow:"hidden",boxShadow:"0 1px 4px rgba(0,0,0,0.04)",marginBottom:4}}>
@@ -4124,7 +4126,7 @@ function InterneesPage({interns,groups,lists,colleagues,internFilter,setInternFi
               {af.length>0&&<span style={{fontSize:11,color:t.accentText}}>⚑</span>}
               {intern.paymentStatus==="overdue"&&!intern.proBono&&<span style={{fontSize:11,color:t.accentText}}>⚠</span>}
               <span style={{color:t.faint,fontSize:12}}>›</span>
-            </div>
+            </div>;
           })}
         </div>}
         {internViewMode==="table"&&<div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:12,overflow:"hidden",boxShadow:"0 1px 4px rgba(0,0,0,0.04)",marginBottom:4}}>
@@ -4152,12 +4154,12 @@ function InterneesPage({interns,groups,lists,colleagues,internFilter,setInternFi
                 {activeFlags(intern).length>0&&<span style={{fontSize:11,color:t.accentText}} title={`${activeFlags(intern).length} open flags`}>⚑</span>}
                 {intern.proBono&&<Badge color="#6B3FA0" bg="#F2EDFB">Pro bono</Badge>}
               </div>
-            </div>
+            </div>;
           })}
         </div>}
       </div>
     ))}
-  </div>
+  </div>;
 }
 
 function GroupsPage({groups,interns,colleagues,setColleagues,setGroups,onSelectIntern,initialGroupId,updateInterns,updateIntern,T}) {
@@ -4450,7 +4452,7 @@ function GroupsPage({groups,interns,colleagues,setColleagues,setGroups,onSelectI
                       style={{border:`1px solid ${t.border}`,borderRadius:6,padding:"4px 8px",fontSize:11,color:t.text,background:t.bg,outline:"none",cursor:"pointer",fontFamily:"inherit"}}>
                       {["weekly","biweekly","monthly","per session","per semester"].map(f=><option key={f}>{f}</option>)}
                     </select>
-                  </div>
+                  </div>;
                 })}
               </div>
               <div style={{fontSize:12,color:t.muted,marginTop:8}}>
@@ -4502,12 +4504,12 @@ function GroupsPage({groups,interns,colleagues,setColleagues,setGroups,onSelectI
                   </div>
                   {presentNames&&<div style={{fontSize:12,color:t.faint,marginBottom:6}}>Present: {presentNames.join(", ")}{s.attendees?.length<members.length?` · Absent: ${members.filter(m=>!s.attendees?.includes(m.id)).map(m=>dn(m).split(" ")[0]).join(", ")}`:"" }</div>}
                   <p style={{fontSize:14,color:t.text,margin:0,lineHeight:1.7}}>{s.notes}</p>
-                </div>
+                </div>;
               })}
             </div>}
       </div>}
     </div>
-  </div>
+  </div>;
 }
 
 // ── Alert engine ───────────────────────────────────────────────────────────
@@ -4751,7 +4753,7 @@ function CETrackerPage({ceData,setCeData,T}) {
         </div>
       ))}
     </div>
-  </div>
+  </div>;
 }
 
 // ── Evaluation tab ─────────────────────────────────────────────────────────
@@ -4840,7 +4842,7 @@ function EvaluationTab({intern,onUpdateIntern,T}) {
         <Btn T={t} variant="secondary" onClick={()=>{setShowNew(false);setGeneratedSummary("");}}>Cancel</Btn>
       </div>
     </div>}
-  </div>
+  </div>;
 }
 
 // ── Onboarding modal ───────────────────────────────────────────────────────
@@ -5169,7 +5171,7 @@ function AddInternModal({onSave, onClose, onSendLink, groups, lists, T}) {
           : <Btn T={t} onClick={save}>✓ Add supervisee</Btn>}
       </div>
     </div>
-  </div>
+  </div>;
 }
 
 function OnboardingModal({onClose,supervisorName,T}) {
@@ -5419,7 +5421,7 @@ function OnboardingModal({onClose,supervisorName,T}) {
 
       </div>
     </div>
-  </div>
+  </div>;
 }
 
 // ── Public profile page ────────────────────────────────────────────────────
@@ -5473,12 +5475,12 @@ function PublicProfilePage({supervisorPhoto,setSupervisorPhoto,supervisorName:su
   const Section = ({title,children}) => <div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:14,padding:"20px 22px",marginBottom:14,boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
     <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:14}}>{title}</div>
     {children}
-  </div>
+  </div>;
 
   const Field = ({label,children}) => <div style={{marginBottom:12}}>
     <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:5}}>{label}</div>
     {children}
-  </div>
+  </div>;
 
   return <div>
     <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:24}}>
@@ -5662,7 +5664,7 @@ function PublicProfilePage({supervisorPhoto,setSupervisorPhoto,supervisorName:su
         </div>
       </div>
     </div>
-  </div>
+  </div>;
 }
 
 // ── Calendar page ──────────────────────────────────────────────────────────
@@ -5698,7 +5700,7 @@ function CalendarPage({T}) {
         {s.logged?<Badge color={S.green} bg={S.greenLight}>Logged</Badge>:<button onClick={()=>markLogged(i)} style={{background:t.accent,color:"#fff",border:"none",borderRadius:8,padding:"7px 14px",fontSize:12,cursor:"pointer",fontFamily:"'DM Mono',monospace"}}>✦ Log with AI</button>}
       </div>)}
     </div>}
-  </div>
+  </div>;
 }
 
 // ── Settings Page ──────────────────────────────────────────────────────────
@@ -5793,8 +5795,8 @@ function BillingPage({billing,setBilling,interns,T,F,colleagues=[]}) {
   const tabs = ["plan","seats","referrals","founding"];
   const tabLabel = {plan:"Plan & Usage", seats:"Team Seats", referrals:"Referrals", founding:"Founding Supervisors"};
 
-  const Card = ({children,style={}}) => <div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:14,padding:"22px 24px",boxShadow:"0 1px 4px rgba(0,0,0,0.04)",...style}}>{children}</div>
-  const Label = ({children}) => <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:8}}>{children}</div>
+  const Card = ({children,style={}}) => <div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:14,padding:"22px 24px",boxShadow:"0 1px 4px rgba(0,0,0,0.04)",...style}}>{children}</div>;
+  const Label = ({children}) => <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:8}}>{children}</div>;
 
   return <div>
     <div style={{marginBottom:26}}>
@@ -5963,7 +5965,7 @@ function BillingPage({billing,setBilling,interns,T,F,colleagues=[]}) {
                   <span style={{color:plan.color,flexShrink:0}}>✓</span>{f}
                 </div>)}
               </div>
-            </div>
+            </div>;
           })}
         </div>
       </div>
@@ -6073,7 +6075,7 @@ function BillingPage({billing,setBilling,interns,T,F,colleagues=[]}) {
                 {!unlocked&&<div style={{height:5,background:t.borderLight,borderRadius:999,overflow:"hidden"}}>
                   <div style={{height:"100%",width:`${pct}%`,background:tier.color,borderRadius:999,transition:"width 0.6s ease"}}/>
                 </div>}
-              </div>
+              </div>;
             })}
           </div>
           <div style={{fontSize:12,color:t.muted,marginTop:12,lineHeight:1.6}}>
@@ -6178,7 +6180,7 @@ function BillingPage({billing,setBilling,interns,T,F,colleagues=[]}) {
         <div style={{fontSize:13,color:t.muted,lineHeight:1.7}}>Founding Supervisor accounts are a thank-you for the people who helped shape SupTrack. They're permanent, not tied to a billing cycle, and can be reassigned at any time. They show up in your platform as regular supervisor accounts — colleagues won't see any difference in their experience.</div>
       </Card>
     </div>}
-  </div>
+  </div>;
 }
 
 // ── Consult AI ─────────────────────────────────────────────────────────────
@@ -7202,7 +7204,7 @@ Be direct, clinical, encouraging. Under 400 words.`;
       ))}
     </div>
     <audio ref={audioRef} style={{display:"none"}}/>
-  </div>};
+  </div>;};
 
   // ── PHASE: BRIEFING ──
   if (phase==="briefing") return <div style={{maxWidth:560,margin:"0 auto"}}>
@@ -7232,7 +7234,7 @@ Be direct, clinical, encouraging. Under 400 words.`;
         Begin session →
       </button>
     </div>
-  </div>
+  </div>;
 
   // ── PHASE: SESSION ──
   if (phase==="session") return <div style={{display:"flex",flexDirection:"column",height:"calc(100vh - 80px)"}}>
@@ -7304,7 +7306,7 @@ Be direct, clinical, encouraging. Under 400 words.`;
         The mic opens automatically after your supervisee finishes speaking
       </div>
     </div>
-  </div>
+  </div>;
 
   // ── Generate review letter ──────────────────────────────────────────────
   const generateReviewLetter = async (session) => {
@@ -7373,7 +7375,7 @@ Keep the tone warm, collegial, and clinically precise. Write in the voice of a s
         </div>
       </div>
     ))}
-  </div>
+  </div>;
 
   // ── PHASE: REVIEW ───────────────────────────────────────────────────────
   if (phase==="review" && reviewingSession) {
@@ -7465,7 +7467,7 @@ Keep the tone warm, collegial, and clinically precise. Write in the voice of a s
           </div>
         </div>
       </div>
-    </div>
+    </div>;
   }
 
   // ── PHASE: DEBRIEF ──────────────────────────────────────────────────────
@@ -7516,7 +7518,7 @@ Keep the tone warm, collegial, and clinically precise. Write in the voice of a s
         </div>
       ))}
     </div>
-  </div>
+  </div>;
 }
 // ── DiscoverPage — two separate actions: Connect (reach out) vs Add (import) ──
 // InternCard is defined at module scope (outside DiscoverPage) to avoid React
@@ -7690,7 +7692,7 @@ function DiscoverPage({interns,onAddIntern,T}) {
           {/* Action area — Connect vs Add clearly explained */}
           {(()=>{
             const status=getStatus(selectedIntern);
-            if(status==="added") return <div style={{textAlign:"center",padding:"12px 0",fontSize:13,color:t.accentText,fontWeight:500}}>✓ {selectedIntern.name} is in your SupTrack account</div>
+            if(status==="added") return <div style={{textAlign:"center",padding:"12px 0",fontSize:13,color:t.accentText,fontWeight:500}}>✓ {selectedIntern.name} is in your SupTrack account</div>;
             if(status==="requested") return <div style={{display:"flex",flexDirection:"column",gap:10}}>
               <div style={{background:"#F3EEFF",border:"1px solid #DDD0FA",borderRadius:10,padding:"12px 14px",fontSize:13,color:"#5B21B6",lineHeight:1.6}}>
                 ✓ Connection request sent to {selectedIntern.name}. Once they confirm, you can add them to your account.
@@ -7700,7 +7702,7 @@ function DiscoverPage({interns,onAddIntern,T}) {
                 Add to my account (skip waiting)
               </button>
               <div style={{fontSize:11,color:t.faint,textAlign:"center",fontFamily:"'DM Mono',monospace"}}>Their info will auto-populate — no double data entry</div>
-            </div>
+            </div>;
             return <div style={{display:"flex",flexDirection:"column",gap:10}}>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
                 <div style={{background:t.surfaceAlt,border:`1px solid ${t.border}`,borderRadius:10,padding:"14px 16px"}}>
@@ -7721,7 +7723,7 @@ function DiscoverPage({interns,onAddIntern,T}) {
                 </div>
               </div>
               <div style={{fontSize:11,color:t.faint,textAlign:"center",fontFamily:"'DM Mono',monospace"}}>Connect = express interest · Add = they're officially your supervisee</div>
-            </div>
+            </div>;
           })()}
         </div>
       </div>
@@ -7795,7 +7797,7 @@ function DiscoverPage({interns,onAddIntern,T}) {
         Your public profile at <span style={{color:t.accentText,fontFamily:"'DM Mono',monospace"}}>suptrack.io/supervisor/alyson-k</span> is already live for interns to find you.
       </div>
     </div>}
-  </div>
+  </div>;
 }
 
 
@@ -7961,9 +7963,9 @@ function RemindersPanel({interns,groups,onNavigate,onSelectIntern,T}) {
             </div>
           ))}
         </div>
-      </div>
+      </div>;
     })}
-  </div>
+  </div>;
 }
 
 // ── Intern onboarding form (what the intern fills out via their link) ──────────
@@ -8078,7 +8080,7 @@ function ResourcesHubPage({interns,consultIntern,T}) {
     </div>
     {section==="consult"&&<ConsultPage T={t} interns={interns} consultIntern={consultIntern}/>}
     {section==="lab"&&<SupervisionLabPage T={t}/>}
-  </div>
+  </div>;
 }
 
 function ResourcesPage({T}) {
@@ -8190,7 +8192,7 @@ function ResourcesPage({T}) {
     <div style={{background:t.surfaceAlt,border:`1px solid ${t.border}`,borderRadius:12,padding:"14px 18px",marginTop:24,fontSize:12,color:t.muted,lineHeight:1.7}}>
       All citations reflect peer-reviewed journals, professional standards documents, or foundational texts in the field. DOI links open to publisher pages — institutional or library access may be required for full-text articles. Free versions are linked where available (SAMHSA TIP Series, ACES Best Practices, PubMed Open Access).
     </div>
-  </div>
+  </div>;
 }
 
 // ── Supervision Agreement Templates ───────────────────────────────────────
@@ -8387,7 +8389,7 @@ Replace all bracketed placeholders with appropriate values based on the supervis
     }
   };
 
-  const Card = ({children,style={}}) => <div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:14,padding:"22px 24px",boxShadow:"0 1px 4px rgba(0,0,0,0.04)",...style}}>{children}</div>
+  const Card = ({children,style={}}) => <div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:14,padding:"22px 24px",boxShadow:"0 1px 4px rgba(0,0,0,0.04)",...style}}>{children}</div>;
 
   return <div>
     <div style={{marginBottom:24}}>
@@ -8614,7 +8616,7 @@ Professional, formal tone. Leave blanks for anything unknown.`;
               }catch{setGeneratedLetter("Unable to generate. Check your Anthropic API key.");}
               setGeneratingLetter(false);
             }} disabled={generatingLetter}>{generatingLetter?"✦ Writing…":"✦ Generate attestation letter"}</Btn>
-          </div>
+          </div>;
         })()}
       </Card>
       {generatingLetter&&<div style={{display:"flex",gap:8,alignItems:"center",color:t.muted,fontSize:14,padding:"16px 0"}}><div style={{display:"flex",gap:4}}>{[0,1,2].map(i=><div key={i} style={{width:6,height:6,borderRadius:"50%",background:t.accentMid}}/>)}</div>Writing formal letter…</div>}
@@ -8630,7 +8632,7 @@ Professional, formal tone. Leave blanks for anything unknown.`;
         <div style={{marginTop:12,fontSize:12,color:t.faint}}>Review, print, sign where indicated, and provide the signed copy to {interns.find(i=>i.id===letterInternId)?.name.split(" ")[0]}.</div>
       </Card>}
     </div>}
-  </div>
+  </div>;
 }
 
 // ── Support Page (visible to all supervisors) ──────────────────────────────
@@ -8763,11 +8765,11 @@ function SupportPage({supervisorName, supervisorEmail, tickets, setTickets, T}) 
                 <div style={{fontSize:11,color:t.accentText,fontFamily:"'DM Mono',monospace",marginBottom:4}}>SUPTRACK TEAM · REPLY</div>
                 <div style={{fontSize:13,color:t.text,lineHeight:1.6}}>{tk.adminReply}</div>
               </div>}
-            </div>
+            </div>;
           })
       }
     </div>}
-  </div>
+  </div>;
 }
 
 // ── Admin Inbox (owner only — not in nav, accessed via secret route) ────────
@@ -8834,7 +8836,7 @@ function AdminInboxPage({tickets, setTickets, T}) {
           </div>
           <div style={{fontSize:13,color:t.text,fontWeight:500,marginBottom:2,lineHeight:1.3}}>{tk.subject}</div>
           <div style={{fontSize:11,color:t.faint}}>{tk.fromName} · {tk.date}</div>
-        </div>
+        </div>;
       })}
     </div>
 
@@ -8890,7 +8892,7 @@ function AdminInboxPage({tickets, setTickets, T}) {
             </div>
           </div>}
     </div>
-  </div>
+  </div>;
 }
 
 function SettingsPage({theme,setTheme,setCustomTheme,font,setFont,darkMode,setDarkMode,highContrast,setHighContrast,supervisorName,setSupervisorName,T}) {
@@ -9111,7 +9113,7 @@ function SettingsPage({theme,setTheme,setCustomTheme,font,setFont,darkMode,setDa
         Reset to demo data
       </button>
     </div>
-  </div>
+  </div>;
 }
 
 // ── Intern Portal ──────────────────────────────────────────────────────────
@@ -9242,7 +9244,7 @@ function InternPortalHours({intern,onUpdate,T,F}) {
         <div style={{fontSize:11,color:t.faint,marginTop:10}}>Includes all categories, direct/indirect breakdown, and running total</div>
       </div>
     </div>}
-  </div>
+  </div>;
 }
 
 function InternPortal({intern:initialIntern,groups,onExit,onUpdateIntern,supervisorPhoto,supervisorInitials,supervisorName:supervisorDisplayName,T,F}) {
@@ -9379,11 +9381,11 @@ function InternPortal({intern:initialIntern,groups,onExit,onUpdateIntern,supervi
             {p.status==="paid"
               ? <Badge color={t.accentText} bg={t.accentLight}>Paid</Badge>
               : <Btn T={t}>Pay now — ${p.amount}</Btn>}
-          </div>
+          </div>;
         })}
       </div>}
     </div>
-  </div>
+  </div>;
 }
 
 // ── App Shell ──────────────────────────────────────────────────────────────
@@ -9410,7 +9412,7 @@ class ErrorBoundary extends React.Component {
         }} style={{background:"#2A6080",color:"#fff",border:"none",borderRadius:8,padding:"10px 24px",cursor:"pointer",fontSize:14,fontWeight:500}}>
           Clear data and reload
         </button>
-      </div>
+      </div>;
     }
     return this.props.children;
   }
@@ -9796,6 +9798,6 @@ if (!session) return <Auth />
         onSendLink={()=>{setAddInternOpen(false);setOnboardingOpen(true);}}
       />}
     </div>
-  </div>
+  </div>;
 }
 export default function SupTrack(){return <ErrorBoundary><SupTrackInner/></ErrorBoundary>;}
