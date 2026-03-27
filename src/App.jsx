@@ -9433,8 +9433,8 @@ useEffect(() => {
   // ── Persistent state — survives page refresh via localStorage ──
   const [interns,setInterns]=useState([]);
   React.useEffect(()=>{
-    if(!user)return;
-    supabase.from("interns").select("*").eq("supervisor_id",user.id).then(({data})=>{if(data)setInterns(data);});
+    if(!session?.user)return;
+    supabase.from("interns").select("*").eq("supervisor_id",session.user.id).then(({data})=>{if(data)setInterns(data);});
   },[user]);
   const [groups,setGroups]=useState(()=>{
     try{const s=localStorage.getItem("suptrack_groups");return s?JSON.parse(s):INITIAL_GROUPS;}
