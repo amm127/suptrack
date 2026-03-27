@@ -9409,10 +9409,20 @@ class ErrorBoundary extends React.Component {
     return this.props.children;
   }
 }
-
 function SupTrackInner() {
+  const [session, setSession] = useState(null)
 
+useEffect(() => {
+  supabase.auth.getSession().then(({ data: { session } }) => {
+    setSession(session)
+  })
+  const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    setSession(session)
+  })
+  return () => subscription.unsubscribe()
+}, [])
 
+if (!session) return <Auth />
   const [theme,setTheme]=useState(()=>{try{return localStorage.getItem("suptrack_theme")||"suptrack";}catch{return "suptrack";}});
   const [darkMode,setDarkMode]=useState(()=>{try{return localStorage.getItem("suptrack_dark")==="true";}catch{return false;}});
   const [highContrast,setHighContrast]=useState(true);
