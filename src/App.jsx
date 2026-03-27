@@ -14,7 +14,7 @@ const THEMES = {
     bg:"#FAF9F8", surface:"#FFFFFF", surfaceAlt:"#F4F2F0", border:"#E2DDD8", borderLight:"#EDE9E4",
     text:"#1E1C1A", muted:"#7A7268", faint:"#C0B8B0",
     accent:"#7B9FD4", accentLight:"#EEF2FA", accentMid:"#C0CCEA", accentText:"#3A5A8A",
-    gradient:"linear-gradient(135deg,#7B9FD4,#88B8A0,#A088C8)",7842
+    gradient:"linear-gradient(135deg,#7B9FD4,#88B8A0,#A088C8)"
 
     gradientSubtle:"linear-gradient(135deg,#F0F4FA,#F0F8F4,#F5F0FA)",
     gradientMid:"linear-gradient(135deg,#BACCE8,#B0D8C4,#C8B4E8)",
