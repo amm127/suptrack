@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { supabase } from '../lib/supabase'
 import Auth from './Auth'
 const ANTHROPIC_API_KEY = import.meta.env.VITE_ANTHROPIC_API_KEY || "";
+console.log("[SupTrack] VITE_ANTHROPIC_API_KEY loaded:", ANTHROPIC_API_KEY ? `${ANTHROPIC_API_KEY.slice(0,12)}...(${ANTHROPIC_API_KEY.length} chars)` : "MISSING — check Vercel env vars");
 // ── Date helpers — no hardcoded dates in runtime logic ─────────────────────
 const TODAY = () => new Date().toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});
 const TODAY_MONTH = () => new Date().toLocaleDateString("en-US",{month:"long",year:"numeric"});
@@ -1331,6 +1332,7 @@ Write a professional supervision note in third person (referring to the supervis
 Use professional clinical language appropriate for licensure documentation. Be specific and concrete. Do not invent details not provided — only expand and professionalize what was given. Keep it to 3–5 paragraphs.`;
 
     try {
+      console.log("[AISessionModal] API key found:", ANTHROPIC_API_KEY ? `${ANTHROPIC_API_KEY.slice(0,10)}...` : "(empty)");
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method:"POST",
         headers:{"Content-Type":"application/json","x-api-key":ANTHROPIC_API_KEY,"anthropic-dangerous-direct-browser-access":"true"},
