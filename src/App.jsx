@@ -2421,8 +2421,9 @@ function InternProfile({intern,groups,lists,setLists,colleagues,setColleagues,on
     {flagOpen&&<FlagModal T={t} intern={intern} onSave={flags=>{onUpdateIntern({...intern,flags});setFlagOpen(false);}} onClose={()=>setFlagOpen(false)}/>}
     {editProfileOpen&&<EditProfileModal T={t} intern={intern} onSave={onUpdateIntern} onClose={()=>setEditProfileOpen(false)}/>}
     {aiSessionOpen&&<AISessionModal T={t} intern={intern} onSave={session=>{
-      const update={...intern,sessions:[session,...(intern.sessions||[])]};
-      if(session._hourLog){update.hourLog=session._hourLog;update.hoursCompleted=session._newTotal;}
+      const {_hourLog,_newTotal,...cleanSession}=session;
+      const update={...intern,sessions:[cleanSession,...(intern.sessions||[])]};
+      if(_hourLog){update.hourLog=_hourLog;update.hoursCompleted=_newTotal;}
       onUpdateIntern(update);
     }} onClose={()=>setAiSessionOpen(false)}/>}
 
@@ -9511,7 +9512,8 @@ useEffect(() => {
       if(old&&updated.sessions&&updated.sessions.length>(old.sessions||[]).length){
         const newSessions=updated.sessions.slice(0,updated.sessions.length-(old.sessions||[]).length);
         newSessions.forEach(s=>{
-          supabase.from("sessions").insert({intern_id:updated.id,supervisor_id:session.user.id,date:s.date,type:s.type,duration:s.duration,notes:s.notes||"",author:s.author||""}).then(({error})=>{if(error)console.error("Session insert error:",error);});
+          const {_hourLog,_newTotal,...fields}=s;
+          supabase.from("sessions").insert({intern_id:updated.id,supervisor_id:session.user.id,date:fields.date,type:fields.type,duration:fields.duration,notes:fields.notes||"",author:fields.author||""}).then(({error})=>{if(error)console.error("Session insert error:",error);});
         });
       }
       // Sync hour_logs to Supabase — upsert by intern + category
