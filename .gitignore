@@ -22,3 +22,5 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+node-v24.14.0.pkg
+VSCode-darwin-universal.dmg
