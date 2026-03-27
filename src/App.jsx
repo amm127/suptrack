@@ -3059,6 +3059,7 @@ function Dashboard({interns,groups,lists,colleagues,onSelectIntern,onNavigate,on
 // ── PaymentsTab — per-intern payments inside InternProfile ───────────────────
 // ── DocumentsTab — file upload, preview, delete, signature pad ───────────────
 // ── CasesTab ───────────────────────────────────────────────────────────────
+}
 function CasesTab({intern,onUpdateIntern,T}) {
   const t=T||THEMES.sage;
   const [cases,setCases]=useState(intern.cases||[]);
