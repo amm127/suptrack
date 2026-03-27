@@ -9431,10 +9431,11 @@ useEffect(() => {
   React.useEffect(()=>{try{localStorage.setItem("suptrack_dark",darkMode);}catch{}},[darkMode]);
   React.useEffect(()=>{try{localStorage.setItem("suptrack_font",fontKey);}catch{}},[fontKey]);
   // ── Persistent state — survives page refresh via localStorage ──
-  const [interns,setInterns]=useState(()=>{
-    try{const s=localStorage.getItem("suptrack_interns");return s?JSON.parse(s):INITIAL_INTERNS;}
-    catch{return INITIAL_INTERNS;}
-  });
+  const [interns,setInterns]=useState([]);
+  React.useEffect(()=>{
+    if(!user)return;
+    supabase.from("interns").select("*").eq("supervisor_id",user.id).then(({data})=>{if(data)setInterns(data);});
+  },[user]);
   const [groups,setGroups]=useState(()=>{
     try{const s=localStorage.getItem("suptrack_groups");return s?JSON.parse(s):INITIAL_GROUPS;}
     catch{return INITIAL_GROUPS;}
@@ -9449,7 +9450,6 @@ useEffect(() => {
   });
 
   // Save to localStorage whenever state changes
-  React.useEffect(()=>{try{localStorage.setItem("suptrack_interns",JSON.stringify(interns));}catch{}},[interns]);
   React.useEffect(()=>{try{localStorage.setItem("suptrack_groups",JSON.stringify(groups));}catch{}},[groups]);
   React.useEffect(()=>{try{localStorage.setItem("suptrack_lists",JSON.stringify(lists));}catch{}},[lists]);
   React.useEffect(()=>{try{localStorage.setItem("suptrack_colleagues",JSON.stringify(colleagues));}catch{}},[colleagues]);
