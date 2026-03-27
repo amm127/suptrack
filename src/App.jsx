@@ -9434,7 +9434,15 @@ useEffect(() => {
   const [interns,setInterns]=useState([]);
   React.useEffect(()=>{
     if(!session?.user)return;
-    supabase.from("interns").select("*").eq("supervisor_id",session.user.id).then(({data})=>{if(data)setInterns(data.map(r=>({...r,preferredName:r.preferred_name||"",internType:r.intern_type||r.discipline||"",credentialBody:r.credential_body||"",licenseGoal:r.license_goal||"",supervisorRole:r.supervisor_role||"",startDate:r.start_date||"",proBono:r.pro_bono||false,groupIds:r.group_ids||[],listIds:r.list_ids||[],hoursCompleted:r.hours_completed||0,hoursTotal:r.hours_total||0,individualHours:r.individual_hours||0,groupHours:r.group_hours||0,billingRate:r.billing_rate||0,billingSchedule:r.billing_schedule||"monthly",initials:(r.name||"").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase(),sessions:r.sessions||[],cases:r.cases||[],documents:r.documents||[],evaluations:r.evaluations||[],hourLog:r.hour_log||[],internHourLog:r.intern_hour_log||[],customHourCategories:r.custom_hour_categories||[],payments:r.payments||[],paymentStatus:r.payment_status||"current",sharedWith:r.shared_with||[],flags:r.flags||[],photo:r.photo||null})));});
+    Promise.all([
+      supabase.from("interns").select("*").eq("supervisor_id",session.user.id),
+      supabase.from("sessions").select("*").eq("supervisor_id",session.user.id),
+      supabase.from("hour_logs").select("*").eq("supervisor_id",session.user.id),
+    ]).then(([internRes,sessRes,hlRes])=>{
+      const sessMap={};(sessRes.data||[]).forEach(s=>{if(!sessMap[s.intern_id])sessMap[s.intern_id]=[];sessMap[s.intern_id].push({date:s.date,type:s.type,duration:s.duration,notes:s.notes,author:s.author,_sid:s.id});});
+      const hlMap={};(hlRes.data||[]).forEach(h=>{if(!hlMap[h.intern_id])hlMap[h.intern_id]=[];hlMap[h.intern_id].push({id:h.id,category:h.category,type:h.type,hours:h.hours,label:h.label});});
+      if(internRes.data)setInterns(internRes.data.map(r=>({...r,preferredName:r.preferred_name||"",internType:r.intern_type||r.discipline||"",credentialBody:r.credential_body||"",licenseGoal:r.license_goal||"",supervisorRole:r.supervisor_role||"",startDate:r.start_date||"",proBono:r.pro_bono||false,groupIds:r.group_ids||[],listIds:r.list_ids||[],hoursCompleted:r.hours_completed||0,hoursTotal:r.hours_total||0,individualHours:r.individual_hours||0,groupHours:r.group_hours||0,billingRate:r.billing_rate||0,billingSchedule:r.billing_schedule||"monthly",initials:(r.name||"").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase(),sessions:sessMap[r.id]||[],cases:r.cases||[],documents:r.documents||[],evaluations:r.evaluations||[],hourLog:hlMap[r.id]||[],internHourLog:r.intern_hour_log||[],customHourCategories:r.custom_hour_categories||[],payments:r.payments||[],paymentStatus:r.payment_status||"current",sharedWith:r.shared_with||[],flags:r.flags||[],photo:r.photo||null})));
+    });
   },[session]);
   const [groups,setGroups]=useState(()=>{
     try{const s=localStorage.getItem("suptrack_groups");return s?JSON.parse(s):INITIAL_GROUPS;}
@@ -9532,8 +9540,28 @@ useEffect(() => {
   },[]);
 
   const updateIntern=React.useCallback((updated)=>{
-    setInterns(p=>p.map(i=>i.id===updated.id?updated:i));
-  },[]);
+    setInterns(p=>{
+      const old=p.find(i=>i.id===updated.id);
+      // Sync new sessions to Supabase
+      if(old&&updated.sessions&&updated.sessions.length>(old.sessions||[]).length){
+        const newSessions=updated.sessions.slice(0,updated.sessions.length-(old.sessions||[]).length);
+        newSessions.forEach(s=>{
+          supabase.from("sessions").insert({intern_id:updated.id,supervisor_id:session.user.id,date:s.date,type:s.type,duration:s.duration,notes:s.notes||"",author:s.author||""}).then(({error})=>{if(error)console.error("Session insert error:",error);});
+        });
+      }
+      // Sync hour_logs to Supabase — upsert by intern + category
+      if(old&&updated.hourLog&&JSON.stringify(updated.hourLog)!==JSON.stringify(old.hourLog||[])){
+        (updated.hourLog||[]).forEach(h=>{
+          supabase.from("hour_logs").upsert({intern_id:updated.id,supervisor_id:session.user.id,category:h.category,type:h.type,hours:h.hours,label:h.label},{onConflict:"intern_id,category"}).then(({error})=>{if(error)console.error("Hour log upsert error:",error);});
+        });
+      }
+      // Update aggregate fields on the intern row
+      if(old){
+        supabase.from("interns").update({hours_completed:updated.hoursCompleted||0}).eq("id",updated.id).then(({error})=>{if(error)console.error("Intern update error:",error);});
+      }
+      return p.map(i=>i.id===updated.id?updated:i);
+    });
+  },[session]);
 
   // Billing state
   const BILLING_SEED = {
