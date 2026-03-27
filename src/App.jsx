@@ -9435,7 +9435,7 @@ useEffect(() => {
   React.useEffect(()=>{
     if(!session?.user)return;
     supabase.from("interns").select("*").eq("supervisor_id",session.user.id).then(({data})=>{if(data)setInterns(data);});
-  },[user]);
+  },[session]);
   const [groups,setGroups]=useState(()=>{
     try{const s=localStorage.getItem("suptrack_groups");return s?JSON.parse(s):INITIAL_GROUPS;}
     catch{return INITIAL_GROUPS;}
