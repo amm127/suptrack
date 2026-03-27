@@ -9422,7 +9422,6 @@ useEffect(() => {
   return () => subscription.unsubscribe()
 }, [])
 
-if (!session) return <Auth />
   const [theme,setTheme]=useState(()=>{try{return localStorage.getItem("suptrack_theme")||"suptrack";}catch{return "suptrack";}});
   const [darkMode,setDarkMode]=useState(()=>{try{return localStorage.getItem("suptrack_dark")==="true";}catch{return false;}});
   const [highContrast,setHighContrast]=useState(true);
@@ -9587,7 +9586,7 @@ if (!session) return <Auth />
   const navItems = navOrder
     .map(id => ALL_NAV_ITEMS.find(n=>n.id===id))
     .filter(n => n && !navHidden.has(n.id));
-
+if (!session) return <Auth />
   const handleNavDragStart = (id) => setNavDrag(id);
   const handleNavDragOver  = (e, overId) => {
     e.preventDefault();
