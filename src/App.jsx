@@ -1347,12 +1347,8 @@ const rows=[["Session Date","Type","Duration","Notes"],...sessions.map(s=>[s.dat
     const blob=new Blob([csv],{type:"text/csv"});
     const url=URL.createObjectURL(blob);
     const a=document.createElement("a");
-    a.href=url;a.download=\`\${intern.name.replace(/\s+/g,"_")}_sessions.csv\`;a.click();
-    URL.revokeObjectURL(url);
-  };
-
+a.href=url;a.download=`${intern.name.replace(/\s+/g,"_")}_sessions.csv`;a.click();  };
   const TABS=[["comparison","Hour Comparison"],["sessions","Session Log"],["adjust","Adjust Hours"]];
-
   return <div style={{display:"flex",flexDirection:"column",gap:16}}>
     {/* Summary */}
     <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12}}>
