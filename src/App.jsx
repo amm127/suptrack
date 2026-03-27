@@ -9783,7 +9783,7 @@ if (!session) return <Auth />
       {quickActionOpen&&<QuickActionModal T={t} action={quickActionOpen} interns={interns} groups={groups} onUpdateIntern={updateIntern} onClose={()=>setQuickActionOpen(null)}/>}
       {onboardingOpen&&<OnboardingModal T={t} supervisorName={supervisorName} onClose={()=>setOnboardingOpen(false)}/>}
       {addInternOpen&&<AddInternModal T={t} groups={groups} lists={lists}
-        onSave={newIntern=>setInterns(p=>[...p,newIntern])}
+        onSave={async newIntern=>{const {data}=await supabase.from("interns").insert({...newIntern,supervisor_id:session.user.id}).select().single();if(data)setInterns(p=>[...p,data]);}}
         onClose={()=>setAddInternOpen(false)}
         onSendLink={()=>{setAddInternOpen(false);setOnboardingOpen(true);}}
       />}
