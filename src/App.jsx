@@ -1342,7 +1342,7 @@ function HoursBreakdown({intern,onUpdateIntern,T}) {
   const cell = (val,disc) => <div style={{fontSize:14,color:t.text,fontFamily:"'DM Mono',monospace",fontWeight:disc?600:400}}>{val}{disc?" ⚠":""}</div>;
 
   const downloadCSV=()=>{
-    const rows=[["Session Date","Type","Duration","Notes"],...sessions.map(s=>[s.date,s.type||"Individual",s.duration||"",\`"\${(s.notes||"").replace(/"/g,'\"')}"]\`])];
+const rows=[["Session Date","Type","Duration","Notes"],...sessions.map(s=>[s.date,s.type||"Individual",s.duration||"",`"${(s.notes||"").replace(/"/g,'"')}"}`])];
     const csv=rows.map(r=>r.join(",")).join("\n");
     const blob=new Blob([csv],{type:"text/csv"});
     const url=URL.createObjectURL(blob);
