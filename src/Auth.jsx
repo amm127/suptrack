@@ -61,7 +61,7 @@ export default function Auth() {
         background: 'white', padding: '40px', borderRadius: '12px',
         boxShadow: '0 2px 16px rgba(0,0,0,0.08)', width: '100%', maxWidth: '400px'
       }}>
-        <h1 style={{ marginBottom: '8px', fontSize: '24px' }}>SupTrack</h1>
+        <img src="/logo.png" alt="SupTrack" style={{ width: 120, display: 'block', margin: '0 auto 8px' }} />
         <p style={{ color: '#7A7268', marginBottom: '32px' }}>
           {isSignUp ? 'Create your account' : 'Sign in to your account'}
         </p>
