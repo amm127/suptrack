@@ -10649,23 +10649,26 @@ useEffect(() => {
       // Not an intern — load as supervisor
       const {data} = await supabase.from("supervisors").select("*").eq("user_id",session.user.id).single();
       if(data){
-        console.log("[SupTrack] Loaded supervisor row:", {name:data.name, email:data.email, profile_data_name:data.profile_data?.name, user_metadata_name:session.user.user_metadata?.full_name});
-        // Name priority: profile_data.name > top-level name (if not email-like) > auth metadata > email
-        const pdName = data.profile_data?.name?.trim();
-        const dbName = data.name?.trim();
-        const isEmailLike = (n) => !n || n.includes("@") || (data.email && data.email.split("@")[0] === n);
-        const displayName = pdName || (dbName && !isEmailLike(dbName) ? dbName : null) || session.user.user_metadata?.full_name || dbName || session.user.email || "";
-        console.log("[SupTrack] Resolved display name:", displayName);
-        setSupervisorName(displayName);
+        // Use the name from the supervisors table. That's the source of truth.
+        const name = data.name || "";
+        console.log("[SupTrack] Loaded supervisor:", {name, email:data.email, profile_data_name:data.profile_data?.name});
+        setSupervisorName(name);
         setSupervisorPhoto(data.photo||null);
         setSupervisorProfile(data);
       } else {
-        console.log("[SupTrack] No supervisor row found — creating one");
-        const email=session.user.email||"";
-        const name=session.user.user_metadata?.full_name||email;
-        const {data:newRow,error:insErr} = await supabase.from("supervisors").insert({user_id:session.user.id,name:name,email:email,plan:"starter",trial_ends_at:new Date(Date.now()+14*24*60*60*1000).toISOString()}).select().single();
+        // No row — create one. Use full_name from auth metadata, fall back to email.
+        console.log("[SupTrack] No supervisor row — creating");
+        const email = session.user.email||"";
+        const name = session.user.user_metadata?.full_name || email;
+        const {data:newRow,error:insErr} = await supabase.from("supervisors").insert({
+          user_id: session.user.id,
+          name: name,
+          email: email,
+          plan: "starter",
+          trial_ends_at: new Date(Date.now()+14*24*60*60*1000).toISOString(),
+        }).select().single();
         if(insErr)console.error("Supervisor insert error:",insErr);
-        if(newRow)setSupervisorProfile(newRow);
+        if(newRow) setSupervisorProfile(newRow);
         setSupervisorName(name);
       }
     };
@@ -10674,33 +10677,29 @@ useEffect(() => {
   const saveSupervisorProfile=React.useCallback((updates)=>{
     if(!session?.user)return;
     const row={...updates};
-    if(row.name)setSupervisorName(row.name);
-    if('photo' in row)setSupervisorPhoto(row.photo);
 
-    // Always keep profile_data.name in sync with top-level name
-    setSupervisorProfile(prev=>{
-      const existingPd = prev?.profile_data || {};
-      if(row.name && !row.profile_data){
+    // Keep name in sync everywhere
+    if(row.name){
+      setSupervisorName(row.name);
+      // Also write name into profile_data so both are always consistent
+      if(row.profile_data) row.profile_data.name = row.name;
+      else {
+        // Merge name into existing profile_data
+        const existingPd = supervisorProfile?.profile_data || {};
         row.profile_data = {...existingPd, name: row.name};
-      } else if(row.name && row.profile_data){
-        row.profile_data = {...row.profile_data, name: row.name};
       }
-      // Also ensure top-level name is set from profile_data if missing
-      if(row.profile_data?.name && !row.name){
-        row.name = row.profile_data.name;
-      }
-      return {...prev,...row};
-    });
+    }
+    if(row.profile_data?.name && !row.name) row.name = row.profile_data.name;
+    if('photo' in row) setSupervisorPhoto(row.photo);
 
-    // Small delay to ensure row is fully built from setSupervisorProfile callback
-    setTimeout(()=>{
-      console.log("[SupTrack] Saving to Supabase:", JSON.stringify({name:row.name, profile_data_name:row.profile_data?.name, allKeys:Object.keys(row)}));
-      supabase.from("supervisors").update(row).eq("user_id",session.user.id).select().then(({data:updated,error})=>{
-        if(error)console.error("[SupTrack] Profile save FAILED:",error);
-        else console.log("[SupTrack] Profile saved OK. DB now has:", {name:updated?.[0]?.name, pd_name:updated?.[0]?.profile_data?.name});
-      });
-    },0);
-  },[session]);
+    setSupervisorProfile(p=>({...p,...row}));
+
+    console.log("[SupTrack] Saving to Supabase:", {name:row.name, keys:Object.keys(row)});
+    supabase.from("supervisors").update(row).eq("user_id",session.user.id).select().then(({data:updated,error})=>{
+      if(error) console.error("[SupTrack] Save FAILED:",error);
+      else console.log("[SupTrack] Saved OK. DB name:", updated?.[0]?.name);
+    });
+  },[session,supervisorProfile]);
   const supervisorInitials = supervisorName ? supervisorName.split(" ").filter(Boolean).map(w=>w[0]).join("").slice(0,2).toUpperCase()||"??" : "??";
 
   // Handle Stripe checkout return
