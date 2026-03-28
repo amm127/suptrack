@@ -31,21 +31,15 @@ export default function Auth() {
     setLoading(true)
     setMessage('')
     setIsError(false)
-
     if (isSignUp) {
       if (isInternInvite) {
         const { data: invite, error: inviteError } = await supabase
           .from('invites').select('*').eq('code', internInviteToken).eq('used', false).eq('type', 'intern_portal').single()
-        if (inviteError || !invite) {
-          setMessage('Invalid or expired invite link. Please ask your supervisor for a new one.')
-          setIsError(true); setLoading(false); return
-        }
+        if (inviteError || !invite) { setMessage('Invalid or expired invite link.'); setIsError(true); setLoading(false); return }
         const { data: signUpData, error } = await supabase.auth.signUp({ email, password, options: { data: { full_name: fullName.trim() } } })
         if (error) { setMessage(error.message); setIsError(true); setLoading(false); return }
         await supabase.from('invites').update({ used: true }).eq('code', internInviteToken)
-        if (signUpData?.user) {
-          await supabase.from('interns').update({ portal_user_id: signUpData.user.id, portal_email: email }).eq('id', invite.intern_id)
-        }
+        if (signUpData?.user) await supabase.from('interns').update({ portal_user_id: signUpData.user.id, portal_email: email }).eq('id', invite.intern_id)
         window.history.replaceState({}, '', window.location.pathname)
         setMessage('Account created! Check your email to confirm, then sign in.')
       } else {
@@ -53,24 +47,13 @@ export default function Auth() {
         if (!isLifetimeFree) {
           const { data: invite, error: inviteError } = await supabase
             .from('invites').select('*').eq('code', inviteCode.trim()).eq('used', false).single()
-          if (inviteError || !invite || invite.type === 'intern_portal') {
-            setMessage('Invalid or already used invite code.')
-            setIsError(true); setLoading(false); return
-          }
+          if (inviteError || !invite || invite.type === 'intern_portal') { setMessage('Invalid or already used invite code.'); setIsError(true); setLoading(false); return }
         }
         const { data: signUpData, error } = await supabase.auth.signUp({ email, password, options: { data: { full_name: fullName.trim() } } })
-        if (error) {
-          setMessage(error.message); setIsError(true)
-        } else {
-          if (!isLifetimeFree) {
-            await supabase.from('invites').update({ used: true }).eq('code', inviteCode.trim())
-          }
-          if (isLifetimeFree && signUpData?.user) {
-            await supabase.from('supervisors').upsert({
-              user_id: signUpData.user.id, name: fullName.trim() || email, email,
-              plan: 'starter', trial_ends_at: null, lifetime_free: true,
-            }, { onConflict: 'user_id' })
-          }
+        if (error) { setMessage(error.message); setIsError(true) }
+        else {
+          if (!isLifetimeFree) await supabase.from('invites').update({ used: true }).eq('code', inviteCode.trim())
+          if (isLifetimeFree && signUpData?.user) await supabase.from('supervisors').upsert({ user_id: signUpData.user.id, name: fullName.trim() || email, email, plan: 'starter', trial_ends_at: null, lifetime_free: true }, { onConflict: 'user_id' })
           setMessage('Check your email to confirm your account!')
         }
       }
@@ -81,191 +64,149 @@ export default function Auth() {
     setLoading(false)
   }
 
-  const inputStyle = {
-    width: '100%', padding: '14px 18px', marginBottom: '16px',
-    border: '1px solid #DDD8D0', borderRadius: '12px',
+  const inp = {
+    width: '100%', padding: '14px 18px', marginBottom: '14px',
+    border: '1px solid rgba(27,45,79,0.1)', borderRadius: '14px',
     fontSize: '15px', boxSizing: 'border-box', outline: 'none',
-    background: '#FFFEFB', color: '#1B2D4F',
-    transition: 'border-color 0.25s, box-shadow 0.25s',
+    background: 'rgba(255,255,255,0.6)', color: '#1B2D4F',
+    transition: 'border-color 0.25s, box-shadow 0.25s, background 0.25s',
     fontFamily: "'DM Sans', system-ui, sans-serif",
   }
-
-  const focusHandlers = {
-    onFocus: e => { e.target.style.borderColor = '#7BC4C4'; e.target.style.boxShadow = '0 0 0 4px rgba(123,196,196,0.12)'; },
-    onBlur: e => { e.target.style.borderColor = '#DDD8D0'; e.target.style.boxShadow = 'none'; },
+  const fh = {
+    onFocus: e => { e.target.style.borderColor = 'rgba(74,191,191,0.5)'; e.target.style.boxShadow = '0 0 0 4px rgba(74,191,191,0.08)'; e.target.style.background = 'rgba(255,255,255,0.85)'; },
+    onBlur: e => { e.target.style.borderColor = 'rgba(27,45,79,0.1)'; e.target.style.boxShadow = 'none'; e.target.style.background = 'rgba(255,255,255,0.6)'; },
   }
 
   return (
     <>
-      <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;1,400;1,500&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+      <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
       <style>{`
-        @media (max-width: 768px) {
-          .auth-split { flex-direction: column !important; }
-          .auth-brand { display: none !important; }
-          .auth-form { min-height: 100vh !important; width: 100% !important; }
+        @media (max-width: 600px) {
+          .auth-hero-logo { width: 200px !important; min-width: 200px !important; }
+          .auth-card { margin: 0 16px !important; width: calc(100% - 32px) !important; }
         }
       `}</style>
 
-      <div className="auth-split" style={{ display: 'flex', minHeight: '100vh' }}>
+      <div style={{
+        minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center',
+        background: 'linear-gradient(150deg, #C4DDBE 0%, #A8CFBA 18%, #8EC8BF 38%, #7AC4C4 58%, #72BFBF 78%, #6AB8B8 100%)',
+        position: 'relative', overflow: 'hidden',
+      }}>
+        {/* Soft bokeh / depth layers */}
+        <div style={{ position:'absolute', top:'8%', left:'15%', width:'35vw', height:'35vw', borderRadius:'50%',
+          background:'radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 65%)', filter:'blur(40px)', pointerEvents:'none' }}/>
+        <div style={{ position:'absolute', bottom:'5%', right:'10%', width:'30vw', height:'30vw', borderRadius:'50%',
+          background:'radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 60%)', filter:'blur(50px)', pointerEvents:'none' }}/>
+        <div style={{ position:'absolute', top:'40%', right:'30%', width:'20vw', height:'20vw', borderRadius:'50%',
+          background:'radial-gradient(circle, rgba(74,191,191,0.1) 0%, transparent 70%)', filter:'blur(30px)', pointerEvents:'none' }}/>
 
-        {/* ── Left: Brand panel ── */}
-        <div className="auth-brand" style={{
-          flex: '0 0 46%',
-          background: 'linear-gradient(165deg, #D2E8CE 0%, #B8D8C4 20%, #9ECEBE 45%, #88C8C0 70%, #78C2C2 100%)',
-          display: 'flex', flexDirection: 'column',
-          alignItems: 'center', justifyContent: 'center',
-          padding: '60px 56px', position: 'relative', overflow: 'hidden',
-        }}>
-          {/* Radial glow behind logo */}
-          <div style={{ position: 'absolute', top: '25%', left: '50%', transform: 'translate(-50%,-50%)',
-            width: '70%', height: '50%', borderRadius: '50%',
-            background: 'radial-gradient(ellipse, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0.08) 50%, transparent 75%)',
-            pointerEvents: 'none', filter: 'blur(20px)',
+        {/* ── Hero: Logo + Tagline ── */}
+        <div style={{ paddingTop: '8vh', paddingBottom: 36, textAlign: 'center', position: 'relative', zIndex: 1 }}>
+          <img className="auth-hero-logo" src="/logo.png" alt="SupTrack" style={{
+            width: '320px', minWidth: '320px', maxWidth: '320px',
+            display: 'block', margin: '0 auto 16px',
+            filter: 'drop-shadow(0 6px 30px rgba(27,45,79,0.1))',
           }}/>
-          {/* Soft top-right glow */}
-          <div style={{ position: 'absolute', top: '-8%', right: '-12%', width: '45%', height: '45%', borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(255,255,255,0.18) 0%, transparent 70%)', pointerEvents: 'none' }}/>
-          {/* Soft bottom-left glow */}
-          <div style={{ position: 'absolute', bottom: '-5%', left: '-8%', width: '40%', height: '40%', borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(255,255,255,0.12) 0%, transparent 70%)', pointerEvents: 'none' }}/>
+          <p style={{
+            fontFamily: "'Lora', Georgia, serif", fontStyle: 'italic', fontWeight: 400,
+            fontSize: 21, color: 'rgba(255,255,255,0.88)', margin: '0 0 6px',
+            letterSpacing: '0.01em', textShadow: '0 1px 8px rgba(27,45,79,0.06)',
+          }}>
+            Supervision, simplified.
+          </p>
+          <p style={{
+            fontFamily: "'DM Sans', system-ui, sans-serif", fontSize: 13,
+            color: 'rgba(255,255,255,0.55)', margin: 0, letterSpacing: '0.03em',
+          }}>
+            Built by supervisors, for supervisors.
+          </p>
+        </div>
 
-          <div style={{ position: 'relative', zIndex: 1, textAlign: 'center', maxWidth: 380 }}>
-            <img src="/logo.png" alt="SupTrack" style={{
-              width: '380px', minWidth: '380px', maxWidth: '380px',
-              display: 'block', margin: '0 auto 24px',
-              filter: 'drop-shadow(0 4px 20px rgba(27,45,79,0.08))',
-            }}/>
-            <p style={{
-              fontFamily: "'Lora', Georgia, serif", color: '#1B2D4F',
-              fontSize: 22, fontWeight: 400, fontStyle: 'italic',
-              margin: '0 0 16px', letterSpacing: '0.01em', lineHeight: 1.4,
-            }}>
-              Supervision, simplified.
-            </p>
-            <p style={{
-              fontFamily: "'DM Sans', system-ui, sans-serif", color: '#2A4A3A',
-              fontSize: 14, fontWeight: 400, margin: 0, opacity: 0.6, letterSpacing: '0.02em',
-            }}>
-              Built by supervisors, for supervisors.
-            </p>
-          </div>
+        {/* ── Frosted glass card ── */}
+        <div className="auth-card" style={{
+          background: 'rgba(255,255,255,0.82)',
+          backdropFilter: 'blur(28px)', WebkitBackdropFilter: 'blur(28px)',
+          borderRadius: 20, padding: '36px 38px 32px',
+          boxShadow: '0 12px 48px rgba(27,45,79,0.1), 0 2px 8px rgba(27,45,79,0.04)',
+          border: '1px solid rgba(255,255,255,0.5)',
+          width: '100%', maxWidth: 400, position: 'relative', zIndex: 1,
+        }}>
+          <h1 style={{
+            fontFamily: "'Lora', Georgia, serif", fontSize: 24, fontWeight: 500,
+            color: '#1B4A4A', margin: '0 0 4px', textAlign: 'center',
+          }}>
+            {isInternInvite ? 'Intern Portal' : isSignUp ? 'Create your account' : 'Welcome back'}
+          </h1>
+          <p style={{
+            fontFamily: "'DM Sans', system-ui, sans-serif", fontSize: 13,
+            color: '#7A9488', margin: '0 0 26px', textAlign: 'center',
+          }}>
+            {isInternInvite ? 'Your supervisor invited you.' : isSignUp ? 'Start your 14-day free trial.' : 'Sign in to continue.'}
+          </p>
 
-          <div style={{ position: 'absolute', bottom: 32, fontSize: 11, color: 'rgba(27,45,79,0.25)',
-            fontFamily: "'DM Sans', system-ui, sans-serif", letterSpacing: '0.04em' }}>
-            &copy; {new Date().getFullYear()} SupTrack
+          <form onSubmit={e => { e.preventDefault(); handleSubmit(); }}>
+
+          {isInternInvite && (
+            <div style={{
+              background: 'rgba(123,196,196,0.08)', border: '1px solid rgba(123,196,196,0.18)',
+              borderRadius: 12, padding: '12px 14px', marginBottom: 16, fontSize: 13,
+              color: '#1B2D4F', lineHeight: 1.6, fontFamily: "'DM Sans', system-ui, sans-serif",
+            }}>
+              Create an account to view your hours, notes, and documents.
+            </div>
+          )}
+
+          {isSignUp && <input type="text" placeholder="Full name" value={fullName} onChange={e=>setFullName(e.target.value)} style={inp} {...fh}/>}
+          <input type="email" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} style={inp} {...fh}/>
+          <input type="password" placeholder="Password" value={password} onChange={e=>setPassword(e.target.value)} style={inp} {...fh}/>
+          {isSignUp && !isInternInvite && <input type="text" placeholder="Invite code" value={inviteCode} onChange={e=>setInviteCode(e.target.value)} style={{...inp, marginBottom: 20}} {...fh}/>}
+
+          {message && (
+            <p style={{ color: isError ? '#B84040' : '#2E7A4E', margin: '0 0 14px', fontSize: 13,
+              textAlign: 'center', lineHeight: 1.5, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+              {message}
+            </p>
+          )}
+
+          <button type="submit" disabled={loading} style={{
+            width: '100%', padding: 15, border: 'none', borderRadius: 14,
+            fontSize: 15, fontWeight: 600, cursor: loading ? 'default' : 'pointer',
+            transition: 'all 0.25s', letterSpacing: '0.01em',
+            fontFamily: "'DM Sans', system-ui, sans-serif",
+            background: '#3A9E9E', color: 'white',
+            boxShadow: '0 4px 18px rgba(58,158,158,0.3)',
+            opacity: loading ? 0.65 : 1,
+          }}>
+            {loading ? 'Loading...' : isSignUp ? 'Create Account' : 'Sign In'}
+          </button>
+          </form>
+
+          <p style={{ textAlign: 'center', fontSize: 13, color: '#7A9488', margin: '18px 0 0',
+            fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+            {isInternInvite && !isSignUp ? <>Don't have an account?{' '}
+              <span onClick={()=>{setIsSignUp(true);setMessage('');}} style={{color:'#3A9E9E',cursor:'pointer',fontWeight:600}}>Create one</span>
+            </> : <>
+              {isSignUp ? 'Already have an account? ' : "Don't have an account? "}
+              <span onClick={()=>{setIsSignUp(!isSignUp);setMessage('');}} style={{color:'#3A9E9E',cursor:'pointer',fontWeight:600}}>
+                {isSignUp ? 'Sign In' : 'Sign Up'}
+              </span>
+            </>}
+          </p>
+
+          {/* Trust signal */}
+          <div style={{ marginTop: 24, textAlign: 'center' }}>
+            <div style={{ width: 32, height: 1, background: 'rgba(27,45,79,0.08)', margin: '0 auto 10px', borderRadius: 1 }}/>
+            <p style={{ fontFamily: "'DM Sans', system-ui, sans-serif", fontSize: 11,
+              color: '#B0A898', margin: 0, letterSpacing: '0.04em' }}>
+              Trusted by clinical supervisors across the country
+            </p>
           </div>
         </div>
 
-        {/* ── Right: Form panel ── */}
-        <div className="auth-form" style={{
-          flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-          padding: '56px 48px', background: '#FAF8F5', position: 'relative',
-        }}>
-          <div style={{ width: '100%', maxWidth: 380 }}>
-
-            {/* Mobile-only logo */}
-            <div className="auth-mobile-logo" style={{ display: 'none' }}>
-              <img src="/logo.png" alt="SupTrack" style={{ width: 200, display: 'block', margin: '0 auto 8px' }}/>
-              <p style={{ fontFamily: "'Lora', Georgia, serif", fontStyle: 'italic', fontSize: 15,
-                color: '#5A7B6E', textAlign: 'center', margin: '0 0 32px' }}>Supervision, simplified.</p>
-            </div>
-            <style>{`@media (max-width: 768px) { .auth-mobile-logo { display: block !important; } }`}</style>
-
-            <h1 style={{
-              fontFamily: "'Lora', Georgia, serif", fontSize: 28, fontWeight: 500,
-              color: '#1B2D4F', margin: '0 0 6px', letterSpacing: '-0.01em',
-            }}>
-              {isInternInvite ? 'Intern Portal' : isSignUp ? 'Create your account' : 'Welcome back'}
-            </h1>
-            <p style={{
-              fontFamily: "'DM Sans', system-ui, sans-serif",
-              fontSize: 14, color: '#8A9488', margin: '0 0 32px', lineHeight: 1.5,
-            }}>
-              {isInternInvite
-                ? 'Your supervisor invited you to access your portal.'
-                : isSignUp ? 'Start your 14-day free trial.' : 'Sign in to continue.'}
-            </p>
-
-            <form onSubmit={e => { e.preventDefault(); handleSubmit(); }}>
-
-            {isInternInvite && (
-              <div style={{
-                background: 'rgba(123,196,196,0.08)', border: '1px solid rgba(123,196,196,0.2)', borderRadius: 12,
-                padding: '14px 16px', marginBottom: 18, fontSize: 13, color: '#1B2D4F', lineHeight: 1.6,
-                fontFamily: "'DM Sans', system-ui, sans-serif",
-              }}>
-                Create an account to view your hours, session notes, and documents.
-              </div>
-            )}
-
-            {isSignUp && (
-              <input type="text" placeholder="Full name" value={fullName}
-                onChange={e => setFullName(e.target.value)} style={inputStyle} {...focusHandlers}/>
-            )}
-            <input type="email" placeholder="Email" value={email}
-              onChange={e => setEmail(e.target.value)} style={inputStyle} {...focusHandlers}/>
-            <input type="password" placeholder="Password" value={password}
-              onChange={e => setPassword(e.target.value)} style={inputStyle} {...focusHandlers}/>
-
-            {isSignUp && !isInternInvite && (
-              <input type="text" placeholder="Invite code" value={inviteCode}
-                onChange={e => setInviteCode(e.target.value)}
-                style={{ ...inputStyle, marginBottom: 22 }} {...focusHandlers}/>
-            )}
-
-            {message && (
-              <p style={{ color: isError ? '#B84040' : '#2E7A4E', margin: '0 0 16px', fontSize: 14,
-                textAlign: 'center', lineHeight: 1.5, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
-                {message}
-              </p>
-            )}
-
-            <button type="submit" disabled={loading}
-              style={{
-                width: '100%', padding: 15, border: 'none', borderRadius: 14,
-                fontSize: 15, fontWeight: 600, cursor: loading ? 'default' : 'pointer',
-                marginBottom: 20, transition: 'all 0.25s', letterSpacing: '0.01em',
-                fontFamily: "'DM Sans', system-ui, sans-serif",
-                background: 'linear-gradient(135deg, #3A8E8E 0%, #4ABFBF 50%, #5CC8A8 100%)',
-                color: 'white',
-                boxShadow: '0 6px 24px rgba(58,142,142,0.25), 0 2px 6px rgba(58,142,142,0.12)',
-                opacity: loading ? 0.7 : 1,
-              }}>
-              {loading ? 'Loading...' : isSignUp ? 'Create Account' : 'Sign In'}
-            </button>
-            </form>
-
-            {!isInternInvite && (
-              <p style={{ textAlign: 'center', fontSize: 14, color: '#8A9488', margin: '0 0 0',
-                fontFamily: "'DM Sans', system-ui, sans-serif" }}>
-                {isSignUp ? 'Already have an account? ' : "Don't have an account? "}
-                <span onClick={() => { setIsSignUp(!isSignUp); setMessage('') }}
-                  style={{ color: '#3A8E8E', cursor: 'pointer', fontWeight: 600 }}>
-                  {isSignUp ? 'Sign In' : 'Sign Up'}
-                </span>
-              </p>
-            )}
-
-            {isInternInvite && !isSignUp && (
-              <p style={{ textAlign: 'center', fontSize: 14, color: '#8A9488', margin: 0,
-                fontFamily: "'DM Sans', system-ui, sans-serif" }}>
-                Don't have an account?{' '}
-                <span onClick={() => { setIsSignUp(true); setMessage('') }}
-                  style={{ color: '#1B2D4F', cursor: 'pointer', fontWeight: 600 }}>Create one</span>
-              </p>
-            )}
-
-            {/* Trust signal */}
-            <div style={{ marginTop: 40, textAlign: 'center' }}>
-              <div style={{ width: 40, height: 1, background: '#DDD8D0', margin: '0 auto 16px' }}/>
-              <p style={{
-                fontFamily: "'DM Sans', system-ui, sans-serif",
-                fontSize: 12, color: '#B0A898', margin: 0, letterSpacing: '0.03em',
-              }}>
-                Trusted by clinical supervisors across the country
-              </p>
-            </div>
-          </div>
+        {/* Copyright */}
+        <div style={{ padding: '28px 0 20px', fontSize: 11, color: 'rgba(255,255,255,0.35)',
+          fontFamily: "'DM Sans', system-ui, sans-serif", letterSpacing: '0.04em', position: 'relative', zIndex: 1 }}>
+          &copy; {new Date().getFullYear()} SupTrack
         </div>
       </div>
     </>
