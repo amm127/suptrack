@@ -9,6 +9,7 @@ export default function Auth() {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
   const [isError, setIsError] = useState(false)
+  const [fullName, setFullName] = useState('')
   const [isInternInvite, setIsInternInvite] = useState(false)
   const [internInviteToken, setInternInviteToken] = useState('')
 
@@ -49,7 +50,7 @@ export default function Auth() {
         }
 
         // Create the intern's auth account
-        const { data: signUpData, error } = await supabase.auth.signUp({ email, password })
+        const { data: signUpData, error } = await supabase.auth.signUp({ email, password, options: { data: { full_name: fullName.trim() } } })
         if (error) {
           setMessage(error.message)
           setIsError(true)
@@ -87,7 +88,7 @@ export default function Auth() {
           return
         }
 
-        const { error } = await supabase.auth.signUp({ email, password })
+        const { error } = await supabase.auth.signUp({ email, password, options: { data: { full_name: fullName.trim() } } })
         if (error) {
           setMessage(error.message)
           setIsError(true)
@@ -116,7 +117,8 @@ export default function Auth() {
         background: 'white', padding: '40px', borderRadius: '12px',
         boxShadow: '0 2px 16px rgba(0,0,0,0.08)', width: '100%', maxWidth: '400px'
       }}>
-        <h1 style={{ marginBottom: '8px', fontSize: '24px' }}>SupTrack</h1>
+        <img src="/logo.png" alt="SupTrack" style={{ width: 120, display: 'block', margin: '0 auto 8px' }} />
+        <p style={{ color: '#9B9389', fontSize: '16px', fontWeight: 300, fontStyle: 'italic', textAlign: 'center', marginBottom: '24px' }}>Supervision, simplified.</p>
         <p style={{ color: '#7A7268', marginBottom: '32px' }}>
           {isInternInvite
             ? 'Create your intern portal account'
@@ -130,6 +132,20 @@ export default function Auth() {
           }}>
             Your supervisor has invited you to access your supervision portal. Create an account to view your hours, session notes, and documents.
           </div>
+        )}
+
+        {isSignUp && (
+          <input
+            type="text"
+            placeholder="Full name"
+            value={fullName}
+            onChange={e => setFullName(e.target.value)}
+            style={{
+              width: '100%', padding: '12px', marginBottom: '12px',
+              border: '1px solid #E2DDD8', borderRadius: '8px',
+              fontSize: '15px', boxSizing: 'border-box'
+            }}
+          />
         )}
 
         <input
