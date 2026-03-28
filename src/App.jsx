@@ -525,6 +525,77 @@ const DEFAULT_SECTIONS = [
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 const dn    = (i) => i.preferredName || i.name.split(" ")[0]; // display name — preferred or first name
+
+// ── iCal / Google Calendar helpers ────────────────────────────────────────
+const icsDateFmt = (d) => {
+  const dt = d instanceof Date ? d : new Date(d);
+  if (isNaN(dt)) return "19700101T000000";
+  return dt.toISOString().replace(/[-:]/g,"").replace(/\.\d{3}/,"");
+};
+
+const parseSessionDate = (dateStr, timeStr) => {
+  // Handle formats like "Mar 25, 2026" with optional "2:00 PM"
+  let d;
+  if (timeStr) {
+    d = new Date(dateStr + " " + timeStr);
+  } else {
+    d = new Date(dateStr);
+  }
+  if (isNaN(d)) {
+    // Try ISO format
+    d = new Date(dateStr + "T12:00:00");
+  }
+  return isNaN(d) ? new Date() : d;
+};
+
+const buildIcsEvent = (summary, start, durationMin, description) => {
+  const end = new Date(start.getTime() + (durationMin || 60) * 60000);
+  const uid = `suptrack-${Date.now()}-${Math.random().toString(36).slice(2,8)}@suptrack.io`;
+  return [
+    "BEGIN:VEVENT",
+    `UID:${uid}`,
+    `DTSTART:${icsDateFmt(start)}`,
+    `DTEND:${icsDateFmt(end)}`,
+    `SUMMARY:${(summary||"").replace(/[,;\\]/g," ")}`,
+    `DESCRIPTION:${(description||"").replace(/\n/g,"\\n").replace(/[,;\\]/g," ").slice(0,500)}`,
+    "END:VEVENT",
+  ].join("\r\n");
+};
+
+const downloadIcs = (filename, events) => {
+  const cal = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//SupTrack//Supervision Calendar//EN",
+    "CALSCALE:GREGORIAN",
+    ...events,
+    "END:VCALENDAR",
+  ].join("\r\n");
+  const blob = new Blob([cal], { type: "text/calendar;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+};
+
+const googleCalUrl = (summary, start, durationMin, description) => {
+  const end = new Date(start.getTime() + (durationMin || 60) * 60000);
+  const fmt = (d) => d.toISOString().replace(/[-:]/g,"").replace(/\.\d{3}/,"");
+  const params = new URLSearchParams({
+    action: "TEMPLATE",
+    text: summary || "Supervision Session",
+    dates: `${fmt(start)}/${fmt(end)}`,
+    details: (description || "").slice(0, 500),
+  });
+  return `https://calendar.google.com/calendar/render?${params.toString()}`;
+};
+
+const parseDurationMin = (dur) => {
+  if (!dur) return 60;
+  const m = String(dur).match(/(\d+)/);
+  return m ? parseInt(m[1]) : 60;
+};
+
 // docTC returns [bg, color] for a document type — uses fixed accessible colors with shape+label as primary differentiator
 const docTC = (type) => ({
   Contract:   ["#E8F0FB","#2A4E8A"],   // Blue — agreements/legal
@@ -2712,21 +2783,49 @@ function InternProfile({intern,groups,lists,setLists,colleagues,setColleagues,on
     {tab==="hours"&&<HoursBreakdown intern={intern} T={t} onUpdateIntern={onUpdateIntern}/>}
 
     {tab==="sessions"&&<div>
-      <div style={{display:"flex",justifyContent:"flex-end",marginBottom:14}}>
+      <div style={{display:"flex",justifyContent:"flex-end",marginBottom:14,gap:8}}>
+        <button onClick={()=>{
+          const allSessions=[...(intern.sessions||[]),...memberGroups.flatMap(g=>(g.sessions||[]).map(s=>({...s,type:"Group",groupName:g.name})))];
+          if(!allSessions.length){alert("No sessions to export.");return;}
+          const events=allSessions.map(s=>{
+            const start=parseSessionDate(s.date);
+            const dur=parseDurationMin(s.duration);
+            const title=`${s.type||"Supervision"} — ${dn(intern)}${s.groupName?" ("+s.groupName+")":""}`;
+            return buildIcsEvent(title,start,dur,(s.notes||"").slice(0,400));
+          });
+          downloadIcs(`${intern.name.replace(/\s+/g,"_")}_sessions.ics`,events);
+        }} style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:8,padding:"5px 12px",cursor:"pointer",fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",display:"flex",alignItems:"center",gap:5}}>
+          📅 Export all (.ics)
+        </button>
         {canUseAI
           ?<Btn T={t} small onClick={()=>setAiSessionOpen(true)}>✦ Log Session with AI</Btn>
           :<Btn T={t} small onClick={()=>alert("AI session notes are available on the Growth plan and above. Upgrade your plan to unlock this feature.")} style={{opacity:0.6}}>✦ Log Session with AI (Growth+)</Btn>}
       </div>
       <div style={{background:t.accentLight,borderRadius:10,padding:"11px 16px",fontSize:13,color:t.accentText,marginBottom:16,border:`1px solid ${t.accentMid}`}}>Individual notes for {dn(intern)}. Notes by colleagues are marked. Group sessions are linked automatically.</div>
-      {(intern.sessions||[]).map((s,i)=>{const byCol=s.author!=="Alyson"; return <SessionNote key={i} session={s} index={i} byCol={byCol} t={t} onEdit={(newNotes)=>{
-        const updated=[...(intern.sessions||[])];
-        updated[i]={...updated[i],notes:newNotes};
-        onUpdateIntern({...intern,sessions:updated});
-      }}/>;})}
-      {memberGroups.map(g=>(g.sessions||[]).map((s,i)=><div key={`${g.id}-${i}`} style={{background:t.surface,border:`1px solid ${g.color}40`,borderLeft:`3px solid ${g.color}`,borderRadius:12,padding:"16px 18px",marginBottom:10}}>
-        <div style={{display:"flex",gap:8,marginBottom:8,alignItems:"center"}}><Badge color={t.muted} bg={t.surfaceAlt}>{s.date}</Badge><Badge color={g.color} bg={g.colorLight}>{g.name}</Badge><span style={{fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace",marginLeft:"auto"}}>{s.author}</span></div>
-        <p style={{fontSize:14,color:t.text,margin:0,lineHeight:1.7}}>{s.notes}</p>
-      </div>))}
+      {(intern.sessions||[]).map((s,i)=>{
+        const byCol=s.author!=="Alyson";
+        const start=parseSessionDate(s.date);
+        const dur=parseDurationMin(s.duration);
+        const gcUrl=googleCalUrl(`${s.type||"Supervision"} — ${dn(intern)}`,start,dur,(s.notes||"").slice(0,300));
+        return <div key={i} style={{position:"relative"}}>
+          <SessionNote session={s} index={i} byCol={byCol} t={t} onEdit={(newNotes)=>{
+            const updated=[...(intern.sessions||[])];
+            updated[i]={...updated[i],notes:newNotes};
+            onUpdateIntern({...intern,sessions:updated});
+          }}/>
+          <a href={gcUrl} target="_blank" rel="noopener noreferrer" style={{position:"absolute",top:16,right:60,background:t.surfaceAlt,border:`1px solid ${t.border}`,borderRadius:6,padding:"2px 8px",fontSize:10,color:t.muted,textDecoration:"none",fontFamily:"'DM Mono',monospace"}}>+ Google Cal</a>
+        </div>;
+      })}
+      {memberGroups.map(g=>(g.sessions||[]).map((s,i)=>{
+        const start=parseSessionDate(s.date);
+        const dur=parseDurationMin(s.duration);
+        const gcUrl=googleCalUrl(`Group Supervision — ${g.name}`,start,dur,(s.notes||"").slice(0,300));
+        return <div key={`${g.id}-${i}`} style={{background:t.surface,border:`1px solid ${g.color}40`,borderLeft:`3px solid ${g.color}`,borderRadius:12,padding:"16px 18px",marginBottom:10,position:"relative"}}>
+          <div style={{display:"flex",gap:8,marginBottom:8,alignItems:"center"}}><Badge color={t.muted} bg={t.surfaceAlt}>{s.date}</Badge><Badge color={g.color} bg={g.colorLight}>{g.name}</Badge><span style={{fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace",marginLeft:"auto"}}>{s.author}</span></div>
+          <p style={{fontSize:14,color:t.text,margin:0,lineHeight:1.7}}>{s.notes}</p>
+          <a href={gcUrl} target="_blank" rel="noopener noreferrer" style={{position:"absolute",top:16,right:16,background:t.surfaceAlt,border:`1px solid ${t.border}`,borderRadius:6,padding:"2px 8px",fontSize:10,color:t.muted,textDecoration:"none",fontFamily:"'DM Mono',monospace"}}>+ Google Cal</a>
+        </div>;
+      }))}
     </div>}
 
     {tab==="cases"&&<CasesTab intern={intern} onUpdateIntern={onUpdateIntern} T={t}/>}
@@ -5808,9 +5907,26 @@ function CalendarPage({T}) {
     {intern:"Dev",    date:"Apr 1, 2026", time:"2:00 PM",type:"Individual",duration:"60 min",logged:false},
   ]);
   const markLogged=(i)=>setSessions(p=>p.map((s,idx)=>idx===i?{...s,logged:true}:s));
+
+  const exportAllIcs = () => {
+    const events = sessions.map(s => {
+      const start = parseSessionDate(s.date, s.time);
+      const dur = parseDurationMin(s.duration);
+      return buildIcsEvent(`${s.type} Supervision — ${s.intern}`, start, dur, `${s.type} supervision session with ${s.intern}`);
+    });
+    downloadIcs("suptrack-sessions.ics", events);
+  };
+
   return <div>
-    <h1 style={{fontFamily:"inherit",fontSize:28,fontWeight:400,color:t.text,margin:"0 0 4px",letterSpacing:"-0.02em"}}>Calendar</h1>
-    <p style={{color:t.muted,fontSize:14,margin:"0 0 24px"}}>Connect your calendar — supervision sessions auto-populate for one-click logging</p>
+    <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:24}}>
+      <div>
+        <h1 style={{fontFamily:"inherit",fontSize:28,fontWeight:400,color:t.text,margin:"0 0 4px",letterSpacing:"-0.02em"}}>Calendar</h1>
+        <p style={{color:t.muted,fontSize:14,margin:0}}>Connect your calendar — supervision sessions auto-populate for one-click logging</p>
+      </div>
+      {connected&&<button onClick={exportAllIcs} style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:10,padding:"8px 16px",cursor:"pointer",fontSize:12,color:t.text,fontFamily:"'DM Mono',monospace",display:"flex",alignItems:"center",gap:6,boxShadow:"0 1px 3px rgba(0,0,0,0.06)",flexShrink:0}}>
+        📅 Export all (.ics)
+      </button>}
+    </div>
     {!connected?<div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:14,padding:"40px",textAlign:"center",boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
       <div style={{fontSize:36,marginBottom:12}}>📅</div>
       <div style={{fontFamily:"inherit",fontSize:20,color:t.text,marginBottom:8}}>Connect your calendar</div>
@@ -5825,10 +5941,16 @@ function CalendarPage({T}) {
     </div>:<div>
       <div style={{background:S.greenLight,border:`1px solid #C4DFCC`,borderRadius:10,padding:"11px 16px",marginBottom:20,fontSize:13,color:S.green}}>✓ Google Calendar connected — sessions sync automatically</div>
       <div style={{fontFamily:"inherit",fontSize:18,color:t.text,marginBottom:14}}>Upcoming sessions</div>
-      {sessions.map((s,i)=><div key={i} style={{background:t.surface,border:`1px solid ${s.logged?t.borderLight:t.border}`,borderRadius:12,padding:"14px 18px",display:"flex",alignItems:"center",gap:14,opacity:s.logged?0.55:1,boxShadow:"0 1px 3px rgba(0,0,0,0.04)",marginBottom:10}}>
-        <div style={{flex:1}}><div style={{fontSize:14,color:t.text,marginBottom:3}}>{s.intern} · {s.type} supervision</div><div style={{fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace"}}>{s.date} · {s.time} · {s.duration}</div></div>
-        {s.logged?<Badge color={S.green} bg={S.greenLight}>Logged</Badge>:<button onClick={()=>markLogged(i)} style={{background:t.accent,color:"#fff",border:"none",borderRadius:8,padding:"7px 14px",fontSize:12,cursor:"pointer",fontFamily:"'DM Mono',monospace"}}>✦ Log with AI</button>}
-      </div>)}
+      {sessions.map((s,i)=>{
+        const start=parseSessionDate(s.date,s.time);
+        const dur=parseDurationMin(s.duration);
+        const gcUrl=googleCalUrl(`${s.type} Supervision — ${s.intern}`,start,dur,`${s.type} supervision session with ${s.intern}`);
+        return <div key={i} style={{background:t.surface,border:`1px solid ${s.logged?t.borderLight:t.border}`,borderRadius:12,padding:"14px 18px",display:"flex",alignItems:"center",gap:14,opacity:s.logged?0.55:1,boxShadow:"0 1px 3px rgba(0,0,0,0.04)",marginBottom:10}}>
+          <div style={{flex:1}}><div style={{fontSize:14,color:t.text,marginBottom:3}}>{s.intern} · {s.type} supervision</div><div style={{fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace"}}>{s.date} · {s.time} · {s.duration}</div></div>
+          <a href={gcUrl} target="_blank" rel="noopener noreferrer" title="Add to Google Calendar" style={{background:t.surfaceAlt,border:`1px solid ${t.border}`,borderRadius:7,padding:"5px 10px",fontSize:11,color:t.muted,textDecoration:"none",fontFamily:"'DM Mono',monospace",flexShrink:0}}>+ Google Cal</a>
+          {s.logged?<Badge color={S.green} bg={S.greenLight}>Logged</Badge>:<button onClick={()=>markLogged(i)} style={{background:t.accent,color:"#fff",border:"none",borderRadius:8,padding:"7px 14px",fontSize:12,cursor:"pointer",fontFamily:"'DM Mono',monospace"}}>✦ Log with AI</button>}
+        </div>;
+      })}
     </div>}
   </div>;
 }
