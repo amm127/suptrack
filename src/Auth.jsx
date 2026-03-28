@@ -134,7 +134,7 @@ export default function Auth() {
         border: '1px solid rgba(255,255,255,0.6)',
         width: '100%', maxWidth: '420px', position: 'relative', zIndex: 1,
       }}>
-        <img src="/logo.png" alt="SupTrack" style={{ width: 180, display: 'block', margin: '0 auto 8px' }} />
+        <img src="/logo.png" alt="SupTrack" style={{ width: 220, display: 'block', margin: '0 auto 8px' }} />
         <p style={{
           color: '#5A7B6E', fontSize: '14px', fontWeight: 400, fontStyle: 'italic',
           textAlign: 'center', marginBottom: '30px', letterSpacing: '0.02em',
