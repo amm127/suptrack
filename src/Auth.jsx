@@ -88,9 +88,9 @@ export default function Auth() {
       `}</style>
 
       <div style={{
-        minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center',
+        minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
         background: 'linear-gradient(150deg, #C4DDBE 0%, #A8CFBA 18%, #8EC8BF 38%, #7AC4C4 58%, #72BFBF 78%, #6AB8B8 100%)',
-        position: 'relative', overflow: 'hidden',
+        position: 'relative', overflow: 'hidden', padding: '20px 0',
       }}>
         {/* Soft bokeh / depth layers */}
         <div style={{ position:'absolute', top:'8%', left:'15%', width:'35vw', height:'35vw', borderRadius:'50%',
@@ -101,22 +101,22 @@ export default function Auth() {
           background:'radial-gradient(circle, rgba(74,191,191,0.1) 0%, transparent 70%)', filter:'blur(30px)', pointerEvents:'none' }}/>
 
         {/* ── Hero: Logo + Tagline ── */}
-        <div style={{ paddingTop: '8vh', paddingBottom: 36, textAlign: 'center', position: 'relative', zIndex: 1 }}>
+        <div style={{ paddingTop: '5vh', paddingBottom: 18, textAlign: 'center', position: 'relative', zIndex: 1 }}>
           <img className="auth-hero-logo" src="/logo.png" alt="SupTrack" style={{
-            width: '320px', minWidth: '320px', maxWidth: '320px',
-            display: 'block', margin: '0 auto 16px',
+            width: '360px', minWidth: '360px', maxWidth: '360px',
+            display: 'block', margin: '0 auto 8px',
             filter: 'drop-shadow(0 6px 30px rgba(27,45,79,0.1))',
           }}/>
           <p style={{
             fontFamily: "'Lora', Georgia, serif", fontStyle: 'italic', fontWeight: 400,
-            fontSize: 21, color: 'rgba(255,255,255,0.88)', margin: '0 0 6px',
-            letterSpacing: '0.01em', textShadow: '0 1px 8px rgba(27,45,79,0.06)',
+            fontSize: 27, color: 'rgba(255,255,255,0.92)', margin: '0 0 4px',
+            letterSpacing: '0.01em', textShadow: '0 1px 12px rgba(27,45,79,0.08)',
           }}>
             Supervision, simplified.
           </p>
           <p style={{
             fontFamily: "'DM Sans', system-ui, sans-serif", fontSize: 13,
-            color: 'rgba(255,255,255,0.55)', margin: 0, letterSpacing: '0.03em',
+            color: 'rgba(255,255,255,0.5)', margin: 0, letterSpacing: '0.03em',
           }}>
             Built by supervisors, for supervisors.
           </p>
