@@ -9315,7 +9315,7 @@ Professional, formal tone. Leave blanks for anything unknown.`;
 }
 
 // ── Support Page (visible to all supervisors) ──────────────────────────────
-function SupportPage({supervisorName, supervisorEmail, tickets, setTickets, T}) {
+function SupportPage({supervisorName, supervisorEmail, tickets, setTickets, T, session}) {
   const t = T||THEMES.sage;
   const [category, setCategory] = useState("bug");
   const [subject, setSubject]   = useState("");
@@ -9342,13 +9342,25 @@ function SupportPage({supervisorName, supervisorEmail, tickets, setTickets, T}) 
       category, subject: subject.trim(), message: message.trim(),
       date: new Date().toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}),
       time: new Date().toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"}),
-      status: "open", // open | in-progress | resolved
+      status: "open",
       adminReply: "",
     };
     setTickets(p => [ticket, ...p]);
+    // Save to Supabase
+    if (session?.user) {
+      supabase.from("support_tickets").insert({
+        supervisor_id: session.user.id,
+        name: supervisorName || "",
+        email: supervisorEmail || session.user.email || "",
+        subject: subject.trim(),
+        message: message.trim(),
+        category,
+        status: "open",
+      }).then(({error}) => { if (error) console.error("Support ticket error:", error); });
+    }
     setSent(true);
     setSubject(""); setMessage(""); setCategory("bug");
-    setTimeout(() => { setSent(false); setTab("mine"); }, 2000);
+    setTimeout(() => { setSent(false); setTab("mine"); }, 3000);
   };
 
   const statusStyle = (s) => ({
@@ -9375,7 +9387,7 @@ function SupportPage({supervisorName, supervisorEmail, tickets, setTickets, T}) 
 
     {tab==="new"&&<div style={{maxWidth:620}}>
       {sent&&<div style={{background:"#E8F5EE",border:"1px solid #A8D8BC",borderRadius:10,padding:"12px 18px",marginBottom:20,fontSize:14,color:"#2E7A4E"}}>
-        ✓ Message sent! We'll get back to you soon. Check "My tickets" to track the status.
+        Message received! We'll be in touch soon.
       </div>}
 
       {/* Category */}
@@ -9414,12 +9426,8 @@ function SupportPage({supervisorName, supervisorEmail, tickets, setTickets, T}) 
         </div>
       </div>
 
-      {/* Quick links */}
-      <div style={{background:t.surfaceAlt,borderRadius:12,padding:"16px 18px",fontSize:13,color:t.muted,lineHeight:1.8}}>
-        <div style={{fontWeight:500,color:t.text,marginBottom:6}}>Before reaching out, you might find answers here:</div>
-        <div>📖 <span style={{color:t.accentText,cursor:"pointer"}}>Documentation</span> — how-to guides and feature walkthroughs</div>
-        <div>🛣️ <span style={{color:t.accentText,cursor:"pointer"}}>Roadmap</span> — see what's coming next</div>
-        <div>📣 <span style={{color:t.accentText,cursor:"pointer"}}>Changelog</span> — recent updates and fixes</div>
+      <div style={{background:t.surfaceAlt,borderRadius:12,padding:"14px 18px",fontSize:13,color:t.muted,textAlign:"center"}}>
+        Our team will be in touch as soon as possible.
       </div>
     </div>}
 
@@ -10945,7 +10953,7 @@ useEffect(() => {
       {page==="discover"&&<DiscoverPage T={t} session={session} interns={interns} onAddIntern={newIntern=>setInterns(p=>[...p,newIntern])}/>}
       {page==="agreements"&&<AgreementsPage T={t} interns={interns} supervisorName={supervisorName}/>}
 
-      {page==="support"&&<SupportPage T={t} supervisorName={supervisorName} supervisorEmail={`${(supervisorName||"Alyson K.").toLowerCase().replace(/[^a-z0-9]/g,".")}@questcounseling.org`} tickets={tickets} setTickets={setTickets}/>}
+      {page==="support"&&<SupportPage T={t} supervisorName={supervisorName} supervisorEmail={session?.user?.email||""} tickets={tickets} setTickets={setTickets} session={session}/>}
       {page==="reminders"&&<RemindersPanel T={t} interns={interns} groups={groups} onNavigate={(dest,ctx)=>{setPage(dest);if(ctx)setSelectedGroupId(ctx);}} onSelectIntern={i=>{setSelectedInternId_sv(i.id);setPage("intern-profile");}}/>}
       {page==="admin"&&isAdmin&&<AdminInboxPage T={t} tickets={tickets} setTickets={setTickets}/>}
       {page==="admin"&&!isAdmin&&<div style={{padding:40,color:t.muted,fontSize:14}}>Access restricted.</div>}
