@@ -6175,8 +6175,8 @@ function BillingPage({billing,setBilling,interns,T,F,colleagues=[],session,super
   const tabs = ["plan","seats","referrals","founding"];
   const tabLabel = {plan:"Plan & Usage", seats:"Team Seats", referrals:"Referrals", founding:"Founding Supervisors"};
 
-  const Card = ({children,style={}}) => <div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:14,padding:"22px 24px",boxShadow:"0 1px 4px rgba(0,0,0,0.04)",...style}}>{children}</div>;
-  const Label = ({children}) => <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:8}}>{children}</div>;
+  const Card = useMemo(()=>function BCard({children,style={}}){ return <div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:14,padding:"22px 24px",boxShadow:"0 1px 4px rgba(0,0,0,0.04)",...style}}>{children}</div>;},[t]);
+  const Label = useMemo(()=>function BLabel({children}){ return <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:8}}>{children}</div>;},[t]);
 
   return <div>
     <div style={{marginBottom:26}}>
@@ -9015,7 +9015,7 @@ Replace all bracketed placeholders with appropriate values based on the supervis
     }
   };
 
-  const Card = ({children,style={}}) => <div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:14,padding:"22px 24px",boxShadow:"0 1px 4px rgba(0,0,0,0.04)",...style}}>{children}</div>;
+  const Card = useMemo(()=>function AgCard({children,style={}}){ return <div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:14,padding:"22px 24px",boxShadow:"0 1px 4px rgba(0,0,0,0.04)",...style}}>{children}</div>;},[t]);
 
   return <div>
     <div style={{marginBottom:24}}>
