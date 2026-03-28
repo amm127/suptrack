@@ -134,15 +134,15 @@ export default function Auth() {
         border: '1px solid rgba(255,255,255,0.6)',
         width: '100%', maxWidth: '420px', position: 'relative', zIndex: 1,
       }}>
-        <img src="/logo.png" alt="SupTrack" style={{ width: 880, maxWidth: '100%', display: 'block', margin: '0 auto 8px' }} />
+        <img src="/logo.png" alt="SupTrack" style={{ width: 880, maxWidth: '100%', display: 'block', margin: '0 auto 2px' }} />
         <p style={{
           color: '#5A7B6E', fontSize: '14px', fontWeight: 400, fontStyle: 'italic',
-          textAlign: 'center', marginBottom: '30px', letterSpacing: '0.02em',
+          textAlign: 'center', marginBottom: '14px', letterSpacing: '0.02em', marginTop: 0,
         }}>Supervision, simplified.</p>
 
         <p style={{
-          color: '#1B2D4F', marginBottom: '24px', fontSize: '16px', fontWeight: 500,
-          textAlign: 'center',
+          color: '#1B2D4F', marginBottom: '18px', fontSize: '16px', fontWeight: 500,
+          textAlign: 'center', marginTop: 0,
         }}>
           {isInternInvite
             ? 'Create your intern portal account'
