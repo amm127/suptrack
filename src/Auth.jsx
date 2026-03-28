@@ -124,21 +124,9 @@ export default function Auth() {
               Supervision, simplified.
             </p>
 
-            <div style={{ textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 18 }}>
-              {[
-                ['Ditch the spreadsheets.', 'Your interns finally have a real place to track hours, not a makeshift workaround.'],
-                ['Everything about your supervisees, in one place.', 'Hours, payments, groups, documents, and records — all organized.'],
-                ['Sign documents without the back and forth.', 'Send, sign, and store supervision agreements electronically.'],
-              ].map(([title, desc]) => (
-                <div key={title} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#1B2D4F', marginTop: 6, flexShrink: 0, opacity: 0.5 }}/>
-                  <div>
-                    <div style={{ color: '#1B2D4F', fontSize: 14, fontWeight: 600, marginBottom: 2 }}>{title}</div>
-                    <div style={{ color: '#2A4A3A', fontSize: 13, lineHeight: 1.5, opacity: 0.7 }}>{desc}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <p style={{ color: '#1B2D4F', fontSize: 16, textAlign: 'center', margin: 0, lineHeight: 1.6, opacity: 0.7 }}>
+              The only supervision platform designed by supervisors, for supervisors.
+            </p>
           </div>
 
           <div style={{ position: 'absolute', bottom: 28, fontSize: 12, color: 'rgba(27,45,79,0.3)' }}>
