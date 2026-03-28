@@ -10756,7 +10756,7 @@ useEffect(() => {
       <div style={{padding:"0 20px 18px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
         <div onClick={()=>{setPage("dashboard");setSelectedInternId_sv(null);setInternFilter(null);setConsultIntern(null);}}
           style={{cursor:"pointer",display:"flex",alignItems:"center",gap:0,flexDirection:"column"}}>
-          <img src="/logo.png" alt="SupTrack" style={{width:160,display:"block"}}/>
+          <img src="/logo.png" alt="SupTrack" style={{width:800,maxWidth:"100%",display:"block"}}/>
         </div>
         <button onClick={()=>setEditingNav(e=>!e)} title="Customize sidebar"
           style={{background:editingNav?(t.sidebarAccentBg||t.accentLight):"none",border:`1px solid ${editingNav?(t.sidebarAccent||t.accentMid):(t.sidebarBorder||t.border)}`,borderRadius:6,padding:"4px 7px",cursor:"pointer",fontSize:12,color:editingNav?(t.sidebarAccent||t.accentText):(t.sidebarMuted||t.faint),lineHeight:1,flexShrink:0}}
