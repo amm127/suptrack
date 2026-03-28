@@ -4206,6 +4206,15 @@ function GroupsPage({groups,interns,colleagues,setColleagues,setGroups,onSelectI
     setEditingGroup(false);
   };
 
+  const archiveGroup=()=>{
+    setGroups(p=>p.map(g=>g.id!==selected?g:{...g,archived:true}));
+    setSelected(groups.filter(g=>g.id!==selected&&!g.archived)[0]?.id||null);
+    setEditingGroup(false);
+  };
+  const unarchiveGroup=(id)=>{
+    setGroups(p=>p.map(g=>g.id!==id?g:{...g,archived:false}));
+  };
+  const [showArchived,setShowArchived]=useState(false);
   const [groupDragIdx,setGroupDragIdx]=useState(null);
   const [groupDragOver,setGroupDragOver]=useState(null);
 
@@ -4277,7 +4286,7 @@ function GroupsPage({groups,interns,colleagues,setColleagues,setGroups,onSelectI
       {/* Group list sidebar — drag to reorder */}
       <div style={{width:200,flexShrink:0}}>
         <div style={{fontSize:10,color:t.faint,fontFamily:"'DM Mono',monospace",letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:6,paddingLeft:4}}>⠿ drag to reorder</div>
-        {groups.map((g,i)=><div key={g.id}
+        {groups.filter(g=>!g.archived).map((g,i)=><div key={g.id}
           draggable
           onDragStart={()=>setGroupDragIdx(i)}
           onDragOver={e=>{e.preventDefault();setGroupDragOver(i);}}
@@ -4295,7 +4304,17 @@ function GroupsPage({groups,interns,colleagues,setColleagues,setGroups,onSelectI
             {g.sharedWith?.length>0&&<div style={{paddingLeft:24,marginTop:4}}><SharedAvatars sharedWith={g.sharedWith} size={18} colleagues={colleagues||[]}/></div>}
           </button>
         </div>)}
-        {groups.length===0&&<div style={{fontSize:13,color:t.faint,padding:"12px 0"}}>No groups yet</div>}
+        {groups.filter(g=>!g.archived).length===0&&<div style={{fontSize:13,color:t.faint,padding:"12px 0"}}>No groups yet</div>}
+        {groups.some(g=>g.archived)&&<div style={{marginTop:12}}>
+          <button onClick={()=>setShowArchived(a=>!a)} style={{background:"none",border:"none",cursor:"pointer",fontSize:11,color:t.faint,fontFamily:"'DM Mono',monospace",padding:"4px 0"}}>
+            {showArchived?"▾":"▸"} Archived ({groups.filter(g=>g.archived).length})
+          </button>
+          {showArchived&&groups.filter(g=>g.archived).map(g=><div key={g.id} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 8px",opacity:0.6}}>
+            <div style={{width:8,height:8,borderRadius:"50%",background:g.color,flexShrink:0}}/>
+            <span style={{fontSize:13,color:t.muted,flex:1}}>{g.name}</span>
+            <button onClick={()=>unarchiveGroup(g.id)} style={{background:"none",border:`1px solid ${t.border}`,borderRadius:6,padding:"2px 8px",cursor:"pointer",fontSize:10,color:t.muted,fontFamily:"'DM Mono',monospace"}}>Restore</button>
+          </div>)}
+        </div>}
       </div>
 
       {ag&&<div style={{flex:1}}>
@@ -4337,10 +4356,16 @@ function GroupsPage({groups,interns,colleagues,setColleagues,setGroups,onSelectI
                   </div>
                 </div>
                 <div style={{display:"flex",gap:8,justifyContent:"space-between",alignItems:"center",paddingTop:12,borderTop:`1px solid ${t.borderLight}`}}>
-                  <button onClick={()=>setConfirmDelete(true)}
-                    style={{background:"none",border:`1px solid ${S.red}40`,borderRadius:8,padding:"6px 14px",cursor:"pointer",fontSize:12,color:S.red,fontFamily:"'DM Mono',monospace"}}>
-                    🗑 Delete group
-                  </button>
+                  <div style={{display:"flex",gap:8}}>
+                    <button onClick={()=>setConfirmDelete(true)}
+                      style={{background:"none",border:`1px solid ${S.red}40`,borderRadius:8,padding:"6px 14px",cursor:"pointer",fontSize:12,color:S.red,fontFamily:"'DM Mono',monospace"}}>
+                      🗑 Delete
+                    </button>
+                    <button onClick={archiveGroup}
+                      style={{background:"none",border:`1px solid ${t.border}`,borderRadius:8,padding:"6px 14px",cursor:"pointer",fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace"}}>
+                      📦 Archive
+                    </button>
+                  </div>
                   <Btn T={t} onClick={()=>setEditingGroup(false)}>✓ Done editing</Btn>
                 </div>
               </div>
@@ -5439,8 +5464,8 @@ function PublicProfilePage({supervisorPhoto,setSupervisorPhoto,supervisorName:su
   const [editing,setEditing]=useState(false);
   const [newSpecialty,setNewSpecialty]=useState("");
   const defaultProfile={
-    name:"", tagline:"", bio:"",
-    credential:"", licenseNumber:"", licenseState:"", credentialBody:"",
+    name:"", tagline:"", bio:"", phone:"",
+    credential:"", licenseNumber:"", licenseState:"", credentialBody:"", licenseGoal:"",
     yearsExperience:"", supervisionStyle:"",
     specialties:[],
     accepting:true, acceptingStudents:true, acceptingLicensed:true,
@@ -5500,7 +5525,7 @@ function PublicProfilePage({supervisorPhoto,setSupervisorPhoto,supervisorName:su
           const displayName=profile.name.split(",")[0].trim()||supName;
           if(displayName&&displayName!==supName)setSupervisorName(displayName);
           if(onSaveProfile){
-            onSaveProfile({name:displayName,credential:profile.credential||"",photo:supervisorPhoto,profile_data:profile});
+            onSaveProfile({name:displayName,credential:profile.credential||"",phone:profile.phone||"",license_goal:profile.licenseGoal||"",bio:profile.bio||"",photo:supervisorPhoto,profile_data:profile});
           }
         }
         setEditing(e=>!e);
@@ -5558,9 +5583,19 @@ function PublicProfilePage({supervisorPhoto,setSupervisorPhoto,supervisorName:su
                 : <div style={{fontSize:14,color:t.text}}>{profile.yearsExperience} years</div>}
             </Field>
           </div>
-          <Field label="Credentialing body">
-            {editing ? <input {...inp("credentialBody")} placeholder="e.g. Texas State Board of Examiners"/>
-              : <div style={{fontSize:13,color:t.muted}}>{profile.credentialBody}</div>}
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+            <Field label="Credentialing body">
+              {editing ? <input {...inp("credentialBody")} placeholder="e.g. Texas State Board of Examiners"/>
+                : <div style={{fontSize:13,color:t.muted}}>{profile.credentialBody}</div>}
+            </Field>
+            <Field label="License goal">
+              {editing ? <input {...inp("licenseGoal")} placeholder="e.g. AAMFT Approved Supervisor"/>
+                : <div style={{fontSize:13,color:t.muted}}>{profile.licenseGoal}</div>}
+            </Field>
+          </div>
+          <Field label="Phone">
+            {editing ? <input {...inp("phone")} placeholder="e.g. (555) 123-4567" type="tel"/>
+              : <div style={{fontSize:13,color:t.muted}}>{profile.phone||"—"}</div>}
           </Field>
         </Section>
 
