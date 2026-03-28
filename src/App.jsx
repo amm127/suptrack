@@ -7887,18 +7887,7 @@ Keep the tone warm, collegial, and clinically precise. Write in the voice of a s
 // seeing it as a new component type every render, which broke button handlers.
 
 // ── Discover marketplace data ──────────────────────────────────────────────
-const DEMO_INTERNS = [
-  { id:"di1", name:"Jordan Ellis", credential:"LPC-Intern", discipline:"counseling", pronouns:"they/them", location:"Reno, NV", photo:null, initials:"JE",
-    specialties:["Trauma / PTSD","DBT","Adolescent & Young Adult"], bio:"Motivated LPC-Intern seeking secondary supervision. I work at a community mental health center and specialize in trauma-informed care with adolescents. Passionate about MI and DBT.", lookingFor:"Secondary supervisor with SUD experience a plus.", availableHours:3000, completedHours:820, telehealth:true, inPerson:true },
-  { id:"di2", name:"Camille Oduya", credential:"Practicum Student", discipline:"student", pronouns:"she/her", location:"Reno, NV", photo:null, initials:"CO",
-    university:"University of Nevada, Reno", specialties:["LGBTQ+ Affirming","Multicultural / BIPOC","Anxiety & Depression"], bio:"Second-year MHC practicum student at UNR seeking clinical placement supervisor. Research focus on culturally responsive care.", lookingFor:"LGBTQ+-affirming supervisor, preferably with community mental health background.", availableHours:300, completedHours:40, telehealth:true, inPerson:true },
-  { id:"di3", name:"Marcus Webb", credential:"LMSW", discipline:"social_work", pronouns:"he/him", location:"Sparks, NV", photo:null, initials:"MW",
-    specialties:["Substance Use / SUD","Crisis Intervention","Behavioral Health"], bio:"LMSW working toward LCSW. Currently at a detox facility, looking for qualified LCSW-S supervisor. Strong interest in SUD and crisis work.", lookingFor:"LCSW-S with SUD or crisis background.", availableHours:3600, completedHours:1200, telehealth:false, inPerson:true },
-  { id:"di4", name:"Preet Kaur", credential:"AMFT", discipline:"mft", pronouns:"she/her", location:"Carson City, NV", photo:null, initials:"PK",
-    specialties:["Couples & Relationships","Perinatal Mental Health","Child & Family"], bio:"AMFT working in private practice with couples and families. Seeking AAMFT-approved supervisor for hours toward LMFT.", lookingFor:"AAMFT-approved supervisor, flexible schedule, telehealth OK.", availableHours:3000, completedHours:560, telehealth:true, inPerson:true },
-  { id:"di5", name:"Remy Okonkwo", credential:"CADC-I", discipline:"substance_use", pronouns:"he/him", location:"Reno, NV", photo:null, initials:"RO",
-    specialties:["Substance Use / SUD","Motivational Interviewing","Co-occurring Disorders"], bio:"CADC-I working at an outpatient SUD clinic. Seeking CADC-II or higher supervisor for hours. Strong MI background.", lookingFor:"Supervisor with CADC-II or higher, ideally with co-occurring experience.", availableHours:2000, completedHours:480, telehealth:true, inPerson:true },
-];
+const DEMO_INTERNS = [];
 
 function DiscoverInternCard({intern,t,status,onConnect,onAdd,onView}) {
   // status: null | "requested" | "added"
@@ -8156,7 +8145,7 @@ function DiscoverPage({interns,onAddIntern,T,session}) {
             onView={setSelectedIntern}
           />
         ))}
-        {filtered.length===0&&<div style={{gridColumn:"1/-1",textAlign:"center",padding:"40px 0",color:t.muted,fontSize:14}}>No matches found. Try adjusting your filters.</div>}
+        {filtered.length===0&&<div style={{gridColumn:"1/-1",textAlign:"center",padding:"40px 0"}}><div style={{fontSize:28,marginBottom:10}}>🔍</div><div style={{fontSize:14,color:t.muted}}>No supervisees in the directory yet. As interns create profiles, they'll appear here.</div></div>}
       </div>
     </div>}
 
