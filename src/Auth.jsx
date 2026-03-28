@@ -38,6 +38,8 @@ export default function Auth() {
         setMessage(error.message)
         setIsError(true)
       } else {
+        // Mark invite as used
+        await supabase.from('invites').update({ used: true }).eq('code', inviteCode.trim())
         setMessage('Check your email to confirm your account!')
       }
     } else {

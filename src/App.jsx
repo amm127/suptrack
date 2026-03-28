@@ -9548,7 +9548,7 @@ useEffect(() => {
       } else {
         const email=session.user.email||"";
         const name=session.user.user_metadata?.full_name||email;
-        supabase.from("supervisors").insert({user_id:session.user.id,name:name,email:email,plan:"starter"}).select().single().then(({data:newRow,error:insErr})=>{
+        supabase.from("supervisors").insert({user_id:session.user.id,name:name,email:email,plan:"starter",trial_ends_at:new Date(Date.now()+14*24*60*60*1000).toISOString()}).select().single().then(({data:newRow,error:insErr})=>{
           if(insErr)console.error("Supervisor insert error:",insErr);
           if(newRow)setSupervisorProfile(newRow);
         });
@@ -9567,9 +9567,13 @@ useEffect(() => {
     });
   },[session]);
   const supervisorInitials = supervisorName.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()||"??";
+  const trialEndsAt = supervisorProfile?.trial_ends_at ? new Date(supervisorProfile.trial_ends_at) : null;
+  const trialActive = trialEndsAt && trialEndsAt > new Date();
   const supervisorPlan = supervisorProfile?.plan || "starter";
+  const effectivePlan = (supervisorPlan==="starter" && trialActive) ? "starter" : supervisorPlan;
+  const trialExpired = trialEndsAt && !trialActive && supervisorPlan==="starter" && !supervisorProfile?.stripe_customer_id;
   const PLAN_LIMITS = { starter: 10, growth: 20, practice: Infinity };
-  const internLimit = PLAN_LIMITS[supervisorPlan] || 10;
+  const internLimit = PLAN_LIMITS[effectivePlan] || 10;
   const activeInternCount = interns.filter(i=>i.status==="active").length;
   const [upgradePrompt, setUpgradePrompt] = useState(null);
 
@@ -9606,18 +9610,33 @@ useEffect(() => {
           supabase.from("hour_logs").insert(hlRow).then(({error})=>{if(error){console.error("Hour log insert error:",error);alert("Hour log save failed: "+error.message);}else{console.log("[updateIntern] Hour log saved OK");}});
         });
       }
-      // Sync payments to Supabase — store as JSONB on intern row
-      if(old&&JSON.stringify(updated.payments||[])!==JSON.stringify(old.payments||[])){
-        supabase.from("interns").update({payments:updated.payments||[],payment_status:updated.paymentStatus||"current"}).eq("id",updated.id).then(({error})=>{if(error)console.error("Payments sync error:",error);});
-      }
-      // Sync documents to Supabase — store metadata as JSONB on intern row (without dataUrl to save space)
-      if(old&&JSON.stringify((updated.documents||[]).map(d=>d.name))!==JSON.stringify((old.documents||[]).map(d=>d.name))){
-        const docMeta=(updated.documents||[]).map(({dataUrl,...rest})=>rest);
-        supabase.from("interns").update({documents:docMeta}).eq("id",updated.id).then(({error})=>{if(error)console.error("Documents sync error:",error);});
-      }
-      // Update aggregate fields on the intern row
+      // Sync all changed intern fields to Supabase
       if(old){
-        supabase.from("interns").update({hours_completed:updated.hoursCompleted||0}).eq("id",updated.id).then(({error})=>{if(error)console.error("Intern update error:",error);});
+        const docMeta=(updated.documents||[]).map(({dataUrl,...rest})=>rest);
+        const internRow={
+          name:updated.name||"",
+          preferred_name:updated.preferredName||"",
+          pronouns:updated.pronouns||"",
+          discipline:updated.discipline||"",
+          credential:updated.credential||"",
+          license_goal:updated.licenseGoal||"",
+          status:updated.status||"active",
+          pro_bono:updated.proBono||false,
+          hours_completed:updated.hoursCompleted||0,
+          hours_total:updated.hoursTotal||0,
+          billing_rate:updated.billingRate||0,
+          billing_schedule:updated.billingSchedule||"monthly",
+          payments:updated.payments||[],
+          payment_status:updated.paymentStatus||"current",
+          documents:docMeta,
+          cases:updated.cases||[],
+          evaluations:updated.evaluations||[],
+          flags:updated.flags||[],
+          group_ids:updated.groupIds||[],
+          list_ids:updated.listIds||[],
+          shared_with:updated.sharedWith||[],
+        };
+        supabase.from("interns").update(internRow).eq("id",updated.id).then(({error})=>{if(error)console.error("Intern update error:",error);});
       }
       return p.map(i=>i.id===updated.id?updated:i);
     });
@@ -9673,6 +9692,32 @@ useEffect(() => {
     .map(id => ALL_NAV_ITEMS.find(n=>n.id===id))
     .filter(n => n && !navHidden.has(n.id));
 if (!session) return <Auth />
+
+  // Trial expired paywall
+  if(trialExpired) return <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:"100vh",background:"#FAF9F8",padding:40}}>
+    <div style={{background:"#fff",borderRadius:18,padding:"40px 44px",maxWidth:480,width:"100%",boxShadow:"0 8px 32px rgba(0,0,0,0.1)",textAlign:"center"}}>
+      <div style={{fontSize:36,marginBottom:16}}>⏰</div>
+      <h1 style={{fontSize:24,fontWeight:600,color:"#1A1A2E",marginBottom:8}}>Your free trial has ended</h1>
+      <p style={{fontSize:14,color:"#666",lineHeight:1.6,marginBottom:24}}>Your 14-day trial expired on {trialEndsAt?.toLocaleDateString()}. Choose a plan to continue using SupTrack.</p>
+      <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:24,textAlign:"left"}}>
+        <div style={{border:"1px solid #E2DDD8",borderRadius:12,padding:"16px 20px"}}>
+          <div style={{fontWeight:600,fontSize:15}}>Starter — Free</div>
+          <div style={{fontSize:13,color:"#888",marginTop:4}}>Up to 10 supervisees · Manual session notes</div>
+        </div>
+        <div style={{border:"1px solid #7B9FD4",borderRadius:12,padding:"16px 20px",background:"#F0F5FF"}}>
+          <div style={{fontWeight:600,fontSize:15}}>Growth — $29/mo</div>
+          <div style={{fontSize:13,color:"#888",marginTop:4}}>Up to 20 supervisees · AI session notes</div>
+        </div>
+        <div style={{border:"1px solid #5B7B5E",borderRadius:12,padding:"16px 20px",background:"#F0F7F0"}}>
+          <div style={{fontWeight:600,fontSize:15}}>Practice — $59/mo</div>
+          <div style={{fontSize:13,color:"#888",marginTop:4}}>Unlimited supervisees · AI + priority support</div>
+        </div>
+      </div>
+      <button onClick={()=>{saveSupervisorProfile({plan:"starter"});}} style={{width:"100%",padding:"12px",background:"#7B9FD4",color:"#fff",border:"none",borderRadius:8,fontSize:15,fontWeight:600,cursor:"pointer",marginBottom:10}}>Continue with Starter (free)</button>
+      <button onClick={()=>supabase.auth.signOut()} style={{width:"100%",padding:"10px",background:"none",border:"1px solid #E2DDD8",borderRadius:8,fontSize:14,cursor:"pointer",color:"#666"}}>Sign out</button>
+    </div>
+  </div>;
+
   const handleNavDragStart = (id) => setNavDrag(id);
   const handleNavDragOver  = (e, overId) => {
     e.preventDefault();
@@ -9819,7 +9864,7 @@ if (!session) return <Auth />
           <Avatar initials={supervisorInitials} size={32} T={t} photo={supervisorPhoto}/>
           <div>
             <div style={{fontSize:13,color:t.text,fontWeight:500}}>{supervisorName.split(" ")[0]}</div>
-            <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace"}}>Supervisor</div>
+            <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace"}}>{trialActive?`Trial · ${Math.ceil((trialEndsAt-new Date())/(1000*60*60*24))}d left`:supervisorPlan==="starter"?"Starter":supervisorPlan==="growth"?"Growth":"Practice"}</div>
           </div>
         </div>
         {/* Admin inbox — only shown to account owner, subtle */}
