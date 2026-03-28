@@ -2888,7 +2888,7 @@ function AlertsSection({visible,interns,t,onNavigate,onSelectIntern,todos,setTod
   </div>;
 }
 
-function Dashboard({interns,groups,lists,colleagues,onSelectIntern,onNavigate,onOpenOnboarding,onAddIntern,onQuickAction,supervisorName,quickActionOrder,quickActionHidden,allQuickActions,onQuickActionReorder,onQuickActionToggle,T,ceData}) {
+function Dashboard({interns,groups,lists,colleagues,onSelectIntern,onNavigate,onOpenOnboarding,onAddIntern,onQuickAction,supervisorName,quickActionOrder,quickActionHidden,allQuickActions,onQuickActionReorder,onQuickActionToggle,T,ceData,todos,setTodos,session}) {
   const t=T||THEMES.sage;
   const alerts = useMemo(()=>generateAlerts(interns,ceData),[interns,ceData]);
   const [activeList,setActiveList]=useState("all");
@@ -2898,11 +2898,6 @@ function Dashboard({interns,groups,lists,colleagues,onSelectIntern,onNavigate,on
   const [customizing,setCustomizing]=useState(false);
   const [dragIdx,setDragIdx]=useState(null);
   const [dragOver,setDragOver]=useState(null);
-  const [todos,setTodos]=useState([
-    {id:1, text:"Renew liability insurance by April 30",    done:false, link:"none"},
-    {id:2, text:"Update supervision agreement template",     done:false, link:"agreements"},
-    {id:3, text:"Schedule quarterly peer consultation",      done:false, link:"none"},
-  ]);
   const [newTodo,setNewTodo]=useState("");
   const [newTodoLink,setNewTodoLink]=useState("none");
   const [showNewTodo,setShowNewTodo]=useState(false);
@@ -3068,7 +3063,14 @@ function Dashboard({interns,groups,lists,colleagues,onSelectIntern,onNavigate,on
 
       const addTodo = () => {
         if(!newTodo.trim()) return;
-        setTodos(p=>[...p,{id:Date.now(),text:newTodo.trim(),done:false,link:newTodoLink}]);
+        const todo = {id:Date.now(),text:newTodo.trim(),done:false,link:newTodoLink};
+        setTodos(p=>[...p,todo]);
+        // Save to Supabase
+        if(session?.user){
+          supabase.from("todos").insert({supervisor_id:session.user.id,text:todo.text,completed:false}).then(({error})=>{
+            if(error)console.error("Todo insert error:",error);
+          });
+        }
         setNewTodo(""); setNewTodoLink("none"); setShowNewTodo(false);
       };
 
@@ -3107,7 +3109,7 @@ function Dashboard({interns,groups,lists,colleagues,onSelectIntern,onNavigate,on
             const linkLabel = hasLink ? LINK_OPTIONS.find(o=>o.id===td.link)?.label : null;
             return <div key={td.id} style={{display:"flex",alignItems:"center",gap:10,background:t.surface,border:`1px solid ${t.border}`,borderRadius:9,padding:"9px 14px",transition:"all 0.2s"}}>
               {/* Checkbox — checking deletes the item */}
-              <button onClick={()=>setTodos(p=>p.filter(x=>x.id!==td.id))}
+              <button onClick={()=>{setTodos(p=>p.filter(x=>x.id!==td.id));if(session?.user&&td.supaId)supabase.from("todos").delete().eq("id",td.supaId);}}
                 style={{width:18,height:18,borderRadius:4,border:`2px solid ${t.border}`,background:"transparent",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"all 0.15s",padding:0}}
                 title="Mark done (removes from list)">
               </button>
@@ -3123,13 +3125,13 @@ function Dashboard({interns,groups,lists,colleagues,onSelectIntern,onNavigate,on
                 {hasLink&&<div style={{fontSize:10,color:t.faint,fontFamily:"'DM Mono',monospace",marginTop:2}}>→ {linkLabel}</div>}
               </div>
               {/* Delete */}
-              <button onClick={()=>setTodos(p=>p.filter(x=>x.id!==td.id))}
+              <button onClick={()=>{setTodos(p=>p.filter(x=>x.id!==td.id));if(session?.user&&td.supaId)supabase.from("todos").delete().eq("id",td.supaId);}}
                 style={{background:"none",border:"none",cursor:"pointer",fontSize:13,color:t.faint,padding:0,lineHeight:1,opacity:0,transition:"opacity 0.1s",flexShrink:0}}
                 onMouseEnter={e=>e.currentTarget.style.opacity="1"}
                 onMouseLeave={e=>e.currentTarget.style.opacity="0"}>✕</button>
             </div>;
           })}
-          {todos.length===0&&<div style={{fontSize:13,color:t.faint,padding:"8px 0"}}>Nothing to do — enjoy it!</div>}
+          {todos.length===0&&<div style={{fontSize:13,color:t.faint,padding:"12px 0",textAlign:"center"}}>No to-dos yet. Click + to add your first task.</div>}
         </div>
       </div>;
     })()}
@@ -10611,6 +10613,14 @@ useEffect(() => {
   const [tickets,setTickets]=useState(()=>{try{const s=localStorage.getItem("suptrack_tickets");return s?JSON.parse(s):TICKETS_SEED;}catch{return TICKETS_SEED;}});
   React.useEffect(()=>{try{localStorage.setItem("suptrack_tickets",JSON.stringify(tickets));}catch{}},[tickets]);
 
+  // Todos — loaded from Supabase
+  const [todos,setTodos]=useState([]);
+  React.useEffect(()=>{
+    if(!session?.user)return;
+    supabase.from("todos").select("*").eq("supervisor_id",session.user.id).order("created_at",{ascending:true}).then(({data})=>{
+      if(data)setTodos(data.map(r=>({id:r.id,supaId:r.id,text:r.text,done:r.completed||false,link:"none"})));
+    });
+  },[session]);
 
   const ALL_NAV_ITEMS = [
     {id:"dashboard",  label:"Dashboard",        required:true},
@@ -10756,7 +10766,7 @@ useEffect(() => {
       <div style={{padding:"0 20px 18px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
         <div onClick={()=>{setPage("dashboard");setSelectedInternId_sv(null);setInternFilter(null);setConsultIntern(null);}}
           style={{cursor:"pointer",display:"flex",alignItems:"center",gap:0,flexDirection:"column"}}>
-          <img src="/logo.png" alt="SupTrack" style={{width:160,display:"block"}}/>
+          <img src="/logo.png" alt="SupTrack" style={{width:"160px",minWidth:"160px",maxWidth:"160px",display:"block",margin:"0 auto"}}/>
         </div>
         <button onClick={()=>setEditingNav(e=>!e)} title="Customize sidebar"
           style={{background:editingNav?(t.sidebarAccentBg||t.accentLight):"none",border:`1px solid ${editingNav?(t.sidebarAccent||t.accentMid):(t.sidebarBorder||t.border)}`,borderRadius:6,padding:"4px 7px",cursor:"pointer",fontSize:12,color:editingNav?(t.sidebarAccent||t.accentText):(t.sidebarMuted||t.faint),lineHeight:1,flexShrink:0}}
@@ -10863,7 +10873,7 @@ useEffect(() => {
 
     {/* Main content */}
     <div id="suptrack-content" className="st-main" style={{flex:1,padding:"38px 44px",maxWidth:980,overflowY:"auto"}}>
-      {page==="dashboard"&&<Dashboard T={t} interns={interns} groups={groups} lists={lists} colleagues={colleagues} supervisorName={supervisorName} ceData={ceData}
+      {page==="dashboard"&&<Dashboard T={t} interns={interns} groups={groups} lists={lists} colleagues={colleagues} supervisorName={supervisorName} ceData={ceData} todos={todos} setTodos={setTodos} session={session}
         onAddIntern={()=>{if(activeInternCount>=internLimit){setUpgradePrompt("intern");return;}setAddInternOpen(true);}}
         onQuickAction={setQuickActionOpen}
         onSelectIntern={i=>{setSelectedInternId_sv(i.id);setPage("intern-profile");}}

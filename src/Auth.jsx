@@ -119,7 +119,7 @@ export default function Auth() {
             background: 'radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%)', pointerEvents: 'none' }}/>
 
           <div style={{ position: 'relative', zIndex: 1, maxWidth: 320, textAlign: 'center' }}>
-            <img src="/logo.png" alt="SupTrack" style={{ width: 280, display: 'block', margin: '0 auto 16px' }}/>
+            <img src="/logo.png" alt="SupTrack" style={{ width: '280px', minWidth: '280px', maxWidth: '280px', display: 'block', margin: '0 auto 16px' }}/>
             <p style={{ color: '#1B2D4F', fontSize: 17, fontWeight: 400, fontStyle: 'italic', margin: '0 0 40px', letterSpacing: '0.02em', opacity: 0.8 }}>
               Supervision, simplified.
             </p>
