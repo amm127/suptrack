@@ -13,6 +13,8 @@ const PLANS = {
   practice_annual:  { price: 'price_practice_annual',  amount: 69990 },
 };
 
+const SEAT_PRICE_ID = 'price_additional_seat'; // $9.99/mo recurring
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 

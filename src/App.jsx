@@ -6058,7 +6058,31 @@ function BillingPage({billing,setBilling,interns,T,F,colleagues=[]}) {
     </div>}
 
     {/* ── Seats tab ── */}
-    {tab==="seats" && <div style={{display:"flex",flexDirection:"column",gap:16}}>
+    {tab==="seats" && billing.plan!=="practice" && <div style={{display:"flex",flexDirection:"column",gap:16}}>
+      <Card>
+        <div style={{textAlign:"center",padding:"24px 0"}}>
+          <div style={{fontSize:28,marginBottom:12}}>👥</div>
+          <div style={{fontSize:18,fontWeight:500,color:t.text,marginBottom:8}}>Team Seats are a Practice plan feature</div>
+          <p style={{fontSize:13,color:t.muted,marginBottom:16,maxWidth:360,margin:"0 auto 16px"}}>Add additional supervisors to your account at $9.99/mo each. Each seat gets their own dashboard, interns, and notes.</p>
+          <Btn T={t} onClick={()=>setTab("plan")}>Upgrade to Practice</Btn>
+        </div>
+      </Card>
+    </div>}
+    {tab==="seats" && billing.plan==="practice" && <div style={{display:"flex",flexDirection:"column",gap:16}}>
+      {/* Cost breakdown */}
+      <Card style={{background:t.accentLight,border:`1px solid ${t.accentMid}`}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div>
+            <div style={{fontSize:13,color:t.accentText,fontWeight:600}}>Monthly cost breakdown</div>
+            <div style={{fontSize:12,color:t.accentText,opacity:0.8,marginTop:4}}>Practice plan base · ${cycle==="annual"?(69.99*10/12).toFixed(2):69.99}/mo</div>
+            {extraSeats>0&&<div style={{fontSize:12,color:t.accentText,opacity:0.8,marginTop:2}}>{extraSeats} additional seat{extraSeats!==1?"s":""} · ${(extraSeats*SEAT_PRICE_MONTHLY).toFixed(2)}/mo</div>}
+          </div>
+          <div style={{textAlign:"right"}}>
+            <div style={{fontSize:22,fontWeight:600,color:t.accentText}}>${(69.99+extraSeats*SEAT_PRICE_MONTHLY).toFixed(2)}</div>
+            <div style={{fontSize:11,color:t.accentText,opacity:0.7}}>per month</div>
+          </div>
+        </div>
+      </Card>
       <Card>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:18}}>
           <div>
