@@ -5098,7 +5098,7 @@ function AddInternModal({onSave, onClose, onSendLink, groups, lists, T}) {
   const set = (key, val) => setForm(p=>({...p,[key]:val}));
 
   const DISCIPLINE_OPTS = [
-    {id:"counseling",     label:"Counseling (LPC/LPCC)"},
+    {id:"counseling",     label:"Counseling (CPC/LPC/LPCC)"},
     {id:"social_work",    label:"Social Work (LCSW)"},
     {id:"mft",            label:"Marriage & Family Therapy"},
     {id:"substance_use",  label:"Substance Use (CADC/LADC)"},

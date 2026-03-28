@@ -1,0 +1,6 @@
+{
+  "rewrites": [
+    { "source": "/supervisor/:slug", "destination": "/supervisor.html" },
+    { "source": "/((?!api|assets|logo|favicon|supervisor).*)", "destination": "/index.html" }
+  ]
+}
