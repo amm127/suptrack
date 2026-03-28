@@ -126,9 +126,9 @@ export default function Auth() {
 
             <div style={{ textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 18 }}>
               {[
-                ['Track hours with confidence', 'Audit-ready logs that match your licensing board requirements.'],
-                ['AI-powered session notes', 'Log sessions in seconds with intelligent note generation.'],
-                ['Everything in one place', 'Hours, documents, payments, agreements, and intern portals.'],
+                ['Never miss a board deadline.', 'Automatic hour tracking built for your licensing board.'],
+                ['Session notes in 30 seconds.', 'AI writes them, you approve them.'],
+                ['Free intern portal included.', 'Your supervisees track their own progress toward licensure.'],
               ].map(([title, desc]) => (
                 <div key={title} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
                   <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#1B2D4F', marginTop: 6, flexShrink: 0, opacity: 0.5 }}/>
