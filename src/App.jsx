@@ -9405,7 +9405,7 @@ useEffect(() => {
       supabase.from("sessions").select("*").eq("supervisor_id",session.user.id),
       supabase.from("hour_logs").select("*").eq("supervisor_id",session.user.id),
     ]).then(([internRes,sessRes,hlRes])=>{
-      const sessMap={};(sessRes.data||[]).forEach(s=>{if(!sessMap[s.intern_id])sessMap[s.intern_id]=[];sessMap[s.intern_id].push({date:s.date,type:s.type,duration:s.duration,notes:s.notes,author:s.author,_sid:s.id});});
+      const sessMap={};(sessRes.data||[]).forEach(s=>{if(!sessMap[s.intern_id])sessMap[s.intern_id]=[];sessMap[s.intern_id].push({date:s.date,type:s.type,duration:s.duration,notes:s.notes,author:s.author||"",_sid:s.id});});
       const hlMap={};(hlRes.data||[]).forEach(h=>{if(!hlMap[h.intern_id])hlMap[h.intern_id]=[];hlMap[h.intern_id].push({id:h.id,category:h.category,type:h.type,hours:h.hours,label:h.label});});
       if(internRes.data)setInterns(internRes.data.map(r=>({...r,preferredName:r.preferred_name||"",internType:r.intern_type||r.discipline||"",credentialBody:r.credential_body||"",licenseGoal:r.license_goal||"",supervisorRole:r.supervisor_role||"",startDate:r.start_date||"",proBono:r.pro_bono||false,groupIds:r.group_ids||[],listIds:r.list_ids||[],hoursCompleted:r.hours_completed||0,hoursTotal:r.hours_total||0,individualHours:r.individual_hours||0,groupHours:r.group_hours||0,billingRate:r.billing_rate||0,billingSchedule:r.billing_schedule||"monthly",initials:(r.name||"").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase(),sessions:sessMap[r.id]||[],cases:r.cases||[],documents:r.documents||[],evaluations:r.evaluations||[],hourLog:hlMap[r.id]||[],internHourLog:r.intern_hour_log||[],customHourCategories:r.custom_hour_categories||[],payments:r.payments||[],paymentStatus:r.payment_status||"current",sharedWith:r.shared_with||[],flags:r.flags||[],photo:r.photo||null})));
     });
@@ -9514,7 +9514,7 @@ useEffect(() => {
         newSessions.forEach(s=>{
           const {_hourLog,_newTotal,...fields}=s;
           const isoDate=(()=>{const d=new Date(fields.date);return isNaN(d)?fields.date:d.toISOString().slice(0,10);})();
-          const row={intern_id:updated.id,supervisor_id:session.user.id,date:isoDate,type:fields.type||"",duration:fields.duration||"",notes:fields.notes||"",author:fields.author||""};
+          const row={intern_id:updated.id,supervisor_id:session.user.id,date:isoDate,type:fields.type||"",duration:fields.duration||"",notes:fields.notes||""};
           console.log("[updateIntern] Inserting session:",row);
           supabase.from("sessions").insert(row).then(({error})=>{if(error){console.error("Session insert error:",error);alert("Session save failed: "+error.message);}else{console.log("[updateIntern] Session saved OK");}});
         });
