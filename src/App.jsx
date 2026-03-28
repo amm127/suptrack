@@ -8881,7 +8881,7 @@ Supervisor signature: _____________________________ Date: ____________
 
 Supervisee signature: _____________________________ Date: ____________`;
 
-function AgreementsPage({interns, supervisorName, T}) {
+function AgreementsPage({interns, supervisorName, T, session}) {
   const t = T||THEMES.sage;
   const [tab, setTab] = useState("template");
   const [template, setTemplate] = useState(DEFAULT_AGREEMENT);
@@ -8955,9 +8955,35 @@ function AgreementsPage({interns, supervisorName, T}) {
   };
 
   const [sentList, setSentList] = useState([]);
+  // Structured agreement form
+  const [agForm, setAgForm] = useState({
+    supervisorName: supervisorName||"", superviseeName:"", effectiveDate:TODAY(),
+    periodFrom:"", periodTo:"", fee:"", emergencyContact:"",
+    supervisorSig:null, supervisorSignedDate:"", internSig:null, internSignedDate:"",
+  });
+  const [agPreview, setAgPreview] = useState(false);
+  const [agSent, setAgSent] = useState(false);
+  const agSet = (k,v) => setAgForm(p=>({...p,[k]:v}));
 
   const activeInterns = interns.filter(i=>i.status==="active");
   const selectedIntern = activeInterns.find(i=>i.id===selectedInternId);
+
+  // Auto-fill form when intern selected
+  const selectInternForAgreement = (id) => {
+    setSelectedInternId(id);
+    setGeneratedAgreement("");
+    setAgPreview(false);
+    setAgSent(false);
+    const intern = activeInterns.find(i=>i.id===id);
+    if(intern){
+      setAgForm(p=>({...p,
+        supervisorName: supervisorName||p.supervisorName,
+        superviseeName: intern.name||"",
+        periodFrom: intern.startDate||"",
+        fee: intern.proBono?"Pro bono (no fee)":(intern.billingRate?`$${intern.billingRate}/${intern.billingSchedule||"month"}`:""),
+      }));
+    }
+  };
 
   const saveTemplate = () => {
     setSavedMsg(true);
@@ -9014,7 +9040,7 @@ Replace all bracketed placeholders with appropriate values based on the supervis
 
     {/* Tab nav */}
     <div style={{display:"flex",borderBottom:`1px solid ${t.border}`,marginBottom:24}}>
-      {[{id:"template",label:"Agreement Template"},{id:"generate",label:"✦ Generate for Intern"},{id:"tracker",label:"Signature Tracker"},{id:"letter",label:"📄 Attestation Letter"}].map(tt=>(
+      {[{id:"template",label:"Agreement Template"},{id:"generate",label:"Create Agreement"},{id:"tracker",label:"Signature Tracker"},{id:"letter",label:"📄 Attestation Letter"}].map(tt=>(
         <button key={tt.id} onClick={()=>setTab(tt.id)}
           style={{background:"none",border:"none",borderBottom:tab===tt.id?`2px solid ${t.accent}`:"2px solid transparent",padding:"8px 16px",cursor:"pointer",fontSize:13,color:tab===tt.id?t.accent:t.muted,fontFamily:"'DM Mono',monospace",marginBottom:-1}}>
           {tt.label}
@@ -9072,34 +9098,170 @@ Replace all bracketed placeholders with appropriate values based on the supervis
       </div>
     </div>}
 
-    {/* ── GENERATE TAB ── */}
+    {/* ── CREATE AGREEMENT TAB ── */}
     {tab==="generate"&&<div>
+      {/* Select intern */}
       <Card style={{marginBottom:16}}>
         <div style={{fontSize:16,color:t.text,fontWeight:500,marginBottom:6}}>Select a supervisee</div>
-        <div style={{fontSize:13,color:t.muted,marginBottom:14}}>The AI will customize the template with their specific details — credential, licensure goal, payment arrangement, and more.</div>
-        <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:16}}>
+        <div style={{fontSize:13,color:t.muted,marginBottom:14}}>Choose a supervisee to create a supervision agreement. Fields will auto-fill from their profile.</div>
+        <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
           {activeInterns.map(intern=>(
-            <button key={intern.id} onClick={()=>{setSelectedInternId(intern.id);setGeneratedAgreement("");}}
+            <button key={intern.id} onClick={()=>selectInternForAgreement(intern.id)}
               style={{background:selectedInternId===intern.id?t.accentLight:t.surfaceAlt,color:selectedInternId===intern.id?t.accentText:t.text,border:`1px solid ${selectedInternId===intern.id?t.accentMid:t.border}`,borderRadius:10,padding:"8px 16px",cursor:"pointer",display:"flex",alignItems:"center",gap:8,transition:"all 0.1s"}}>
               <Avatar initials={intern.initials} size={24} T={t} photo={intern.photo}/>
               <span style={{fontSize:13}}>{dn(intern)}</span>
             </button>
           ))}
+          {activeInterns.length===0&&<div style={{fontSize:13,color:t.faint}}>No active supervisees. Add one first.</div>}
         </div>
-        {selectedIntern&&<div style={{background:t.surfaceAlt,borderRadius:10,padding:"12px 14px",marginBottom:14,display:"flex",gap:16,flexWrap:"wrap"}}>
-          {[["Credential",selectedIntern.credential],["Goal",selectedIntern.licenseGoal],["Body",selectedIntern.credentialBody],["Payment",selectedIntern.proBono?"Pro bono":"$"+selectedIntern.payments?.[0]?.amount+"/mo"]].map(([label,val])=>(
-            <div key={label}><span style={{fontSize:11,color:t.faint,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em"}}>{label}</span><div style={{fontSize:13,color:t.text,marginTop:2}}>{val}</div></div>
-          ))}
-        </div>}
-        <Btn T={t} onClick={generateCustom} disabled={!selectedIntern||generating}>
-          {generating?"✦ Generating...":"✦ Generate customized agreement"}
-        </Btn>
       </Card>
 
-      {generating&&<div style={{display:"flex",gap:8,alignItems:"center",color:t.muted,fontSize:14,padding:"20px 0"}}>
-        <div style={{display:"flex",gap:4}}>{[0,1,2].map(i=><div key={i} style={{width:6,height:6,borderRadius:"50%",background:t.accentMid,animation:`bounce 1.2s ease-in-out ${i*0.2}s infinite`}}/>)}</div>
-        Writing agreement for {dn(selectedIntern)}...
-      </div>}
+      {/* Agreement form */}
+      {selectedIntern&&!agPreview&&<Card style={{marginBottom:16}}>
+        <div style={{fontSize:16,color:t.text,fontWeight:500,marginBottom:14}}>Agreement details</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
+          <div>
+            <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:4}}>Supervisor name</div>
+            <input value={agForm.supervisorName} onChange={e=>agSet("supervisorName",e.target.value)} placeholder="Your full name"
+              style={{width:"100%",border:`1px solid ${t.border}`,borderRadius:8,padding:"9px 12px",fontSize:13,fontFamily:"inherit",color:t.text,background:t.bg,outline:"none",boxSizing:"border-box"}}/>
+          </div>
+          <div>
+            <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:4}}>Supervisee name</div>
+            <input value={agForm.superviseeName} onChange={e=>agSet("superviseeName",e.target.value)} placeholder="Supervisee full name"
+              style={{width:"100%",border:`1px solid ${t.border}`,borderRadius:8,padding:"9px 12px",fontSize:13,fontFamily:"inherit",color:t.text,background:t.bg,outline:"none",boxSizing:"border-box"}}/>
+          </div>
+          <div>
+            <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:4}}>Effective date</div>
+            <input value={agForm.effectiveDate} onChange={e=>agSet("effectiveDate",e.target.value)} placeholder="e.g. March 27, 2026"
+              style={{width:"100%",border:`1px solid ${t.border}`,borderRadius:8,padding:"9px 12px",fontSize:13,fontFamily:"inherit",color:t.text,background:t.bg,outline:"none",boxSizing:"border-box"}}/>
+          </div>
+          <div>
+            <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:4}}>Supervision fee</div>
+            <input value={agForm.fee} onChange={e=>agSet("fee",e.target.value)} placeholder="e.g. $150/month or Pro bono"
+              style={{width:"100%",border:`1px solid ${t.border}`,borderRadius:8,padding:"9px 12px",fontSize:13,fontFamily:"inherit",color:t.text,background:t.bg,outline:"none",boxSizing:"border-box"}}/>
+          </div>
+          <div>
+            <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:4}}>Agreement period from</div>
+            <input value={agForm.periodFrom} onChange={e=>agSet("periodFrom",e.target.value)} placeholder="e.g. Aug 2023"
+              style={{width:"100%",border:`1px solid ${t.border}`,borderRadius:8,padding:"9px 12px",fontSize:13,fontFamily:"inherit",color:t.text,background:t.bg,outline:"none",boxSizing:"border-box"}}/>
+          </div>
+          <div>
+            <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:4}}>Agreement period to</div>
+            <input value={agForm.periodTo} onChange={e=>agSet("periodTo",e.target.value)} placeholder="e.g. Aug 2026 or Ongoing"
+              style={{width:"100%",border:`1px solid ${t.border}`,borderRadius:8,padding:"9px 12px",fontSize:13,fontFamily:"inherit",color:t.text,background:t.bg,outline:"none",boxSizing:"border-box"}}/>
+          </div>
+        </div>
+        <div style={{marginBottom:16}}>
+          <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:4}}>After-hours emergency contact</div>
+          <input value={agForm.emergencyContact} onChange={e=>agSet("emergencyContact",e.target.value)} placeholder="e.g. (775) 555-0182 or supervisor's cell"
+            style={{width:"100%",border:`1px solid ${t.border}`,borderRadius:8,padding:"9px 12px",fontSize:13,fontFamily:"inherit",color:t.text,background:t.bg,outline:"none",boxSizing:"border-box"}}/>
+        </div>
+        <div style={{display:"flex",gap:10}}>
+          <Btn T={t} onClick={()=>setAgPreview(true)} disabled={!agForm.supervisorName.trim()||!agForm.superviseeName.trim()}>Preview agreement</Btn>
+        </div>
+      </Card>}
+
+      {/* Agreement preview */}
+      {selectedIntern&&agPreview&&<Card style={{marginBottom:16}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
+          <div style={{fontSize:16,color:t.text,fontWeight:500}}>Agreement preview</div>
+          <div style={{display:"flex",gap:8}}>
+            <Btn T={t} variant="secondary" small onClick={()=>setAgPreview(false)}>Edit fields</Btn>
+            <Btn T={t} variant="secondary" small onClick={()=>{
+              const el=document.createElement("a");
+              el.href="data:text/plain;charset=utf-8,"+encodeURIComponent(document.getElementById("ag-preview-text")?.innerText||"");
+              el.download=`Supervision_Agreement_${agForm.superviseeName.replace(/\s+/g,"_")}.txt`;el.click();
+            }}>Download</Btn>
+            {!agSent&&<Btn T={t} small onClick={()=>{
+              // Save to sentList and Supabase
+              setSentList(p=>[{internId:selectedIntern.id,internName:selectedIntern.name,sentDate:TODAY(),status:"awaiting",signedDate:null,agreementData:agForm},...p]);
+              if(session?.user){
+                supabase.from("agreements").insert({
+                  supervisor_id:session.user.id, intern_id:selectedIntern.id,
+                  intern_name:selectedIntern.name, supervisor_name:agForm.supervisorName,
+                  effective_date:agForm.effectiveDate, period_from:agForm.periodFrom, period_to:agForm.periodTo,
+                  fee:agForm.fee, emergency_contact:agForm.emergencyContact,
+                  status:"awaiting", sent_date:new Date().toISOString(),
+                }).then(({error})=>{if(error)console.error("Agreement save error:",error);});
+              }
+              setAgSent(true);
+              setTimeout(()=>setTab("tracker"),2000);
+            }}>Send to {dn(selectedIntern)}</Btn>}
+          </div>
+        </div>
+        {agSent&&<div style={{background:"#E8F5EE",border:"1px solid #A8D8BC",borderRadius:10,padding:"12px 16px",marginBottom:16,fontSize:13,color:"#2E7A4E"}}>Agreement sent to {agForm.superviseeName}. They can sign it in their portal.</div>}
+        <div id="ag-preview-text" style={{background:t.surfaceAlt,borderRadius:12,padding:"24px 28px",fontSize:13,color:t.text,lineHeight:2,fontFamily:"'DM Mono',monospace",whiteSpace:"pre-wrap"}}>
+{`CLINICAL SUPERVISION AGREEMENT
+
+This Clinical Supervision Agreement ("Agreement") is entered into on ${agForm.effectiveDate||"_______________"} by and between:
+
+Supervisor: ${agForm.supervisorName||"_______________"}
+Supervisee: ${agForm.superviseeName||"_______________"}
+
+1. PURPOSE
+This Agreement establishes the terms and conditions of the clinical supervision relationship between the Supervisor and Supervisee for the purpose of fulfilling the Supervisee's requirements for professional licensure.
+
+2. TERM
+This Agreement shall be effective from ${agForm.periodFrom||"_______________"} through ${agForm.periodTo||"_______________"}, unless terminated earlier by either party with 30 days written notice.
+
+3. SUPERVISION SESSIONS
+The Supervisor agrees to provide regular clinical supervision sessions as required by the Supervisee's licensing board. Sessions may include individual supervision, group supervision, or a combination thereof. The Supervisor will maintain documentation of all supervision hours provided.
+
+4. FEES
+Supervision fee: ${agForm.fee||"_______________"}
+Payment is due as agreed upon by both parties. Fee changes require 30 days written notice.
+
+5. RESPONSIBILITIES OF THE SUPERVISOR
+The Supervisor agrees to:
+  - Provide supervision consistent with applicable licensing board requirements
+  - Maintain appropriate records of supervision sessions and hours
+  - Provide timely feedback on clinical work
+  - Be available for consultation during reasonable business hours
+  - Report supervision hours accurately to the relevant licensing board
+
+6. RESPONSIBILITIES OF THE SUPERVISEE
+The Supervisee agrees to:
+  - Attend all scheduled supervision sessions
+  - Present clinical cases honestly and thoroughly
+  - Follow ethical guidelines of their professional discipline
+  - Maintain required documentation of supervised hours
+  - Notify the Supervisor of any clinical emergencies
+
+7. EMERGENCY CONTACT
+For after-hours clinical emergencies, the Supervisee should contact:
+${agForm.emergencyContact||"_______________"}
+
+If the Supervisor is unavailable, the Supervisee should contact the 988 Suicide and Crisis Lifeline or their agency's on-call supervisor.
+
+8. CONFIDENTIALITY
+Both parties agree to maintain confidentiality of all client information discussed during supervision, in accordance with HIPAA and applicable state laws.
+
+9. TERMINATION
+Either party may terminate this Agreement with 30 days written notice. The Supervisor will assist in transitioning supervision responsibilities if terminated.
+
+
+SIGNATURES
+
+Supervisor: ________________________________    Date: _______________
+${agForm.supervisorName}
+
+Supervisee: ________________________________    Date: _______________
+${agForm.superviseeName}`}
+        </div>
+      </Card>}
+
+      {/* Keep AI generation as secondary option */}
+      {selectedIntern&&!agPreview&&<Card style={{background:t.surfaceAlt}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+          <div>
+            <div style={{fontSize:13,color:t.text,fontWeight:500}}>Or generate with AI</div>
+            <div style={{fontSize:12,color:t.muted}}>Let AI customize your master template for this supervisee automatically.</div>
+          </div>
+          <Btn T={t} variant="secondary" small onClick={generateCustom} disabled={generating}>
+            {generating?"Generating...":"✦ AI Generate"}
+          </Btn>
+        </div>
+      </Card>}
 
       {generatedAgreement&&<Card>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
@@ -10968,7 +11130,7 @@ useEffect(() => {
       {page==="resources"&&<ResourcesHubPage T={t} interns={interns} consultIntern={consultIntern}/>}
       {page==="resources"&&<ResourcesPage T={t}/>}
       {page==="discover"&&<DiscoverPage T={t} session={session} interns={interns} onAddIntern={newIntern=>setInterns(p=>[...p,newIntern])}/>}
-      {page==="agreements"&&<AgreementsPage T={t} interns={interns} supervisorName={supervisorName}/>}
+      {page==="agreements"&&<AgreementsPage T={t} interns={interns} supervisorName={supervisorName} session={session}/>}
 
       {page==="support"&&<SupportPage T={t} supervisorName={supervisorName} supervisorEmail={session?.user?.email||""} tickets={tickets} setTickets={setTickets} session={session}/>}
       {page==="reminders"&&<RemindersPanel T={t} interns={interns} groups={groups} onNavigate={(dest,ctx)=>{setPage(dest);if(ctx)setSelectedGroupId(ctx);}} onSelectIntern={i=>{setSelectedInternId_sv(i.id);setPage("intern-profile");}}/>}
