@@ -5679,8 +5679,12 @@ function PublicProfilePage({supervisorPhoto,setSupervisorPhoto,supervisorName:su
     if(sp?.profile_data)return {...defaultProfile,...sp.profile_data,name:sp.profile_data.name||supName||""};
     return {...defaultProfile,name:supName||""};
   });
+  const spLoadedRef = React.useRef(false);
   React.useEffect(()=>{
-    if(sp?.profile_data)setProfile(prev=>({...defaultProfile,...sp.profile_data,name:sp.profile_data.name||supName||""}));
+    if(sp?.profile_data && !spLoadedRef.current){
+      setProfile({...defaultProfile,...sp.profile_data,name:sp.profile_data.name||supName||""});
+      spLoadedRef.current = true;
+    }
   },[sp]);
 
   const ALL_SPECIALTY_SUGGESTIONS = [
@@ -5706,15 +5710,15 @@ function PublicProfilePage({supervisorPhoto,setSupervisorPhoto,supervisorName:su
   };
   const removeSpecialty = (s) => p("specialties", profile.specialties.filter(x=>x!==s));
 
-  const Section = ({title,children}) => <div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:14,padding:"20px 22px",marginBottom:14,boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
+  const Section = useMemo(()=>function ProfileSection({title,children}){ return <div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:14,padding:"20px 22px",marginBottom:14,boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
     <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:14}}>{title}</div>
     {children}
-  </div>;
+  </div>;},[t]);
 
-  const Field = ({label,children}) => <div style={{marginBottom:12}}>
+  const Field = useMemo(()=>function ProfileField({label,children}){ return <div style={{marginBottom:12}}>
     <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:5}}>{label}</div>
     {children}
-  </div>;
+  </div>;},[t]);
 
   return <div>
     <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:24}}>
