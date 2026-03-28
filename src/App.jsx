@@ -10507,20 +10507,28 @@ useEffect(() => {
     const row={...updates};
     if(row.name)setSupervisorName(row.name);
     if('photo' in row)setSupervisorPhoto(row.photo);
+
     // Always keep profile_data.name in sync with top-level name
-    if(row.name && !row.profile_data){
-      // If saving name without profile_data, merge name into existing profile_data
-      setSupervisorProfile(p=>{
-        const existingPd = p?.profile_data || {};
+    setSupervisorProfile(prev=>{
+      const existingPd = prev?.profile_data || {};
+      if(row.name && !row.profile_data){
         row.profile_data = {...existingPd, name: row.name};
-        return {...p,...row};
-      });
-    } else {
-      setSupervisorProfile(p=>({...p,...row}));
-    }
-    supabase.from("supervisors").update(row).eq("user_id",session.user.id).then(({error})=>{
-      if(error)console.error("Profile save error:",error);
+      } else if(row.name && row.profile_data){
+        row.profile_data = {...row.profile_data, name: row.name};
+      }
+      // Also ensure top-level name is set from profile_data if missing
+      if(row.profile_data?.name && !row.name){
+        row.name = row.profile_data.name;
+      }
+      return {...prev,...row};
     });
+
+    // Small delay to ensure row is fully built from setSupervisorProfile callback
+    setTimeout(()=>{
+      supabase.from("supervisors").update(row).eq("user_id",session.user.id).then(({error})=>{
+        if(error)console.error("Profile save error:",error);
+      });
+    },0);
   },[session]);
   const supervisorInitials = supervisorName ? supervisorName.split(" ").filter(Boolean).map(w=>w[0]).join("").slice(0,2).toUpperCase()||"??" : "??";
 

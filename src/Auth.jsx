@@ -117,15 +117,6 @@ export default function Auth() {
             background: 'radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 70%)', pointerEvents: 'none' }}/>
           <div style={{ position: 'absolute', bottom: '-10%', left: '-10%', width: '45%', height: '45%', borderRadius: '50%',
             background: 'radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%)', pointerEvents: 'none' }}/>
-          {/* Decorative leaves */}
-          <svg style={{ position: 'absolute', bottom: 60, right: 30, width: 120, height: 120, opacity: 0.12, pointerEvents: 'none' }} viewBox="0 0 100 100">
-            <path d="M50 5 C20 20, 5 50, 20 80 C30 95, 50 95, 50 95 C50 95, 70 95, 80 80 C95 50, 80 20, 50 5 Z" fill="#1B2D4F"/>
-            <path d="M50 15 L50 85 M35 30 L50 45 M65 30 L50 45 M30 50 L50 60 M70 50 L50 60 M35 70 L50 75 M65 70 L50 75" stroke="#1B2D4F" strokeWidth="1.5" fill="none" opacity="0.5"/>
-          </svg>
-          <svg style={{ position: 'absolute', top: 50, left: 25, width: 80, height: 80, opacity: 0.08, pointerEvents: 'none', transform: 'rotate(140deg)' }} viewBox="0 0 100 100">
-            <path d="M50 5 C20 20, 5 50, 20 80 C30 95, 50 95, 50 95 C50 95, 70 95, 80 80 C95 50, 80 20, 50 5 Z" fill="#1B2D4F"/>
-            <path d="M50 15 L50 85 M35 30 L50 45 M65 30 L50 45 M30 50 L50 60 M70 50 L50 60" stroke="#1B2D4F" strokeWidth="1.5" fill="none" opacity="0.5"/>
-          </svg>
 
           <div style={{ position: 'relative', zIndex: 1, maxWidth: 320, textAlign: 'center' }}>
             <img src="/logo.png" alt="SupTrack" style={{ width: '280px', minWidth: '280px', maxWidth: '280px', display: 'block', margin: '0 auto 16px' }}/>
@@ -148,11 +139,6 @@ export default function Auth() {
           flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
           padding: '48px 40px', background: '#FAFBFC', position: 'relative', overflow: 'hidden',
         }}>
-          {/* Faint decorative leaf */}
-          <svg style={{ position: 'absolute', bottom: -20, right: -10, width: 180, height: 180, opacity: 0.04, pointerEvents: 'none', transform: 'rotate(-30deg)' }} viewBox="0 0 100 100">
-            <path d="M50 5 C20 20, 5 50, 20 80 C30 95, 50 95, 50 95 C50 95, 70 95, 80 80 C95 50, 80 20, 50 5 Z" fill="#3A9E9E"/>
-            <path d="M50 15 L50 85 M35 30 L50 45 M65 30 L50 45 M30 50 L50 60 M70 50 L50 60 M35 70 L50 75 M65 70 L50 75" stroke="#3A9E9E" strokeWidth="1.5" fill="none" opacity="0.5"/>
-          </svg>
           <div style={{ width: '100%', maxWidth: 380 }}>
 
             {/* Mobile-only logo */}
