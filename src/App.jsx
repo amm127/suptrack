@@ -5761,7 +5761,7 @@ function PublicProfilePage({supervisorPhoto,setSupervisorPhoto,supervisorName:su
     <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:24}}>
       <div>
         <h1 style={{fontFamily:"inherit",fontSize:28,fontWeight:400,color:t.text,margin:"0 0 4px",letterSpacing:"-0.02em"}}>Public Profile</h1>
-        <p style={{color:t.muted,fontSize:14,margin:0}}>How interns find you on SupTrack · <span style={{fontFamily:"'DM Mono',monospace",fontSize:12}}>suptrack.com/supervisor/{(supName||"").toLowerCase().replace(/\s+/g,"-").replace(/[^a-z0-9-]/g,"") || "your-name"}</span></p>
+        <p style={{color:t.muted,fontSize:14,margin:0}}>How interns find you on SupTrack · <span style={{fontFamily:"'DM Mono',monospace",fontSize:12}}>suptrack.com/supervisor/{(profile.name||supName||"").toLowerCase().replace(/\s+/g,"-").replace(/[^a-z0-9-]/g,"") || "your-name"}</span></p>
       </div>
       <Btn T={t} style={{flexShrink:0}} onClick={()=>{
         if(editing){
@@ -5953,7 +5953,7 @@ function PublicProfilePage({supervisorPhoto,setSupervisorPhoto,supervisorName:su
         {/* Live URL */}
         <div style={{background:t.isGradient?(t.gradientSubtle||t.accentLight):t.accentLight,border:`1px solid ${t.isGradient?"transparent":t.accentMid}`,borderRadius:12,padding:"14px 16px",fontSize:13,color:t.accentText,lineHeight:1.7}}>
           🌐 Live at:<br/>
-          <span style={{fontFamily:"'DM Mono',monospace",fontSize:11}}>suptrack.com/supervisor/{(supName||"").toLowerCase().replace(/\s+/g,"-").replace(/[^a-z0-9-]/g,"") || "your-name"}</span><br/><br/>
+          <span style={{fontFamily:"'DM Mono',monospace",fontSize:11}}>suptrack.com/supervisor/{(profile.name||supName||"").toLowerCase().replace(/\s+/g,"-").replace(/[^a-z0-9-]/g,"") || "your-name"}</span><br/><br/>
           Interns searching for supervisors can find your profile and send a request directly to your SupTrack inbox.
         </div>
       </div>
@@ -10487,11 +10487,18 @@ useEffect(() => {
       // Not an intern — load as supervisor
       const {data} = await supabase.from("supervisors").select("*").eq("user_id",session.user.id).single();
       if(data){
-        const displayName=data.profile_data?.name?.trim()||(data.name&&data.name.trim()&&data.name!==data.email?data.name.trim():null)||session.user.user_metadata?.full_name||data.name||session.user.email||"";
+        console.log("[SupTrack] Loaded supervisor row:", {name:data.name, email:data.email, profile_data_name:data.profile_data?.name, user_metadata_name:session.user.user_metadata?.full_name});
+        // Name priority: profile_data.name > top-level name (if not email-like) > auth metadata > email
+        const pdName = data.profile_data?.name?.trim();
+        const dbName = data.name?.trim();
+        const isEmailLike = (n) => !n || n.includes("@") || (data.email && data.email.split("@")[0] === n);
+        const displayName = pdName || (dbName && !isEmailLike(dbName) ? dbName : null) || session.user.user_metadata?.full_name || dbName || session.user.email || "";
+        console.log("[SupTrack] Resolved display name:", displayName);
         setSupervisorName(displayName);
         setSupervisorPhoto(data.photo||null);
         setSupervisorProfile(data);
       } else {
+        console.log("[SupTrack] No supervisor row found — creating one");
         const email=session.user.email||"";
         const name=session.user.user_metadata?.full_name||email;
         const {data:newRow,error:insErr} = await supabase.from("supervisors").insert({user_id:session.user.id,name:name,email:email,plan:"starter",trial_ends_at:new Date(Date.now()+14*24*60*60*1000).toISOString()}).select().single();
@@ -10525,8 +10532,10 @@ useEffect(() => {
 
     // Small delay to ensure row is fully built from setSupervisorProfile callback
     setTimeout(()=>{
-      supabase.from("supervisors").update(row).eq("user_id",session.user.id).then(({error})=>{
-        if(error)console.error("Profile save error:",error);
+      console.log("[SupTrack] Saving to Supabase:", JSON.stringify({name:row.name, profile_data_name:row.profile_data?.name, allKeys:Object.keys(row)}));
+      supabase.from("supervisors").update(row).eq("user_id",session.user.id).select().then(({data:updated,error})=>{
+        if(error)console.error("[SupTrack] Profile save FAILED:",error);
+        else console.log("[SupTrack] Profile saved OK. DB now has:", {name:updated?.[0]?.name, pd_name:updated?.[0]?.profile_data?.name});
       });
     },0);
   },[session]);
