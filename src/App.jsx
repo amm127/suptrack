@@ -9514,7 +9514,7 @@ useEffect(() => {
         newSessions.forEach(s=>{
           const {_hourLog,_newTotal,...fields}=s;
           const isoDate=(()=>{const d=new Date(fields.date);return isNaN(d)?fields.date:d.toISOString().slice(0,10);})();
-          const row={intern_id:updated.id,supervisor_id:session.user.id,date:isoDate,duration_minutes:parseInt(fields.duration)||60,session_type:fields.type||"",notes:fields.notes||"",tag:fields.category||""};
+          const row={intern_id:updated.id,supervisor_id:session.user.id,date:isoDate,duration_minutes:parseInt(fields.duration)||60,session_type:fields.type||"",notes:fields.notes||""};
           console.log("[updateIntern] Inserting session:",row);
           supabase.from("sessions").insert(row).then(({error})=>{if(error){console.error("Session insert error:",error);alert("Session save failed: "+error.message);}else{console.log("[updateIntern] Session saved OK");}});
         });
