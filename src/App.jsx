@@ -170,32 +170,20 @@ const PERM_DEFS = [
 ];
 const DEFAULT_PERMS = { viewNotes:true, editNotes:false, viewDocs:true, uploadDocs:false, viewPayments:false, viewHours:true };
 
-const INITIAL_COLLEAGUES = [
-  { id:"c1", name:"Dr. Renee Faulkner", initials:"RF", email:"rfaulkner@cbhc.org",        color:"#7A3FA0", colorLight:"#F0E8FA" },
-  { id:"c2", name:"Marcus Webb",         initials:"MW", email:"mwebb@questcounseling.org", color:"#1A6A7A", colorLight:"#E3F3F6" },
-  { id:"c3", name:"Tanya Osei",          initials:"TO", email:"tosei@cbhc.org",            color:"#7A4A20", colorLight:"#F5EDE0" },
-];
+const INITIAL_COLLEAGUES = [];
 
 // ── Seed data ──────────────────────────────────────────────────────────────
 const INITIAL_LISTS  = [
-  { id:"l1", name:"CBHC",             color:S.purple, colorLight:S.purpleLight },
-  { id:"l2", name:"Private Practice", color:S.teal,   colorLight:S.tealLight   },
+  { id:"l_primary",   name:"Primary Intern",   color:S.amber, colorLight:S.amberLight },
+  { id:"l_secondary", name:"Secondary Intern",  color:S.coral, colorLight:S.coralLight },
+  { id:"l_student",   name:"Student Intern",    color:S.blue,  colorLight:S.blueLight  },
 ];
-const INITIAL_GROUPS = [
-  { id:"g1", name:"Primary Group",   color:"#5B7B5E", colorLight:"#EEF4EE", paymentPerIntern:60, split:50, sharedWith:[{ colleagueId:"c1", perms:{ viewNotes:true,editNotes:true,viewDocs:true,uploadDocs:false,viewPayments:false,viewHours:true } }],
-    sessions:[
-      { date:"Mar 14, 2026", duration:"90 min", attendees:[1,2], author:"Alyson",       notes:"Ethics case presentation — dual relationship scenario. Discussed reporting obligations." },
-      { date:"Feb 28, 2026", duration:"90 min", attendees:[1,2], author:"Dr. Faulkner", notes:"Trauma-informed care framework. Group practice of grounding. Self-care discussion." },
-    ]},
-  { id:"g2", name:"Secondary Group", color:S.blue,   colorLight:S.blueLight,  sharedWith:[],
-    sessions:[
-      { date:"Mar 18, 2026", duration:"90 min", attendees:[3], author:"Alyson", notes:"DBT skills application. Chain analysis as a supervision tool." },
-    ]},
-];
+const INITIAL_GROUPS = [];
 
 const mkHours = (periods) => periods; // helper for clarity
 
-const INITIAL_INTERNS = [
+const INITIAL_INTERNS = [];
+const _UNUSED_DEMO_INTERNS = [
   { id:1, name:"Marissa Holloway", preferredName:"", initials:"MH", pronouns:"she/her", dob:"2001-03-22",
     supervisorRole:"primary", internType:"counseling", discipline:"counseling", credential:"LPC-Intern", credentialBody:"CACREP", licenseGoal:"LPC", startDate:"Aug 2023", status:"active", photo:null,
     groupIds:["g1"], listIds:["l2"], proBono:false, paymentStatus:"current",
@@ -2896,9 +2884,9 @@ function AlertsSection({visible,interns,t,onNavigate,onSelectIntern,todos,setTod
   </div>;
 }
 
-function Dashboard({interns,groups,lists,colleagues,onSelectIntern,onNavigate,onOpenOnboarding,onAddIntern,onQuickAction,supervisorName,quickActionOrder,quickActionHidden,allQuickActions,onQuickActionReorder,onQuickActionToggle,T}) {
+function Dashboard({interns,groups,lists,colleagues,onSelectIntern,onNavigate,onOpenOnboarding,onAddIntern,onQuickAction,supervisorName,quickActionOrder,quickActionHidden,allQuickActions,onQuickActionReorder,onQuickActionToggle,T,ceData}) {
   const t=T||THEMES.sage;
-  const alerts = useMemo(()=>generateAlerts(interns),[interns]);
+  const alerts = useMemo(()=>generateAlerts(interns,ceData),[interns,ceData]);
   const [activeList,setActiveList]=useState("all");
   const [showInactive,setShowInactive]=useState(false);
   const [visibleStats,setVisibleStats]=useState(DEFAULT_STATS);
@@ -4727,35 +4715,53 @@ function GroupsPage({groups,interns,colleagues,setColleagues,setGroups,onSelectI
 }
 
 // ── Alert engine ───────────────────────────────────────────────────────────
-const generateAlerts = (interns) => {
+const generateAlerts = (interns, ceData) => {
   const alerts = [];
   const today = new Date();
   interns.filter(i=>i.status==="active").forEach(intern=>{
+    // Payment overdue — from actual payment data
     if (!intern.proBono && intern.payments?.some(p=>p.status==="overdue"))
       alerts.push({ id:`pay-${intern.id}`, type:"payment", severity:"high", internId:intern.id, internName:dn(intern), message:`Payment overdue — ${dn(intern)} has an outstanding balance`, action:"payments" });
-    if (intern.id===2)
-      alerts.push({ id:`doc-${intern.id}`, type:"document", severity:"medium", internId:intern.id, internName:dn(intern), message:`Insurance certificate expiring soon — ${dn(intern)}'s certificate is up in 30 days`, action:"intern-profile" });
-    const pct = intern.hoursCompleted/intern.hoursTotal;
+    // Insurance expiring — check actual document expiry dates
+    const insuranceDoc = (intern.documents||[]).find(d=>d.type==="Insurance"&&d.expiryDate);
+    if (insuranceDoc) {
+      const expDate = new Date(insuranceDoc.expiryDate);
+      const daysUntil = Math.ceil((expDate-today)/(1000*60*60*24));
+      if (daysUntil > 0 && daysUntil <= 30)
+        alerts.push({ id:`doc-${intern.id}`, type:"document", severity:"medium", internId:intern.id, internName:dn(intern), message:`Insurance certificate expiring in ${daysUntil} days — ${dn(intern)}`, action:"intern-profile" });
+    }
+    // Hours near completion — from actual hours data
+    const pct = intern.hoursTotal > 0 ? intern.hoursCompleted/intern.hoursTotal : 0;
     if (pct >= 0.9 && pct < 1)
       alerts.push({ id:`hrs-${intern.id}`, type:"hours", severity:"info", internId:intern.id, internName:dn(intern), message:`${dn(intern)} is at ${Math.round(pct*100)}% of required hours — licensure is close`, action:"intern-profile" });
-    if (!intern.documents?.some(d=>d.type==="Evaluation") && intern.id===2)
-      alerts.push({ id:`eval-${intern.id}`, type:"evaluation", severity:"medium", internId:intern.id, internName:dn(intern), message:`No evaluation on file for ${dn(intern)} — mid-year evaluation may be due`, action:"intern-profile" });
-    // Birthday alert
+    // Missing evaluation — check if ANY intern is missing one (not hardcoded to id===2)
+    if (!(intern.documents||[]).some(d=>d.type==="Evaluation") && (intern.sessions||[]).length >= 5)
+      alerts.push({ id:`eval-${intern.id}`, type:"evaluation", severity:"medium", internId:intern.id, internName:dn(intern), message:`No evaluation on file for ${dn(intern)} — consider scheduling a mid-term evaluation`, action:"intern-profile" });
+    // Birthday — computed from actual DOB
     if (intern.dob) {
       const dobDate = new Date(intern.dob + "T00:00:00");
       const bm = dobDate.getMonth()+1, bd = dobDate.getDate();
       const isBirthday = bm===today.getMonth()+1 && bd===today.getDate();
       const isUpcoming = (()=>{const next=new Date(today.getFullYear(),bm-1,bd);if(next<today)next.setFullYear(today.getFullYear()+1);const diff=(next-today)/(1000*60*60*24);return diff>0&&diff<=7;})();
       if (isBirthday)
-        alerts.push({ id:`bday-${intern.id}`, type:"birthday", severity:"info", internId:intern.id, internName:dn(intern), message:`🎂 Today is ${dn(intern)}'s birthday! Don't forget to wish them well.`, action:"intern-profile" });
+        alerts.push({ id:`bday-${intern.id}`, type:"birthday", severity:"info", internId:intern.id, internName:dn(intern), message:`Today is ${dn(intern)}'s birthday!`, action:"intern-profile" });
       else if (isUpcoming) {
         const next=new Date(today.getFullYear(),bm-1,bd);if(next<today)next.setFullYear(today.getFullYear()+1);
         const days=Math.ceil((next-today)/(1000*60*60*24));
-        alerts.push({ id:`bday-${intern.id}`, type:"birthday", severity:"info", internId:intern.id, internName:dn(intern), message:`🎂 ${dn(intern)}'s birthday is in ${days} day${days!==1?"s":""} — a great time to reach out`, action:"intern-profile" });
+        alerts.push({ id:`bday-${intern.id}`, type:"birthday", severity:"info", internId:intern.id, internName:dn(intern), message:`${dn(intern)}'s birthday is in ${days} day${days!==1?"s":""}`, action:"intern-profile" });
       }
     }
   });
-  alerts.push({ id:"ce-own", type:"ce", severity:"info", internId:null, internName:null, message:"Your LPC-S renewal is due in 4 months — 8 CE hours remaining", action:"ce" });
+  // CE renewal alert — computed from actual license data
+  if (ceData?.myLicense?.expires) {
+    const expDate = new Date(ceData.myLicense.expires);
+    const daysUntil = Math.ceil((expDate-today)/(1000*60*60*24));
+    const hoursLeft = (ceData.myLicense.renewalHoursRequired||0) - (ceData.myLicense.renewalHoursCompleted||0);
+    if (daysUntil > 0 && daysUntil <= 180 && hoursLeft > 0) {
+      const months = Math.round(daysUntil/30);
+      alerts.push({ id:"ce-own", type:"ce", severity:daysUntil<=60?"high":"info", internId:null, internName:null, message:`Your license renewal is due in ${months} month${months!==1?"s":""} — ${hoursLeft} CE hours remaining`, action:"ce" });
+    }
+  }
   return alerts;
 };
 const alertStyle = (severity, t) => {
@@ -4772,22 +4778,17 @@ const alertIcon = (type) => ({ payment:"💳", document:"📄", hours:"🕐", ev
 
 // ── CE & License Renewal Tracker ───────────────────────────────────────────
 const INITIAL_CE = {
-  myLicense:{ type:"LPC-S", number:"TX-LPC-88421", expires:"Jul 31, 2026", renewalHoursRequired:24, renewalHoursCompleted:16 },
-  ceLog:[
-    { id:"ce1", title:"Trauma-Informed Supervision Practices", provider:"NBCC", hours:3, date:"Jan 15, 2026", category:"Supervision", certificate:true },
-    { id:"ce2", title:"Ethics in Clinical Supervision", provider:"ACA",  hours:6, date:"Nov 10, 2025", category:"Ethics",      certificate:true },
-    { id:"ce3", title:"Motivational Interviewing Advanced",   provider:"MINT", hours:4, date:"Sep 5, 2025",  category:"Clinical",    certificate:true },
-    { id:"ce4", title:"Cultural Humility in Supervision",     provider:"NASW", hours:3, date:"Jun 20, 2025", category:"Diversity",   certificate:false },
-  ],
+  myLicense:{ type:"", number:"", expires:"", renewalHoursRequired:0, renewalHoursCompleted:0 },
+  ceLog:[],
 };
 
-function CETrackerPage({ceData,setCeData,T}) {
+function CETrackerPage({ceData,setCeData,T,session}) {
   const t=T||THEMES.sage;
   const [showAdd,setShowAdd]=useState(false);
   const [form,setForm]=useState({title:"",provider:"",hours:"",date:"",category:"Supervision",certFile:null,certName:""});
   const [viewingCert,setViewingCert]=useState(null);
-  const hoursLeft=ceData.myLicense.renewalHoursRequired-ceData.myLicense.renewalHoursCompleted;
-  const pct=Math.round((ceData.myLicense.renewalHoursCompleted/ceData.myLicense.renewalHoursRequired)*100);
+  const hoursLeft=(ceData.myLicense.renewalHoursRequired||0)-(ceData.myLicense.renewalHoursCompleted||0);
+  const pct=ceData.myLicense.renewalHoursRequired>0?Math.round((ceData.myLicense.renewalHoursCompleted/ceData.myLicense.renewalHoursRequired)*100):0;
   const cats=["Supervision","Ethics","Clinical","Diversity","Cultural Competency","Trauma","Other"];
 
   const handleCertUpload=(e)=>{
@@ -4800,10 +4801,19 @@ function CETrackerPage({ceData,setCeData,T}) {
 
   const addCE=()=>{
     if(!form.title.trim()||!form.hours) return;
+    const entry={id:`ce${Date.now()}`,...form,hours:Number(form.hours)};
     setCeData(p=>({...p,
-      ceLog:[{id:`ce${Date.now()}`,...form,hours:Number(form.hours)},...p.ceLog],
-      myLicense:{...p.myLicense,renewalHoursCompleted:p.myLicense.renewalHoursCompleted+Number(form.hours)}
+      ceLog:[entry,...p.ceLog],
+      myLicense:{...p.myLicense,renewalHoursCompleted:(p.myLicense.renewalHoursCompleted||0)+Number(form.hours)}
     }));
+    // Save to Supabase
+    if(session?.user){
+      supabase.from("ce_entries").insert({
+        supervisor_id:session.user.id, title:entry.title, provider:entry.provider||"",
+        date:entry.date||"", hours:entry.hours, category:entry.category||"",
+        cert_file:entry.certFile||null, cert_name:entry.certName||null, cert_mime:entry.certMime||null,
+      }).then(({error})=>{if(error)console.error("CE insert error:",error);});
+    }
     setForm({title:"",provider:"",hours:"",date:"",category:"Supervision",certFile:null,certName:""});
     setShowAdd(false);
   };
@@ -8409,9 +8419,6 @@ function generateReminders(interns, groups) {
     }
   });
 
-  // Your own CE renewal (mock)
-  reminders.push({ id:"ce_own", type:"ce", severity:"info", title:"Your CE renewal", message:"Your LPC-S renewal is due in 4 months — 8 CE hours still needed.", action:"ce", actionLabel:"View CE tracker" });
-
   return reminders;
 }
 
@@ -8849,6 +8856,15 @@ function AgreementsPage({interns, supervisorName, T}) {
   const [supervisorCredential, setSupervisorCredential] = useState("LPC-S");
   const [supervisorLicense, setSupervisorLicense] = useState("");
   const [supervisorAddress, setSupervisorAddress] = useState("");
+  // Uploaded agreement file (PDF/doc)
+  const [uploadedFile, setUploadedFile] = useState(null); // {name, dataUrl, mimeType}
+  const handleAgreementUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => setUploadedFile({ name: file.name, dataUrl: ev.target.result, mimeType: file.type });
+    reader.readAsDataURL(file);
+  };
   // Signing state
   const [signingEntry, setSigningEntry] = useState(null);
   const [sigRole, setSigRole] = useState("supervisor"); // who is signing
@@ -8896,14 +8912,7 @@ function AgreementsPage({interns, supervisorName, T}) {
     setSigningEntry(null);
   };
 
-  const [sentList, setSentList] = useState([
-    { internId:1, internName:"Marissa Holloway", sentDate:"Aug 12, 2023", status:"signed",    signedDate:"Aug 14, 2023" },
-    { internId:2, internName:"Dev Castellano",   sentDate:"Jan 8, 2024",  status:"signed",    signedDate:"Jan 10, 2024" },
-    { internId:3, internName:"Priya Nandakumar", sentDate:"Sep 5, 2023",  status:"signed",    signedDate:"Sep 6, 2023"  },
-    { internId:5, internName:"Sofia Reyes",       sentDate:"Mar 5, 2025",  status:"signed",    signedDate:"Mar 7, 2025"  },
-    { internId:6, internName:"Terry Brown",       sentDate:"Jun 10, 2025", status:"signed",    signedDate:"Jun 12, 2025" },
-    { internId:7, internName:"Dana Okonkwo",      sentDate:"Jan 8, 2026",  status:"awaiting",  signedDate:null           },
-  ]);
+  const [sentList, setSentList] = useState([]);
 
   const activeInterns = interns.filter(i=>i.status==="active");
   const selectedIntern = activeInterns.find(i=>i.id===selectedInternId);
@@ -8993,6 +9002,29 @@ Replace all bracketed placeholders with appropriate values based on the supervis
           : <pre style={{fontSize:13,color:t.text,lineHeight:1.8,whiteSpace:"pre-wrap",margin:0,fontFamily:"'DM Mono',monospace",background:t.surfaceAlt,borderRadius:10,padding:"16px 18px",maxHeight:500,overflowY:"auto"}}>{template}</pre>
         }
       </Card>
+      {/* Upload your own agreement */}
+      <Card style={{marginBottom:16}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:uploadedFile?12:0}}>
+          <div>
+            <div style={{fontSize:16,color:t.text,fontWeight:500,marginBottom:3}}>Upload your own agreement</div>
+            <div style={{fontSize:13,color:t.muted}}>Prefer to use your own document? Upload a PDF or Word file instead of the text template.</div>
+          </div>
+          <label style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:8,padding:"6px 14px",cursor:"pointer",fontSize:12,color:t.text,fontFamily:"'DM Mono',monospace",flexShrink:0}}>
+            Upload file
+            <input type="file" accept=".pdf,.doc,.docx" onChange={handleAgreementUpload} style={{display:"none"}}/>
+          </label>
+        </div>
+        {uploadedFile&&<div style={{background:t.surfaceAlt,borderRadius:10,padding:"12px 14px",display:"flex",alignItems:"center",gap:12}}>
+          <span style={{fontSize:18}}>📄</span>
+          <div style={{flex:1}}>
+            <div style={{fontSize:13,color:t.text,fontWeight:500}}>{uploadedFile.name}</div>
+            <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace"}}>{uploadedFile.mimeType}</div>
+          </div>
+          <a href={uploadedFile.dataUrl} download={uploadedFile.name} style={{background:t.accent,color:"#fff",border:"none",borderRadius:7,padding:"5px 12px",fontSize:11,textDecoration:"none",fontFamily:"'DM Mono',monospace",cursor:"pointer"}}>Download</a>
+          <button onClick={()=>setUploadedFile(null)} style={{background:"none",border:"none",cursor:"pointer",fontSize:12,color:S.red,fontFamily:"'DM Mono',monospace"}}>Remove</button>
+        </div>}
+      </Card>
+
       <div style={{background:t.isGradient?(t.gradientSubtle||t.accentLight):t.accentLight,border:`1px solid ${t.isGradient?"transparent":t.accentMid}`,borderRadius:10,padding:"12px 16px",fontSize:13,color:t.accentText}}>
         Tip: Use the "Generate for Intern" tab to let AI customize this template for a specific supervisee — it fills in their name, credentials, licensure goal, and payment details automatically.
       </div>
@@ -9762,8 +9794,8 @@ function InternDashboard({internRecord,sessions:internSessions,hourLogs,supervis
 
   const displayName = intern.preferredName || (intern.name||"").split(" ")[0];
 
-  const tabs = ["overview","sessions","documents","supervisor"];
-  const tabLabel = {overview:"My Progress",sessions:"Session Notes",documents:"My Documents",supervisor:"My Supervisor"};
+  const tabs = ["overview","documents","supervisor"];
+  const tabLabel = {overview:"My Progress",documents:"My Documents",supervisor:"My Supervisor"};
 
   return <div style={{display:"flex",minHeight:"100vh",background:t.bg,fontFamily:f.body}}>
     <link href={f.url} rel="stylesheet"/>
@@ -9816,19 +9848,19 @@ function InternDashboard({internRecord,sessions:internSessions,hourLogs,supervis
             : <div style={{fontSize:13,color:t.muted}}>{Math.max(0, intern.hoursTotal - totalHours)} hours remaining — you're {pct}% of the way there</div>}
         </div>
 
-        {/* Recent sessions */}
+        {/* Session summary (notes not visible to interns) */}
         <div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:14,padding:"20px 22px",marginBottom:20,boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
-          <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:14}}>Recent session notes</div>
-          {intern.sessions.length===0&&<div style={{fontSize:13,color:t.faint,textAlign:"center",padding:"16px 0"}}>No sessions logged yet.</div>}
-          {intern.sessions.slice(0,3).map((s,i)=><div key={i} style={{padding:"12px 0",borderTop:i>0?`1px solid ${t.borderLight}`:"none"}}>
-            <div style={{display:"flex",gap:8,marginBottom:6}}>
-              <Badge color={t.muted} bg={t.surfaceAlt}>{s.date}</Badge>
-              <Badge color={t.accentText} bg={t.accentLight}>{s.type}</Badge>
-              <Badge color={t.muted} bg={t.surfaceAlt}>{s.duration}</Badge>
+          <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:10}}>Supervision sessions</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+            <div style={{background:t.surfaceAlt,borderRadius:10,padding:"14px 16px",textAlign:"center"}}>
+              <div style={{fontSize:24,color:t.accent,fontFamily:"'DM Mono',monospace",fontWeight:600}}>{intern.sessions.length}</div>
+              <div style={{fontSize:12,color:t.muted,marginTop:2}}>Total sessions</div>
             </div>
-            <p style={{fontSize:13,color:t.text,margin:0,lineHeight:1.7,display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}>{s.notes}</p>
-          </div>)}
-          {intern.sessions.length>3&&<button onClick={()=>setTab("sessions")} style={{background:"none",border:"none",cursor:"pointer",color:t.accent,fontSize:12,fontFamily:"'DM Mono',monospace",padding:"8px 0"}}>View all {intern.sessions.length} sessions →</button>}
+            <div style={{background:t.surfaceAlt,borderRadius:10,padding:"14px 16px",textAlign:"center"}}>
+              <div style={{fontSize:24,color:t.accent,fontFamily:"'DM Mono',monospace",fontWeight:600}}>{thisMonthSessions.length}</div>
+              <div style={{fontSize:12,color:t.muted,marginTop:2}}>This month</div>
+            </div>
+          </div>
         </div>
 
         {/* License goal info */}
@@ -10067,7 +10099,7 @@ function InternPortal({intern:initialIntern,groups,onExit,onUpdateIntern,supervi
     <link href={f.url} rel="stylesheet"/>
     {editProfileOpen&&<EditProfileModal T={t} intern={intern} onSave={handleUpdate} onClose={()=>setEditProfileOpen(false)}/>}
     <div style={{width:200,background:t.surface,borderRight:`1px solid ${t.border}`,display:"flex",flexDirection:"column",padding:"24px 0",position:"sticky",top:0,height:"100vh",flexShrink:0}}>
-      <div style={{padding:"0 20px 24px"}}><div style={{fontFamily:f.display,fontSize:20,color:t.accent,letterSpacing:"-0.02em"}}>SupTrack</div><div style={{fontSize:10,color:t.muted,fontFamily:"'DM Mono',monospace",marginTop:2,letterSpacing:"0.06em"}}>SUPERVISEE PORTAL</div></div>
+      <div style={{padding:"0 20px 24px",cursor:"pointer"}} onClick={()=>setTab("overview")}><div style={{fontFamily:f.display,fontSize:20,color:t.accent,letterSpacing:"-0.02em"}}>SupTrack</div><div style={{fontSize:10,color:t.muted,fontFamily:"'DM Mono',monospace",marginTop:2,letterSpacing:"0.06em"}}>SUPERVISEE PORTAL</div></div>
       <nav style={{flex:1}}>{tabs.map(tt=><button key={tt} onClick={()=>setTab(tt)} style={{width:"100%",background:tab===tt?t.accentLight:"none",border:"none",borderLeft:tab===tt?`3px solid ${t.accent}`:"3px solid transparent",padding:"11px 20px",cursor:"pointer",textAlign:"left",fontSize:13,color:tab===tt?t.accent:t.text,fontFamily:f.body,fontWeight:tab===tt?500:400}}>{tabLabel[tt]}</button>)}</nav>
       <div style={{padding:"14px 20px",borderTop:`1px solid ${t.border}`}}>
         <button onClick={onExit} style={{background:"none",border:"none",cursor:"pointer",color:t.muted,fontSize:12,fontFamily:"'DM Mono',monospace",padding:0,marginBottom:10}}>← Supervisor view</button>
@@ -10214,14 +10246,19 @@ class ErrorBoundary extends React.Component {
 }
 function SupTrackInner() {
   const [session, setSession] = useState(null)
+  const hasHadSessionRef = React.useRef(false);
 
 useEffect(() => {
   supabase.auth.getSession().then(({ data: { session } }) => {
     setSession(session)
+    if (session) hasHadSessionRef.current = true;
   })
   const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
     setSession(session)
-    if(_event==="SIGNED_IN")setPage("dashboard");
+    // Only navigate to dashboard on fresh sign-in, not token refresh
+    if(_event==="SIGNED_IN" && !hasHadSessionRef.current) setPage("dashboard");
+    if (session) hasHadSessionRef.current = true;
+    if (_event==="SIGNED_OUT") hasHadSessionRef.current = false;
   })
   return () => subscription.unsubscribe()
 }, [])
@@ -10346,6 +10383,19 @@ useEffect(() => {
   const [selectedGroupId, setSelectedGroupId] = useState(null);
   const [ceData, setCeData] = useState(()=>{try{const s=localStorage.getItem("suptrack_ce");return s?JSON.parse(s):INITIAL_CE;}catch{return INITIAL_CE;}});
   React.useEffect(()=>{try{localStorage.setItem("suptrack_ce",JSON.stringify(ceData));}catch{}},[ceData]);
+  // Load CE entries from Supabase
+  React.useEffect(()=>{
+    if(!session?.user)return;
+    supabase.from("ce_entries").select("*").eq("supervisor_id",session.user.id).order("created_at",{ascending:false}).then(({data})=>{
+      if(data&&data.length>0){
+        setCeData(prev=>({
+          ...prev,
+          ceLog:data.map(r=>({id:r.id,title:r.title,provider:r.provider||"",hours:Number(r.hours),date:r.date||"",category:r.category||"",certFile:r.cert_file||null,certName:r.cert_name||"",certMime:r.cert_mime||""})),
+          myLicense:{...prev.myLicense,renewalHoursCompleted:data.reduce((sum,r)=>sum+Number(r.hours),0)}
+        }));
+      }
+    });
+  },[session]);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [addInternOpen, setAddInternOpen] = useState(false);
   const [quickActionOpen, setQuickActionOpen] = useState(null);
@@ -10547,10 +10597,7 @@ useEffect(() => {
   React.useEffect(()=>{try{localStorage.setItem("suptrack_billing",JSON.stringify(billing));}catch{}},[billing]);
 
   const isAdmin = billing.seats.some(s => s.role==="owner" || s.role==="admin");
-  const TICKETS_SEED = [
-    {id:"TK-001",from:"rfaulkner@cbhc.org",fromName:"Dr. Renee Faulkner",category:"feature",subject:"Group note templates?",message:"It would save a lot of time if we could have pre-built templates for different group session types.",date:"Mar 20, 2026",time:"2:14 PM",status:"open",adminReply:""},
-    {id:"TK-002",from:"rfaulkner@cbhc.org",fromName:"Dr. Renee Faulkner",category:"bug",subject:"Hours comparison showing wrong discrepancy",message:"The comparison between my logged hours and my intern's reported hours is showing a discrepancy of 2 hours.",date:"Mar 18, 2026",time:"9:30 AM",status:"in-progress",adminReply:"Thanks for flagging this — fix deploying this week."},
-  ];
+  const TICKETS_SEED = [];
   const [tickets,setTickets]=useState(()=>{try{const s=localStorage.getItem("suptrack_tickets");return s?JSON.parse(s):TICKETS_SEED;}catch{return TICKETS_SEED;}});
   React.useEffect(()=>{try{localStorage.setItem("suptrack_tickets",JSON.stringify(tickets));}catch{}},[tickets]);
 
@@ -10812,7 +10859,7 @@ useEffect(() => {
 
     {/* Main content */}
     <div id="suptrack-content" className="st-main" style={{flex:1,padding:"38px 44px",maxWidth:980,overflowY:"auto"}}>
-      {page==="dashboard"&&<Dashboard T={t} interns={interns} groups={groups} lists={lists} colleagues={colleagues} supervisorName={supervisorName}
+      {page==="dashboard"&&<Dashboard T={t} interns={interns} groups={groups} lists={lists} colleagues={colleagues} supervisorName={supervisorName} ceData={ceData}
         onAddIntern={()=>{if(activeInternCount>=internLimit){setUpgradePrompt("intern");return;}setAddInternOpen(true);}}
         onQuickAction={setQuickActionOpen}
         onSelectIntern={i=>{setSelectedInternId_sv(i.id);setPage("intern-profile");}}
@@ -10834,7 +10881,7 @@ useEffect(() => {
 
       {page==="payments"&&<PaymentsPage T={t} interns={interns} groups={groups} onSelectIntern={i=>{setSelectedInternId_sv(i.id);setPage("intern-profile");}}/>}
       {page==="billing"&&<BillingPage T={t} F={f} colleagues={colleagues} billing={billing} setBilling={setBilling} interns={interns} session={session} supervisorProfile={supervisorProfile} setSupervisorProfile={setSupervisorProfile}/>}
-      {page==="ce"&&<CETrackerPage T={t} ceData={ceData} setCeData={setCeData}/>}
+      {page==="ce"&&<CETrackerPage T={t} ceData={ceData} setCeData={setCeData} session={session}/>}
       {page==="calendar"&&<CalendarPage T={t}/>}
       {page==="resources"&&<ResourcesHubPage T={t} interns={interns} consultIntern={consultIntern}/>}
       {page==="resources"&&<ResourcesPage T={t}/>}
