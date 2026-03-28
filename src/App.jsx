@@ -4777,8 +4777,8 @@ const generateAlerts = (interns, ceData) => {
     const pct = intern.hoursTotal > 0 ? intern.hoursCompleted/intern.hoursTotal : 0;
     if (pct >= 0.9 && pct < 1)
       alerts.push({ id:`hrs-${intern.id}`, type:"hours", severity:"info", internId:intern.id, internName:dn(intern), message:`${dn(intern)} is at ${Math.round(pct*100)}% of required hours — licensure is close`, action:"intern-profile" });
-    // Missing evaluation — check if ANY intern is missing one (not hardcoded to id===2)
-    if (!(intern.documents||[]).some(d=>d.type==="Evaluation") && (intern.sessions||[]).length >= 5)
+    // Missing evaluation — only after substantial supervision history (20+ sessions)
+    if (!(intern.documents||[]).some(d=>d.type==="Evaluation") && (intern.sessions||[]).length >= 20)
       alerts.push({ id:`eval-${intern.id}`, type:"evaluation", severity:"medium", internId:intern.id, internName:dn(intern), message:`No evaluation on file for ${dn(intern)} — consider scheduling a mid-term evaluation`, action:"intern-profile" });
     // Intern uploaded a document — notify supervisor
     const internUploads = (intern.documents||[]).filter(d=>d.uploadedBy==="intern");
@@ -10486,6 +10486,24 @@ useEffect(() => {
   })
   return () => subscription.unsubscribe()
 }, [])
+
+  // Auto-logout after 1 hour of inactivity
+  React.useEffect(()=>{
+    if(!session) return;
+    let timer;
+    const TIMEOUT = 60*60*1000; // 1 hour
+    const resetTimer = () => {
+      clearTimeout(timer);
+      timer = setTimeout(()=>{ supabase.auth.signOut(); }, TIMEOUT);
+    };
+    const events = ["mousedown","keydown","scroll","touchstart"];
+    events.forEach(e=>window.addEventListener(e,resetTimer));
+    resetTimer();
+    return ()=>{
+      clearTimeout(timer);
+      events.forEach(e=>window.removeEventListener(e,resetTimer));
+    };
+  },[session]);
 
   const [theme,setTheme]=useState(()=>{try{return localStorage.getItem("suptrack_theme")||"suptrack";}catch{return "suptrack";}});
   const [darkMode,setDarkMode]=useState(()=>{try{return localStorage.getItem("suptrack_dark")==="true";}catch{return false;}});
