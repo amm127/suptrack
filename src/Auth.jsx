@@ -156,10 +156,10 @@ export default function Auth() {
             </div>
           )}
 
-          {isSignUp && <input type="text" placeholder="Full name" value={fullName} onChange={e=>setFullName(e.target.value)} style={inp} {...fh}/>}
-          <input type="email" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} style={inp} {...fh}/>
-          <input type="password" placeholder="Password" value={password} onChange={e=>setPassword(e.target.value)} style={inp} {...fh}/>
-          {isSignUp && !isInternInvite && <input type="text" placeholder="Invite code" value={inviteCode} onChange={e=>setInviteCode(e.target.value)} style={{...inp, marginBottom: 20}} {...fh}/>}
+          {isSignUp && <input type="text" name="name" autoComplete="name" placeholder="Full name" value={fullName} onChange={e=>setFullName(e.target.value)} style={inp} {...fh}/>}
+          <input type="email" name="email" autoComplete="email" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} style={inp} {...fh}/>
+          <input type="password" name="password" autoComplete={isSignUp?"new-password":"current-password"} placeholder="Password" value={password} onChange={e=>setPassword(e.target.value)} style={inp} {...fh}/>
+          {isSignUp && !isInternInvite && <input type="text" name="invite-code" autoComplete="off" placeholder="Invite code" value={inviteCode} onChange={e=>setInviteCode(e.target.value)} style={{...inp, marginBottom: 20}} {...fh}/>}
 
           {message && (
             <p style={{ color: isError ? '#B84040' : '#2E7A4E', margin: '0 0 14px', fontSize: 13,
