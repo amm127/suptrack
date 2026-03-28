@@ -168,6 +168,8 @@ export default function Auth() {
                 : isSignUp ? 'Start your 14-day free trial.' : 'Sign in to your account.'}
             </p>
 
+            <form onSubmit={e => { e.preventDefault(); handleSubmit(); }}>
+
             {isInternInvite && (
               <div style={{
                 background: '#EFF8F8', border: '1px solid #C8E8E8', borderRadius: 10,
@@ -198,7 +200,7 @@ export default function Auth() {
               </p>
             )}
 
-            <button onClick={handleSubmit} disabled={loading}
+            <button type="submit" disabled={loading}
               style={{
                 width: '100%', padding: 14, border: 'none', borderRadius: 12,
                 fontSize: 15, fontWeight: 600, cursor: loading ? 'default' : 'pointer',
@@ -209,6 +211,7 @@ export default function Auth() {
               }}>
               {loading ? 'Loading...' : isSignUp ? 'Create Account' : 'Sign In'}
             </button>
+            </form>
 
             {!isInternInvite && (
               <p style={{ textAlign: 'center', fontSize: 14, color: '#6B7A8D', margin: 0 }}>
