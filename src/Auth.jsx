@@ -129,20 +129,20 @@ export default function Auth() {
       {/* Frosted glass card */}
       <div style={{
         background: 'rgba(255,255,255,0.72)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)',
-        padding: '32px 40px 36px', borderRadius: '20px',
+        padding: '24px 40px 36px', borderRadius: '20px',
         boxShadow: '0 8px 40px rgba(27,45,79,0.08), 0 1px 3px rgba(27,45,79,0.06)',
         border: '1px solid rgba(255,255,255,0.6)',
         width: '100%', maxWidth: '420px', position: 'relative', zIndex: 1,
       }}>
-        <img src="/logo.png" alt="SupTrack" style={{ width: 880, maxWidth: '100%', display: 'block', margin: '0 auto 8px' }} />
+        <img src="/logo.png" alt="SupTrack" style={{ width: 880, maxWidth: '100%', display: 'block', margin: '0 auto 4px' }} />
         <p style={{
           color: '#5A7B6E', fontSize: '14px', fontWeight: 400, fontStyle: 'italic',
-          textAlign: 'center', margin: '0 0 16px', letterSpacing: '0.02em',
+          textAlign: 'center', margin: '0 0 12px', letterSpacing: '0.02em',
         }}>Supervision, simplified.</p>
 
         <p style={{
-          color: '#1B2D4F', marginBottom: '18px', fontSize: '16px', fontWeight: 500,
-          textAlign: 'center', marginTop: 0,
+          color: '#1B2D4F', margin: '0 0 12px', fontSize: '16px', fontWeight: 500,
+          textAlign: 'center',
         }}>
           {isInternInvite
             ? 'Create your intern portal account'
@@ -185,8 +185,6 @@ export default function Auth() {
             onBlur={e => { e.target.style.borderColor = 'rgba(27,45,79,0.15)'; e.target.style.boxShadow = 'none'; }}
           />
         )}
-
-        {!isSignUp && <div style={{ marginBottom: '20px' }} />}
 
         {message && (
           <p style={{ color: isError ? '#C0392B' : '#2E7A4E', marginBottom: '16px', fontSize: '14px', textAlign: 'center', lineHeight: 1.5 }}>
