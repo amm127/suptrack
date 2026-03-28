@@ -9641,7 +9641,7 @@ function SettingsPage({theme,setTheme,setCustomTheme,font,setFont,darkMode,setDa
     <div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:14,padding:"22px 24px",marginBottom:16,boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
       <div style={{fontFamily:"inherit",fontSize:18,color:t.text,marginBottom:4}}>Your name</div>
       <p style={{fontSize:13,color:t.muted,marginBottom:14}}>Used for your initials, sidebar, and documentation</p>
-      <input value={supervisorName||""} onChange={e=>{setSupervisorName&&setSupervisorName(e.target.value);}} onBlur={e=>{if(onSaveProfile)onSaveProfile({name:e.target.value});}} placeholder="e.g. Alyson K."
+      <input value={supervisorName||""} onChange={e=>{setSupervisorName&&setSupervisorName(e.target.value);}} onBlur={e=>{if(onSaveProfile)onSaveProfile({name:e.target.value.trim()});}} placeholder="e.g. Alyson K."
         style={{border:`1px solid ${t.border}`,borderRadius:8,padding:"9px 14px",fontSize:14,fontFamily:"'DM Sans',system-ui,sans-serif",color:t.text,background:t.bg,outline:"none",width:280,boxSizing:"border-box"}}/>
       <div style={{fontSize:12,color:t.faint,marginTop:6}}>Your initials will be {(supervisorName||"").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()||"??"}</div>
     </div>
@@ -10510,7 +10510,17 @@ useEffect(() => {
     const row={...updates};
     if(row.name)setSupervisorName(row.name);
     if('photo' in row)setSupervisorPhoto(row.photo);
-    setSupervisorProfile(p=>({...p,...row}));
+    // Always keep profile_data.name in sync with top-level name
+    if(row.name && !row.profile_data){
+      // If saving name without profile_data, merge name into existing profile_data
+      setSupervisorProfile(p=>{
+        const existingPd = p?.profile_data || {};
+        row.profile_data = {...existingPd, name: row.name};
+        return {...p,...row};
+      });
+    } else {
+      setSupervisorProfile(p=>({...p,...row}));
+    }
     supabase.from("supervisors").update(row).eq("user_id",session.user.id).then(({error})=>{
       if(error)console.error("Profile save error:",error);
     });
