@@ -10366,23 +10366,8 @@ useEffect(() => {
   const [editingNav, setEditingNav] = useState(false);
   const [navDrag, setNavDrag] = useState(null);
 
-  const navItems = navOrder
-    .map(id => ALL_NAV_ITEMS.find(n=>n.id===id))
-    .filter(n => n && !navHidden.has(n.id));
-if (!session) return <Auth />
-
-  // Intern portal — if logged-in user is an intern, show intern dashboard
-  if (internUser) return <InternDashboard
-    T={t} F={f}
-    internRecord={internUser}
-    sessions={internUserSessions}
-    hourLogs={internUserHourLogs}
-    supervisorInfo={internSupervisorInfo}
-    onSignOut={()=>supabase.auth.signOut()}
-  />;
-
-  // Trial expired paywall
   const [trialCheckoutLoading, setTrialCheckoutLoading] = useState(null);
+
   const handleTrialCheckout = async (planId) => {
     if (!session?.user) return;
     setTrialCheckoutLoading(planId);
@@ -10398,6 +10383,39 @@ if (!session) return <Auth />
     } catch { alert("Failed to connect to billing service"); setTrialCheckoutLoading(null); }
   };
 
+  const navItems = navOrder
+    .map(id => ALL_NAV_ITEMS.find(n=>n.id===id))
+    .filter(n => n && !navHidden.has(n.id));
+
+  const handleNavDragStart = (id) => setNavDrag(id);
+  const handleNavDragOver  = (e, overId) => {
+    e.preventDefault();
+    if (!navDrag || navDrag===overId) return;
+    setNavOrder(prev => {
+      const arr = [...prev];
+      const from = arr.indexOf(navDrag);
+      const to   = arr.indexOf(overId);
+      if (from<0||to<0) return prev;
+      arr.splice(from,1); arr.splice(to,0,navDrag);
+      return arr;
+    });
+  };
+  const handleNavDragEnd = () => setNavDrag(null);
+
+  // ── Early returns (ALL hooks must be above this line) ──────────────────────
+  if (!session) return <Auth />;
+
+  // Intern portal — if logged-in user is an intern, show intern dashboard
+  if (internUser) return <InternDashboard
+    T={t} F={f}
+    internRecord={internUser}
+    sessions={internUserSessions}
+    hourLogs={internUserHourLogs}
+    supervisorInfo={internSupervisorInfo}
+    onSignOut={()=>supabase.auth.signOut()}
+  />;
+
+  // Trial expired paywall
   if(trialExpired) return <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:"100vh",background:"#FAF9F8",padding:40}}>
     <div style={{background:"#fff",borderRadius:18,padding:"40px 44px",maxWidth:480,width:"100%",boxShadow:"0 8px 32px rgba(0,0,0,0.1)",textAlign:"center"}}>
       <div style={{fontSize:36,marginBottom:16}}>⏰</div>
@@ -10422,21 +10440,6 @@ if (!session) return <Auth />
       <button onClick={()=>supabase.auth.signOut()} style={{width:"100%",padding:"10px",background:"none",border:"1px solid #E2DDD8",borderRadius:8,fontSize:14,cursor:"pointer",color:"#666"}}>Sign out</button>
     </div>
   </div>;
-
-  const handleNavDragStart = (id) => setNavDrag(id);
-  const handleNavDragOver  = (e, overId) => {
-    e.preventDefault();
-    if (!navDrag || navDrag===overId) return;
-    setNavOrder(prev => {
-      const arr = [...prev];
-      const from = arr.indexOf(navDrag);
-      const to   = arr.indexOf(overId);
-      if (from<0||to<0) return prev;
-      arr.splice(from,1); arr.splice(to,0,navDrag);
-      return arr;
-    });
-  };
-  const handleNavDragEnd = () => setNavDrag(null);
 
   if(portalIntern) return <InternPortal T={t} F={f} intern={portalIntern} groups={groups} onExit={()=>{
     setPortalInternId(null);
