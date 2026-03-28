@@ -4741,6 +4741,12 @@ const generateAlerts = (interns, ceData) => {
     // Missing evaluation — check if ANY intern is missing one (not hardcoded to id===2)
     if (!(intern.documents||[]).some(d=>d.type==="Evaluation") && (intern.sessions||[]).length >= 5)
       alerts.push({ id:`eval-${intern.id}`, type:"evaluation", severity:"medium", internId:intern.id, internName:dn(intern), message:`No evaluation on file for ${dn(intern)} — consider scheduling a mid-term evaluation`, action:"intern-profile" });
+    // Intern uploaded a document — notify supervisor
+    const internUploads = (intern.documents||[]).filter(d=>d.uploadedBy==="intern");
+    if (internUploads.length > 0) {
+      const latest = internUploads[0];
+      alerts.push({ id:`intern-doc-${intern.id}`, type:"document", severity:"info", internId:intern.id, internName:dn(intern), message:`${dn(intern)} uploaded a document${latest.name?" — "+latest.name:""}`, action:"intern-profile" });
+    }
     // Birthday — computed from actual DOB
     if (intern.dob) {
       const dobDate = new Date(intern.dob + "T00:00:00");
