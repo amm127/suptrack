@@ -9395,6 +9395,7 @@ useEffect(() => {
   })
   const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
     setSession(session)
+    if(_event==="SIGNED_IN")setPage("dashboard");
   })
   return () => subscription.unsubscribe()
 }, [])
@@ -9508,8 +9509,22 @@ useEffect(() => {
   const [consultIntern, setConsultIntern] = useState(null);
   const [supervisorPhoto, setSupervisorPhoto] = useState(()=>{try{return localStorage.getItem("suptrack_photo")||null;}catch{return null;}});
   React.useEffect(()=>{try{if(supervisorPhoto)localStorage.setItem("suptrack_photo",supervisorPhoto);else localStorage.removeItem("suptrack_photo");}catch{}},[supervisorPhoto]);
-  const [supervisorName, setSupervisorName] = useState(()=>{try{return localStorage.getItem("suptrack_supname")||"Alyson K.";}catch{return "Alyson K.";}});
-  React.useEffect(()=>{try{localStorage.setItem("suptrack_supname",supervisorName);}catch{}},[supervisorName]);
+  const [supervisorName, setSupervisorName] = useState("");
+  React.useEffect(()=>{
+    if(!session?.user)return;
+    supabase.from("supervisors").select("*").eq("user_id",session.user.id).single().then(({data,error})=>{
+      if(data?.name){setSupervisorName(data.name);}
+      else if(error||!data){
+        // No supervisor profile yet — create one
+        const email=session.user.email||"";
+        const name=session.user.user_metadata?.full_name||email;
+        supabase.from("supervisors").insert({user_id:session.user.id,name:name,email:email}).then(({error:insErr})=>{
+          if(insErr)console.error("Supervisor insert error:",insErr);
+        });
+        setSupervisorName(name);
+      }else{setSupervisorName(session.user.email||"");}
+    });
+  },[session]);
   const supervisorInitials = supervisorName.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()||"??";
 
   const addSessionCharge=React.useCallback((internId, charge)=>{

@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 export default function Auth() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [fullName, setFullName] = useState('')
   const [inviteCode, setInviteCode] = useState('')
   const [isSignUp, setIsSignUp] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -32,7 +33,7 @@ export default function Auth() {
       }
 
       // Create the account
-      const { error } = await supabase.auth.signUp({ email, password })
+      const { error } = await supabase.auth.signUp({ email, password, options: { data: { full_name: fullName.trim() } } })
       if (error) {
         setMessage(error.message)
         setIsError(true)
@@ -86,6 +87,19 @@ export default function Auth() {
           }}
         />
 
+        {isSignUp && (
+          <input
+            type="text"
+            placeholder="Full name"
+            value={fullName}
+            onChange={e => setFullName(e.target.value)}
+            style={{
+              width: '100%', padding: '12px', marginBottom: '12px',
+              border: '1px solid #E2DDD8', borderRadius: '8px',
+              fontSize: '15px', boxSizing: 'border-box'
+            }}
+          />
+        )}
         {isSignUp && (
           <input
             type="text"
