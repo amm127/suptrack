@@ -5431,29 +5431,27 @@ function OnboardingModal({onClose,supervisorName,T}) {
 }
 
 // ── Public profile page ────────────────────────────────────────────────────
-function PublicProfilePage({supervisorPhoto,setSupervisorPhoto,supervisorName:supName,setSupervisorName,supervisorInitials,T}) {
+function PublicProfilePage({supervisorPhoto,setSupervisorPhoto,supervisorName:supName,setSupervisorName,supervisorInitials,T,supervisorProfile:sp,onSaveProfile}) {
   const t=T||THEMES.sage;
   const [editing,setEditing]=useState(false);
   const [newSpecialty,setNewSpecialty]=useState("");
-  const [profile,setProfile]=useState({
-    name:       supName ? `${supName}, LPC-S` : "Your Name, LPC-S",
-    tagline:    "Licensed Professional Counselor-Supervisor · Quest Counseling",
-    bio:        "Experienced LPC-S with 10+ years in behavioral health, specializing in trauma, co-occurring disorders, and motivational interviewing. I provide individual and group supervision for LPC-Interns and practicum students. My supervision style is collaborative, strengths-based, and grounded in evidence-based practice.",
-    credential: "LPC-S",
-    licenseNumber: "TX-LPC-123456",
-    licenseState: "TX",
-    credentialBody: "Texas State Board of Examiners",
-    yearsExperience: "10+",
-    supervisionStyle: "Collaborative, strengths-based, evidence-based",
-    specialties: ["Trauma / PTSD","Co-occurring Disorders","Motivational Interviewing","DBT","Adolescent & Young Adult","Behavioral Health"],
-    accepting: true, acceptingStudents: true, acceptingLicensed: true,
-    feeIndividual: 200, feeGroup: 60,
-    feeIndividualUnit: "month", feeGroupUnit: "session",
-    location: "Reno, NV",
-    telehealth: true, inPerson: true,
-    languages: ["English"],
-    maxSupervisees: 10,
+  const defaultProfile={
+    name:"", tagline:"", bio:"",
+    credential:"", licenseNumber:"", licenseState:"", credentialBody:"",
+    yearsExperience:"", supervisionStyle:"",
+    specialties:[],
+    accepting:true, acceptingStudents:true, acceptingLicensed:true,
+    feeIndividual:0, feeGroup:0, feeIndividualUnit:"month", feeGroupUnit:"session",
+    location:"", telehealth:false, inPerson:false,
+    languages:["English"], maxSupervisees:10,
+  };
+  const [profile,setProfile]=useState(()=>{
+    if(sp?.profile_data)return {...defaultProfile,...sp.profile_data,name:sp.profile_data.name||supName||""};
+    return {...defaultProfile,name:supName||""};
   });
+  React.useEffect(()=>{
+    if(sp?.profile_data)setProfile(prev=>({...defaultProfile,...sp.profile_data,name:sp.profile_data.name||supName||""}));
+  },[sp]);
 
   const ALL_SPECIALTY_SUGGESTIONS = [
     "Trauma / PTSD","EMDR","Somatic Therapy","Grief & Loss","Anxiety & Depression",
@@ -5494,7 +5492,16 @@ function PublicProfilePage({supervisorPhoto,setSupervisorPhoto,supervisorName:su
         <h1 style={{fontFamily:"inherit",fontSize:28,fontWeight:400,color:t.text,margin:"0 0 4px",letterSpacing:"-0.02em"}}>Public Profile</h1>
         <p style={{color:t.muted,fontSize:14,margin:0}}>How interns find you on SupTrack · <span style={{fontFamily:"'DM Mono',monospace",fontSize:12}}>suptrack.io/supervisor/{(supName||"").toLowerCase().replace(/\s+/g,"-").replace(/[^a-z0-9-]/g,"") || "your-name"}</span></p>
       </div>
-      <Btn T={t} onClick={()=>setEditing(e=>!e)}>{editing?"✓ Save profile":"Edit profile"}</Btn>
+      <Btn T={t} onClick={()=>{
+        if(editing){
+          const displayName=profile.name.split(",")[0].trim()||supName;
+          if(displayName&&displayName!==supName)setSupervisorName(displayName);
+          if(onSaveProfile){
+            onSaveProfile({name:displayName,credential:profile.credential||"",photo:supervisorPhoto,profile_data:profile});
+          }
+        }
+        setEditing(e=>!e);
+      }}>{editing?"✓ Save profile":"Edit profile"}</Btn>
     </div>
 
     <div style={{display:"grid",gridTemplateColumns:"1fr .42fr",gap:18,alignItems:"start"}}>
@@ -8865,7 +8872,7 @@ function AdminInboxPage({tickets, setTickets, T}) {
   </div>;
 }
 
-function SettingsPage({theme,setTheme,setCustomTheme,font,setFont,darkMode,setDarkMode,highContrast,setHighContrast,supervisorName,setSupervisorName,T}) {
+function SettingsPage({theme,setTheme,setCustomTheme,font,setFont,darkMode,setDarkMode,highContrast,setHighContrast,supervisorName,setSupervisorName,onSaveProfile,T}) {
   const t=T||THEMES.sage;
 
   // ── Custom theme builder ──────────────────────────────────────────────────
@@ -8921,7 +8928,7 @@ function SettingsPage({theme,setTheme,setCustomTheme,font,setFont,darkMode,setDa
     <div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:14,padding:"22px 24px",marginBottom:16,boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
       <div style={{fontFamily:"inherit",fontSize:18,color:t.text,marginBottom:4}}>Your name</div>
       <p style={{fontSize:13,color:t.muted,marginBottom:14}}>Used for your initials, sidebar, and documentation</p>
-      <input value={supervisorName||""} onChange={e=>setSupervisorName&&setSupervisorName(e.target.value)} placeholder="e.g. Alyson K."
+      <input value={supervisorName||""} onChange={e=>{setSupervisorName&&setSupervisorName(e.target.value);}} onBlur={e=>{if(onSaveProfile)onSaveProfile({name:e.target.value});}} placeholder="e.g. Alyson K."
         style={{border:`1px solid ${t.border}`,borderRadius:8,padding:"9px 14px",fontSize:14,fontFamily:"'DM Sans',system-ui,sans-serif",color:t.text,background:t.bg,outline:"none",width:280,boxSizing:"border-box"}}/>
       <div style={{fontSize:12,color:t.faint,marginTop:6}}>Your initials will be {(supervisorName||"").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()||"??"}</div>
     </div>
@@ -9524,22 +9531,35 @@ useEffect(() => {
   const [addInternOpen, setAddInternOpen] = useState(false);
   const [quickActionOpen, setQuickActionOpen] = useState(null);
   const [consultIntern, setConsultIntern] = useState(null);
-  const [supervisorPhoto, setSupervisorPhoto] = useState(()=>{try{return localStorage.getItem("suptrack_photo")||null;}catch{return null;}});
-  React.useEffect(()=>{try{if(supervisorPhoto)localStorage.setItem("suptrack_photo",supervisorPhoto);else localStorage.removeItem("suptrack_photo");}catch{}},[supervisorPhoto]);
+  const [supervisorPhoto, setSupervisorPhoto] = useState(null);
   const [supervisorName, setSupervisorName] = useState("");
+  const [supervisorProfile, setSupervisorProfile] = useState(null);
   React.useEffect(()=>{
     if(!session?.user)return;
     supabase.from("supervisors").select("*").eq("user_id",session.user.id).single().then(({data,error})=>{
-      if(data?.name){setSupervisorName(data.name);}
-      else if(error||!data){
-        // No supervisor profile yet — create one
+      if(data){
+        setSupervisorName(data.name||session.user.email||"");
+        setSupervisorPhoto(data.photo||null);
+        setSupervisorProfile(data);
+      } else if(error||!data){
         const email=session.user.email||"";
         const name=session.user.user_metadata?.full_name||email;
-        supabase.from("supervisors").insert({user_id:session.user.id,name:name,email:email}).then(({error:insErr})=>{
+        supabase.from("supervisors").insert({user_id:session.user.id,name:name,email:email}).select().single().then(({data:newRow,error:insErr})=>{
           if(insErr)console.error("Supervisor insert error:",insErr);
+          if(newRow)setSupervisorProfile(newRow);
         });
         setSupervisorName(name);
-      }else{setSupervisorName(session.user.email||"");}
+      }
+    });
+  },[session]);
+  const saveSupervisorProfile=React.useCallback((updates)=>{
+    if(!session?.user)return;
+    const row={...updates};
+    if(row.name)setSupervisorName(row.name);
+    if('photo' in row)setSupervisorPhoto(row.photo);
+    setSupervisorProfile(p=>({...p,...row}));
+    supabase.from("supervisors").update(row).eq("user_id",session.user.id).then(({error})=>{
+      if(error)console.error("Profile save error:",error);
     });
   },[session]);
   const supervisorInitials = supervisorName.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()||"??";
@@ -9576,6 +9596,15 @@ useEffect(() => {
           console.log("[updateIntern] Inserting hour_log:",hlRow);
           supabase.from("hour_logs").insert(hlRow).then(({error})=>{if(error){console.error("Hour log insert error:",error);alert("Hour log save failed: "+error.message);}else{console.log("[updateIntern] Hour log saved OK");}});
         });
+      }
+      // Sync payments to Supabase — store as JSONB on intern row
+      if(old&&JSON.stringify(updated.payments||[])!==JSON.stringify(old.payments||[])){
+        supabase.from("interns").update({payments:updated.payments||[],payment_status:updated.paymentStatus||"current"}).eq("id",updated.id).then(({error})=>{if(error)console.error("Payments sync error:",error);});
+      }
+      // Sync documents to Supabase — store metadata as JSONB on intern row (without dataUrl to save space)
+      if(old&&JSON.stringify((updated.documents||[]).map(d=>d.name))!==JSON.stringify((old.documents||[]).map(d=>d.name))){
+        const docMeta=(updated.documents||[]).map(({dataUrl,...rest})=>rest);
+        supabase.from("interns").update({documents:docMeta}).eq("id",updated.id).then(({error})=>{if(error)console.error("Documents sync error:",error);});
       }
       // Update aggregate fields on the intern row
       if(old){
@@ -9827,8 +9856,8 @@ if (!session) return <Auth />
       {page==="reminders"&&<RemindersPanel T={t} interns={interns} groups={groups} onNavigate={(dest,ctx)=>{setPage(dest);if(ctx)setSelectedGroupId(ctx);}} onSelectIntern={i=>{setSelectedInternId_sv(i.id);setPage("intern-profile");}}/>}
       {page==="admin"&&isAdmin&&<AdminInboxPage T={t} tickets={tickets} setTickets={setTickets}/>}
       {page==="admin"&&!isAdmin&&<div style={{padding:40,color:t.muted,fontSize:14}}>Access restricted.</div>}
-      {page==="profile"&&<PublicProfilePage T={t} supervisorPhoto={supervisorPhoto} setSupervisorPhoto={setSupervisorPhoto} supervisorName={supervisorName} setSupervisorName={setSupervisorName} supervisorInitials={supervisorInitials}/>}
-      {page==="settings"&&<SettingsPage T={t} theme={theme} setTheme={setTheme} setCustomTheme={setCustomTheme} font={fontKey} setFont={setFontKey} darkMode={darkMode} setDarkMode={setDarkMode} highContrast={highContrast} setHighContrast={setHighContrast} supervisorName={supervisorName} setSupervisorName={setSupervisorName}/>}
+      {page==="profile"&&<PublicProfilePage T={t} supervisorPhoto={supervisorPhoto} setSupervisorPhoto={setSupervisorPhoto} supervisorName={supervisorName} setSupervisorName={setSupervisorName} supervisorInitials={supervisorInitials} supervisorProfile={supervisorProfile} onSaveProfile={saveSupervisorProfile}/>}
+      {page==="settings"&&<SettingsPage T={t} theme={theme} setTheme={setTheme} setCustomTheme={setCustomTheme} font={fontKey} setFont={setFontKey} darkMode={darkMode} setDarkMode={setDarkMode} highContrast={highContrast} setHighContrast={setHighContrast} supervisorName={supervisorName} setSupervisorName={setSupervisorName} onSaveProfile={saveSupervisorProfile}/>}
       {!["dashboard","interns","intern-profile","groups","payments","billing","ce","calendar","consult","lab","resources","discover","agreements","reminders","support","admin","profile","settings"].includes(page)&&<Dashboard T={t} interns={interns} groups={groups} lists={lists} colleagues={colleagues} supervisorName={supervisorName} onAddIntern={()=>setAddInternOpen(true)} onQuickAction={setQuickActionOpen} onSelectIntern={i=>{setSelectedInternId_sv(i.id);setPage("intern-profile");}} onNavigate={navigate} onOpenOnboarding={()=>setOnboardingOpen(true)} quickActionOrder={quickActionOrder} quickActionHidden={quickActionHidden} allQuickActions={ALL_QUICK_ACTIONS} onQuickActionReorder={setQuickActionOrder} onQuickActionToggle={(id)=>{setQuickActionHidden(prev=>{const s=new Set(prev);s.has(id)?s.delete(id):s.add(id);return s;});}}/>}
       {quickActionOpen&&<QuickActionModal T={t} action={quickActionOpen} interns={interns} groups={groups} onUpdateIntern={updateIntern} onClose={()=>setQuickActionOpen(null)}/>}
       {onboardingOpen&&<OnboardingModal T={t} supervisorName={supervisorName} onClose={()=>setOnboardingOpen(false)}/>}
