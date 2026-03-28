@@ -82,20 +82,22 @@ export default function Auth() {
   }
 
   const inputStyle = {
-    width: '100%', padding: '13px 16px', marginBottom: '14px',
-    border: '1px solid #E2E8F0', borderRadius: '10px',
+    width: '100%', padding: '14px 18px', marginBottom: '16px',
+    border: '1px solid #DDD8D0', borderRadius: '12px',
     fontSize: '15px', boxSizing: 'border-box', outline: 'none',
-    background: '#FFFFFF', color: '#1B2D4F',
-    transition: 'border-color 0.2s, box-shadow 0.2s',
+    background: '#FFFEFB', color: '#1B2D4F',
+    transition: 'border-color 0.25s, box-shadow 0.25s',
+    fontFamily: "'DM Sans', system-ui, sans-serif",
   }
 
   const focusHandlers = {
-    onFocus: e => { e.target.style.borderColor = '#4ABFBF'; e.target.style.boxShadow = '0 0 0 3px rgba(74,191,191,0.12)'; },
-    onBlur: e => { e.target.style.borderColor = '#E2E8F0'; e.target.style.boxShadow = 'none'; },
+    onFocus: e => { e.target.style.borderColor = '#7BC4C4'; e.target.style.boxShadow = '0 0 0 4px rgba(123,196,196,0.12)'; },
+    onBlur: e => { e.target.style.borderColor = '#DDD8D0'; e.target.style.boxShadow = 'none'; },
   }
 
   return (
     <>
+      <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;1,400;1,500&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
       <style>{`
         @media (max-width: 768px) {
           .auth-split { flex-direction: column !important; }
@@ -108,28 +110,48 @@ export default function Auth() {
 
         {/* ── Left: Brand panel ── */}
         <div className="auth-brand" style={{
-          flex: '0 0 44%', background: 'linear-gradient(170deg, #C8DFC4 0%, #A8D0B8 30%, #8AC8C0 60%, #7BC4C4 100%)',
+          flex: '0 0 46%',
+          background: 'linear-gradient(165deg, #D2E8CE 0%, #B8D8C4 20%, #9ECEBE 45%, #88C8C0 70%, #78C2C2 100%)',
           display: 'flex', flexDirection: 'column',
-          alignItems: 'center', justifyContent: 'center', padding: '60px 48px', position: 'relative', overflow: 'hidden',
+          alignItems: 'center', justifyContent: 'center',
+          padding: '60px 56px', position: 'relative', overflow: 'hidden',
         }}>
-          {/* Soft organic shapes */}
-          <div style={{ position: 'absolute', top: '-10%', right: '-15%', width: '50%', height: '50%', borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 70%)', pointerEvents: 'none' }}/>
-          <div style={{ position: 'absolute', bottom: '-10%', left: '-10%', width: '45%', height: '45%', borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%)', pointerEvents: 'none' }}/>
+          {/* Radial glow behind logo */}
+          <div style={{ position: 'absolute', top: '25%', left: '50%', transform: 'translate(-50%,-50%)',
+            width: '70%', height: '50%', borderRadius: '50%',
+            background: 'radial-gradient(ellipse, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0.08) 50%, transparent 75%)',
+            pointerEvents: 'none', filter: 'blur(20px)',
+          }}/>
+          {/* Soft top-right glow */}
+          <div style={{ position: 'absolute', top: '-8%', right: '-12%', width: '45%', height: '45%', borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(255,255,255,0.18) 0%, transparent 70%)', pointerEvents: 'none' }}/>
+          {/* Soft bottom-left glow */}
+          <div style={{ position: 'absolute', bottom: '-5%', left: '-8%', width: '40%', height: '40%', borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(255,255,255,0.12) 0%, transparent 70%)', pointerEvents: 'none' }}/>
 
-          <div style={{ position: 'relative', zIndex: 1, maxWidth: 320, textAlign: 'center' }}>
-            <img src="/logo.png" alt="SupTrack" style={{ width: '280px', minWidth: '280px', maxWidth: '280px', display: 'block', margin: '0 auto 16px' }}/>
-            <p style={{ color: '#1B2D4F', fontSize: 17, fontWeight: 400, fontStyle: 'italic', margin: '0 0 40px', letterSpacing: '0.02em', opacity: 0.8 }}>
+          <div style={{ position: 'relative', zIndex: 1, textAlign: 'center', maxWidth: 380 }}>
+            <img src="/logo.png" alt="SupTrack" style={{
+              width: '380px', minWidth: '380px', maxWidth: '380px',
+              display: 'block', margin: '0 auto 24px',
+              filter: 'drop-shadow(0 4px 20px rgba(27,45,79,0.08))',
+            }}/>
+            <p style={{
+              fontFamily: "'Lora', Georgia, serif", color: '#1B2D4F',
+              fontSize: 22, fontWeight: 400, fontStyle: 'italic',
+              margin: '0 0 16px', letterSpacing: '0.01em', lineHeight: 1.4,
+            }}>
               Supervision, simplified.
             </p>
-
-            <p style={{ color: '#1B2D4F', fontSize: 16, textAlign: 'center', margin: 0, lineHeight: 1.6, opacity: 0.7 }}>
-              The only supervision platform designed by supervisors, for supervisors.
+            <p style={{
+              fontFamily: "'DM Sans', system-ui, sans-serif", color: '#2A4A3A',
+              fontSize: 14, fontWeight: 400, margin: 0, opacity: 0.6, letterSpacing: '0.02em',
+            }}>
+              Built by supervisors, for supervisors.
             </p>
           </div>
 
-          <div style={{ position: 'absolute', bottom: 28, fontSize: 12, color: 'rgba(27,45,79,0.3)' }}>
+          <div style={{ position: 'absolute', bottom: 32, fontSize: 11, color: 'rgba(27,45,79,0.25)',
+            fontFamily: "'DM Sans', system-ui, sans-serif", letterSpacing: '0.04em' }}>
             &copy; {new Date().getFullYear()} SupTrack
           </div>
         </div>
@@ -137,31 +159,40 @@ export default function Auth() {
         {/* ── Right: Form panel ── */}
         <div className="auth-form" style={{
           flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-          padding: '48px 40px', background: '#FAFBFC', position: 'relative', overflow: 'hidden',
+          padding: '56px 48px', background: '#FAF8F5', position: 'relative',
         }}>
           <div style={{ width: '100%', maxWidth: 380 }}>
 
             {/* Mobile-only logo */}
             <div className="auth-mobile-logo" style={{ display: 'none' }}>
-              <img src="/logo.png" alt="SupTrack" style={{ width: 160, display: 'block', margin: '0 auto 24px' }}/>
+              <img src="/logo.png" alt="SupTrack" style={{ width: 200, display: 'block', margin: '0 auto 8px' }}/>
+              <p style={{ fontFamily: "'Lora', Georgia, serif", fontStyle: 'italic', fontSize: 15,
+                color: '#5A7B6E', textAlign: 'center', margin: '0 0 32px' }}>Supervision, simplified.</p>
             </div>
             <style>{`@media (max-width: 768px) { .auth-mobile-logo { display: block !important; } }`}</style>
 
-            <h1 style={{ fontSize: 24, fontWeight: 600, color: '#1B2D4F', margin: '0 0 6px' }}>
+            <h1 style={{
+              fontFamily: "'Lora', Georgia, serif", fontSize: 28, fontWeight: 500,
+              color: '#1B2D4F', margin: '0 0 6px', letterSpacing: '-0.01em',
+            }}>
               {isInternInvite ? 'Intern Portal' : isSignUp ? 'Create your account' : 'Welcome back'}
             </h1>
-            <p style={{ fontSize: 14, color: '#6B7A8D', margin: '0 0 28px' }}>
+            <p style={{
+              fontFamily: "'DM Sans', system-ui, sans-serif",
+              fontSize: 14, color: '#8A9488', margin: '0 0 32px', lineHeight: 1.5,
+            }}>
               {isInternInvite
                 ? 'Your supervisor invited you to access your portal.'
-                : isSignUp ? 'Start your 14-day free trial.' : 'Sign in to your account.'}
+                : isSignUp ? 'Start your 14-day free trial.' : 'Sign in to continue.'}
             </p>
 
             <form onSubmit={e => { e.preventDefault(); handleSubmit(); }}>
 
             {isInternInvite && (
               <div style={{
-                background: '#EFF8F8', border: '1px solid #C8E8E8', borderRadius: 10,
-                padding: '12px 14px', marginBottom: 16, fontSize: 13, color: '#1B2D4F', lineHeight: 1.6,
+                background: 'rgba(123,196,196,0.08)', border: '1px solid rgba(123,196,196,0.2)', borderRadius: 12,
+                padding: '14px 16px', marginBottom: 18, fontSize: 13, color: '#1B2D4F', lineHeight: 1.6,
+                fontFamily: "'DM Sans', system-ui, sans-serif",
               }}>
                 Create an account to view your hours, session notes, and documents.
               </div>
@@ -179,22 +210,25 @@ export default function Auth() {
             {isSignUp && !isInternInvite && (
               <input type="text" placeholder="Invite code" value={inviteCode}
                 onChange={e => setInviteCode(e.target.value)}
-                style={{ ...inputStyle, marginBottom: 20 }} {...focusHandlers}/>
+                style={{ ...inputStyle, marginBottom: 22 }} {...focusHandlers}/>
             )}
 
             {message && (
-              <p style={{ color: isError ? '#C0392B' : '#2E7A4E', margin: '0 0 14px', fontSize: 14, textAlign: 'center', lineHeight: 1.5 }}>
+              <p style={{ color: isError ? '#B84040' : '#2E7A4E', margin: '0 0 16px', fontSize: 14,
+                textAlign: 'center', lineHeight: 1.5, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
                 {message}
               </p>
             )}
 
             <button type="submit" disabled={loading}
               style={{
-                width: '100%', padding: 14, border: 'none', borderRadius: 12,
+                width: '100%', padding: 15, border: 'none', borderRadius: 14,
                 fontSize: 15, fontWeight: 600, cursor: loading ? 'default' : 'pointer',
-                marginBottom: 18, transition: 'opacity 0.2s', letterSpacing: '0.01em',
-                background: 'linear-gradient(135deg, #1B2D4F 0%, #2A5A6A 50%, #3A9E9E 100%)',
-                color: 'white', boxShadow: '0 4px 16px rgba(27,45,79,0.18)',
+                marginBottom: 20, transition: 'all 0.25s', letterSpacing: '0.01em',
+                fontFamily: "'DM Sans', system-ui, sans-serif",
+                background: 'linear-gradient(135deg, #3A8E8E 0%, #4ABFBF 50%, #5CC8A8 100%)',
+                color: 'white',
+                boxShadow: '0 6px 24px rgba(58,142,142,0.25), 0 2px 6px rgba(58,142,142,0.12)',
                 opacity: loading ? 0.7 : 1,
               }}>
               {loading ? 'Loading...' : isSignUp ? 'Create Account' : 'Sign In'}
@@ -202,22 +236,35 @@ export default function Auth() {
             </form>
 
             {!isInternInvite && (
-              <p style={{ textAlign: 'center', fontSize: 14, color: '#6B7A8D', margin: 0 }}>
+              <p style={{ textAlign: 'center', fontSize: 14, color: '#8A9488', margin: '0 0 0',
+                fontFamily: "'DM Sans', system-ui, sans-serif" }}>
                 {isSignUp ? 'Already have an account? ' : "Don't have an account? "}
                 <span onClick={() => { setIsSignUp(!isSignUp); setMessage('') }}
-                  style={{ color: '#2A6B7A', cursor: 'pointer', fontWeight: 600 }}>
+                  style={{ color: '#3A8E8E', cursor: 'pointer', fontWeight: 600 }}>
                   {isSignUp ? 'Sign In' : 'Sign Up'}
                 </span>
               </p>
             )}
 
             {isInternInvite && !isSignUp && (
-              <p style={{ textAlign: 'center', fontSize: 14, color: '#6B7A8D', margin: 0 }}>
+              <p style={{ textAlign: 'center', fontSize: 14, color: '#8A9488', margin: 0,
+                fontFamily: "'DM Sans', system-ui, sans-serif" }}>
                 Don't have an account?{' '}
                 <span onClick={() => { setIsSignUp(true); setMessage('') }}
                   style={{ color: '#1B2D4F', cursor: 'pointer', fontWeight: 600 }}>Create one</span>
               </p>
             )}
+
+            {/* Trust signal */}
+            <div style={{ marginTop: 40, textAlign: 'center' }}>
+              <div style={{ width: 40, height: 1, background: '#DDD8D0', margin: '0 auto 16px' }}/>
+              <p style={{
+                fontFamily: "'DM Sans', system-ui, sans-serif",
+                fontSize: 12, color: '#B0A898', margin: 0, letterSpacing: '0.03em',
+              }}>
+                Trusted by clinical supervisors across the country
+              </p>
+            </div>
           </div>
         </div>
       </div>
