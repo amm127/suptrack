@@ -8957,8 +8957,11 @@ function AgreementsPage({interns, supervisorName, T, session}) {
   const [sentList, setSentList] = useState([]);
   // Structured agreement form
   const [agForm, setAgForm] = useState({
-    supervisorName: supervisorName||"", superviseeName:"", effectiveDate:TODAY(),
-    periodFrom:"", periodTo:"", fee:"", emergencyContact:"",
+    supervisorName: supervisorName||"", supervisorCredential:"", supervisorLicense:"",
+    superviseeName:"", superviseeCredential:"", licensureGoal:"", licensingBoard:"",
+    effectiveDate:TODAY(), periodFrom:"", periodTo:"",
+    fee:"", sessionFrequency:"Weekly", supervisionType:"Individual and group",
+    emergencyContact:"",
     supervisorSig:null, supervisorSignedDate:"", internSig:null, internSignedDate:"",
   });
   const [agPreview, setAgPreview] = useState(false);
@@ -8979,8 +8982,12 @@ function AgreementsPage({interns, supervisorName, T, session}) {
       setAgForm(p=>({...p,
         supervisorName: supervisorName||p.supervisorName,
         superviseeName: intern.name||"",
+        superviseeCredential: intern.credential||"",
+        licensureGoal: intern.licenseGoal||"",
+        licensingBoard: intern.credentialBody||"",
         periodFrom: intern.startDate||"",
         fee: intern.proBono?"Pro bono (no fee)":(intern.billingRate?`$${intern.billingRate}/${intern.billingSchedule||"month"}`:""),
+        supervisionType: intern.supervisorRole==="primary"?"Individual and group":"Individual",
       }));
     }
   };
@@ -9118,45 +9125,43 @@ Replace all bracketed placeholders with appropriate values based on the supervis
 
       {/* Agreement form */}
       {selectedIntern&&!agPreview&&<Card style={{marginBottom:16}}>
-        <div style={{fontSize:16,color:t.text,fontWeight:500,marginBottom:14}}>Agreement details</div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
-          <div>
-            <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:4}}>Supervisor name</div>
-            <input value={agForm.supervisorName} onChange={e=>agSet("supervisorName",e.target.value)} placeholder="Your full name"
-              style={{width:"100%",border:`1px solid ${t.border}`,borderRadius:8,padding:"9px 12px",fontSize:13,fontFamily:"inherit",color:t.text,background:t.bg,outline:"none",boxSizing:"border-box"}}/>
-          </div>
-          <div>
-            <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:4}}>Supervisee name</div>
-            <input value={agForm.superviseeName} onChange={e=>agSet("superviseeName",e.target.value)} placeholder="Supervisee full name"
-              style={{width:"100%",border:`1px solid ${t.border}`,borderRadius:8,padding:"9px 12px",fontSize:13,fontFamily:"inherit",color:t.text,background:t.bg,outline:"none",boxSizing:"border-box"}}/>
-          </div>
-          <div>
-            <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:4}}>Effective date</div>
-            <input value={agForm.effectiveDate} onChange={e=>agSet("effectiveDate",e.target.value)} placeholder="e.g. March 27, 2026"
-              style={{width:"100%",border:`1px solid ${t.border}`,borderRadius:8,padding:"9px 12px",fontSize:13,fontFamily:"inherit",color:t.text,background:t.bg,outline:"none",boxSizing:"border-box"}}/>
-          </div>
-          <div>
-            <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:4}}>Supervision fee</div>
-            <input value={agForm.fee} onChange={e=>agSet("fee",e.target.value)} placeholder="e.g. $150/month or Pro bono"
-              style={{width:"100%",border:`1px solid ${t.border}`,borderRadius:8,padding:"9px 12px",fontSize:13,fontFamily:"inherit",color:t.text,background:t.bg,outline:"none",boxSizing:"border-box"}}/>
-          </div>
-          <div>
-            <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:4}}>Agreement period from</div>
-            <input value={agForm.periodFrom} onChange={e=>agSet("periodFrom",e.target.value)} placeholder="e.g. Aug 2023"
-              style={{width:"100%",border:`1px solid ${t.border}`,borderRadius:8,padding:"9px 12px",fontSize:13,fontFamily:"inherit",color:t.text,background:t.bg,outline:"none",boxSizing:"border-box"}}/>
-          </div>
-          <div>
-            <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:4}}>Agreement period to</div>
-            <input value={agForm.periodTo} onChange={e=>agSet("periodTo",e.target.value)} placeholder="e.g. Aug 2026 or Ongoing"
-              style={{width:"100%",border:`1px solid ${t.border}`,borderRadius:8,padding:"9px 12px",fontSize:13,fontFamily:"inherit",color:t.text,background:t.bg,outline:"none",boxSizing:"border-box"}}/>
-          </div>
-        </div>
-        <div style={{marginBottom:16}}>
-          <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:4}}>After-hours emergency contact</div>
-          <input value={agForm.emergencyContact} onChange={e=>agSet("emergencyContact",e.target.value)} placeholder="e.g. (775) 555-0182 or supervisor's cell"
-            style={{width:"100%",border:`1px solid ${t.border}`,borderRadius:8,padding:"9px 12px",fontSize:13,fontFamily:"inherit",color:t.text,background:t.bg,outline:"none",boxSizing:"border-box"}}/>
-        </div>
-        <div style={{display:"flex",gap:10}}>
+        <div style={{fontSize:16,color:t.text,fontWeight:500,marginBottom:4}}>Agreement details</div>
+        <div style={{fontSize:12,color:t.muted,marginBottom:16}}>All fields appear in the agreement document. Edit any field before previewing.</div>
+
+        {(()=>{
+          const lbl=(text)=><div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:4}}>{text}</div>;
+          const inp=(key,ph)=><input value={agForm[key]} onChange={e=>agSet(key,e.target.value)} placeholder={ph}
+            style={{width:"100%",border:`1px solid ${t.border}`,borderRadius:8,padding:"9px 12px",fontSize:13,fontFamily:"inherit",color:t.text,background:t.bg,outline:"none",boxSizing:"border-box"}}/>;
+          return <>
+            <div style={{fontSize:13,color:t.text,fontWeight:500,marginBottom:10,paddingBottom:6,borderBottom:`1px solid ${t.borderLight}`}}>Supervisor</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:16}}>
+              <div>{lbl("Full name")}{inp("supervisorName","e.g. Alyson Mullen")}</div>
+              <div>{lbl("Credential")}{inp("supervisorCredential","e.g. LPC-S, LCSW-S")}</div>
+              <div>{lbl("License number")}{inp("supervisorLicense","e.g. NV-LPC-12345")}</div>
+            </div>
+
+            <div style={{fontSize:13,color:t.text,fontWeight:500,marginBottom:10,paddingBottom:6,borderBottom:`1px solid ${t.borderLight}`}}>Supervisee</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:16}}>
+              <div>{lbl("Full name")}{inp("superviseeName","e.g. Jordan Ellis")}</div>
+              <div>{lbl("Current credential")}{inp("superviseeCredential","e.g. CPC, LMSW")}</div>
+              <div>{lbl("Licensure goal")}{inp("licensureGoal","e.g. LPC, LCSW")}</div>
+            </div>
+
+            <div style={{fontSize:13,color:t.text,fontWeight:500,marginBottom:10,paddingBottom:6,borderBottom:`1px solid ${t.borderLight}`}}>Agreement terms</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
+              <div>{lbl("Effective date")}{inp("effectiveDate","e.g. March 27, 2026")}</div>
+              <div>{lbl("Licensing board")}{inp("licensingBoard","e.g. CACREP, NASW, State Board")}</div>
+              <div>{lbl("Period from")}{inp("periodFrom","e.g. Aug 2023")}</div>
+              <div>{lbl("Period to")}{inp("periodTo","e.g. Aug 2026 or Ongoing")}</div>
+              <div>{lbl("Supervision fee")}{inp("fee","e.g. $150/month or Pro bono")}</div>
+              <div>{lbl("Session frequency")}{inp("sessionFrequency","e.g. Weekly, Biweekly")}</div>
+              <div>{lbl("Supervision type")}{inp("supervisionType","e.g. Individual and group")}</div>
+              <div>{lbl("Emergency contact")}{inp("emergencyContact","e.g. (775) 555-0182")}</div>
+            </div>
+          </>;
+        })()}
+
+        <div style={{display:"flex",gap:10,marginTop:8}}>
           <Btn T={t} onClick={()=>setAgPreview(true)} disabled={!agForm.supervisorName.trim()||!agForm.superviseeName.trim()}>Preview agreement</Btn>
         </div>
       </Card>}
@@ -9195,17 +9200,21 @@ Replace all bracketed placeholders with appropriate values based on the supervis
 
 This Clinical Supervision Agreement ("Agreement") is entered into on ${agForm.effectiveDate||"_______________"} by and between:
 
-Supervisor: ${agForm.supervisorName||"_______________"}
-Supervisee: ${agForm.superviseeName||"_______________"}
+Supervisor: ${agForm.supervisorName||"_______________"}, ${agForm.supervisorCredential||"_______________"}
+License #: ${agForm.supervisorLicense||"_______________"}
+
+Supervisee: ${agForm.superviseeName||"_______________"}, ${agForm.superviseeCredential||"_______________"}
+Licensure goal: ${agForm.licensureGoal||"_______________"}
+Licensing board: ${agForm.licensingBoard||"_______________"}
 
 1. PURPOSE
-This Agreement establishes the terms and conditions of the clinical supervision relationship between the Supervisor and Supervisee for the purpose of fulfilling the Supervisee's requirements for professional licensure.
+This Agreement establishes the terms and conditions of the clinical supervision relationship between the Supervisor and Supervisee for the purpose of fulfilling the Supervisee's requirements toward ${agForm.licensureGoal||"professional licensure"} as defined by ${agForm.licensingBoard||"the applicable licensing board"}.
 
 2. TERM
 This Agreement shall be effective from ${agForm.periodFrom||"_______________"} through ${agForm.periodTo||"_______________"}, unless terminated earlier by either party with 30 days written notice.
 
 3. SUPERVISION SESSIONS
-The Supervisor agrees to provide regular clinical supervision sessions as required by the Supervisee's licensing board. Sessions may include individual supervision, group supervision, or a combination thereof. The Supervisor will maintain documentation of all supervision hours provided.
+The Supervisor agrees to provide ${agForm.sessionFrequency||"_______________".toLowerCase()} clinical supervision sessions. Supervision format: ${agForm.supervisionType||"_______________"}. The Supervisor will maintain documentation of all supervision hours provided in accordance with ${agForm.licensingBoard||"licensing board"} requirements.
 
 4. FEES
 Supervision fee: ${agForm.fee||"_______________"}
@@ -9213,11 +9222,12 @@ Payment is due as agreed upon by both parties. Fee changes require 30 days writt
 
 5. RESPONSIBILITIES OF THE SUPERVISOR
 The Supervisor agrees to:
-  - Provide supervision consistent with applicable licensing board requirements
-  - Maintain appropriate records of supervision sessions and hours
-  - Provide timely feedback on clinical work
+  - Provide supervision consistent with ${agForm.licensingBoard||"licensing board"} requirements
+  - Maintain appropriate records of all supervision sessions and hours
+  - Provide timely feedback on clinical work and professional development
   - Be available for consultation during reasonable business hours
-  - Report supervision hours accurately to the relevant licensing board
+  - Report supervision hours accurately to ${agForm.licensingBoard||"the relevant licensing board"}
+  - Maintain active ${agForm.supervisorCredential||"supervisor"} licensure throughout this agreement
 
 6. RESPONSIBILITIES OF THE SUPERVISEE
 The Supervisee agrees to:
@@ -9226,6 +9236,7 @@ The Supervisee agrees to:
   - Follow ethical guidelines of their professional discipline
   - Maintain required documentation of supervised hours
   - Notify the Supervisor of any clinical emergencies
+  - Work toward completion of ${agForm.licensureGoal||"licensure"} requirements
 
 7. EMERGENCY CONTACT
 For after-hours clinical emergencies, the Supervisee should contact:
@@ -9243,10 +9254,11 @@ Either party may terminate this Agreement with 30 days written notice. The Super
 SIGNATURES
 
 Supervisor: ________________________________    Date: _______________
-${agForm.supervisorName}
+${agForm.supervisorName||""}${agForm.supervisorCredential?", "+agForm.supervisorCredential:""}
+License #: ${agForm.supervisorLicense||"_______________"}
 
 Supervisee: ________________________________    Date: _______________
-${agForm.superviseeName}`}
+${agForm.superviseeName||""}${agForm.superviseeCredential?", "+agForm.superviseeCredential:""}`}
         </div>
       </Card>}
 
