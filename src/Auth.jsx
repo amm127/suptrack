@@ -117,9 +117,9 @@ export default function Auth() {
         background: 'white', padding: '40px', borderRadius: '12px',
         boxShadow: '0 2px 16px rgba(0,0,0,0.08)', width: '100%', maxWidth: '400px'
       }}>
-        <img src="/logo.png" alt="SupTrack" style={{ width: 120, display: 'block', margin: '0 auto 8px' }} />
-        <p style={{ color: '#9B9389', fontSize: '16px', fontWeight: 300, fontStyle: 'italic', textAlign: 'center', marginBottom: '24px' }}>Supervision, simplified.</p>
-        <p style={{ color: '#7A7268', marginBottom: '32px' }}>
+        <img src="/logo.png" alt="SupTrack" style={{ width: 180, display: 'block', margin: '0 auto 6px' }} />
+        <p style={{ color: '#9B9389', fontSize: '13px', fontWeight: 300, fontStyle: 'italic', textAlign: 'center', marginBottom: '28px' }}>Supervision, simplified.</p>
+        <p style={{ color: '#7A7268', marginBottom: '32px', fontSize: '15px' }}>
           {isInternInvite
             ? 'Create your intern portal account'
             : isSignUp ? 'Create your account' : 'Sign in to your account'}
