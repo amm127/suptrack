@@ -2966,8 +2966,10 @@ function Dashboard({interns,groups,lists,colleagues,onSelectIntern,onNavigate,on
         <h1 style={{fontFamily:"inherit",fontSize:30,fontWeight:400,color:t.text,margin:"0 0 4px",letterSpacing:"-0.02em"}}>{greeting} {firstName}</h1>
         <p style={{color:t.muted,fontSize:14,margin:0}}>{dateStr} · <span style={{fontFamily:"'DM Mono',monospace",fontSize:13}}>{timeStr}</span></p>
       </div>
-      <Btn T={t} variant="secondary" onClick={()=>setCustomizing(c=>!c)}>{customizing?"Done":"Customize"}</Btn>
-      <button onClick={async () => { await supabase.auth.signOut(); window.location.reload(); }} title="Sign Out" style={{background:"none",border:"none",cursor:"pointer",padding:"8px",color:t.muted,display:"flex",alignItems:"center"}} onMouseEnter={e=>e.currentTarget.style.color=t.text} onMouseLeave={e=>e.currentTarget.style.color=t.muted}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></button>
+      <div style={{display:"flex",gap:6,alignItems:"center"}}>
+        <Btn T={t} variant="secondary" onClick={()=>setCustomizing(c=>!c)}>{customizing?"Done":"Customize"}</Btn>
+        <button onClick={async () => { await supabase.auth.signOut(); window.location.reload(); }} title="Sign Out" style={{background:"none",border:"none",cursor:"pointer",padding:"8px",color:t.muted,display:"flex",alignItems:"center"}} onMouseEnter={e=>e.currentTarget.style.color=t.text} onMouseLeave={e=>e.currentTarget.style.color=t.muted}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></button>
+      </div>
   </div>
     <div style={{marginBottom:26,display:"flex",justifyContent:"flex-start"}}>
       <button onClick={()=>onAddIntern&&onAddIntern()}
@@ -8847,6 +8849,53 @@ function AgreementsPage({interns, supervisorName, T}) {
   const [supervisorCredential, setSupervisorCredential] = useState("LPC-S");
   const [supervisorLicense, setSupervisorLicense] = useState("");
   const [supervisorAddress, setSupervisorAddress] = useState("");
+  // Signing state
+  const [signingEntry, setSigningEntry] = useState(null);
+  const [sigRole, setSigRole] = useState("supervisor"); // who is signing
+  const [sigInkColor, setSigInkColor] = useState("#1A1A2E");
+  const sigCanvasRef = React.useRef(null);
+  const sigDrawingRef = React.useRef(false);
+
+  const startSig = (e) => {
+    sigDrawingRef.current = true;
+    const canvas = sigCanvasRef.current; if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+    const y = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
+    ctx.beginPath(); ctx.moveTo(x, y);
+  };
+  const drawSig = (e) => {
+    if (!sigDrawingRef.current) return;
+    const canvas = sigCanvasRef.current; if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+    const y = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
+    ctx.strokeStyle = sigInkColor; ctx.lineWidth = 2; ctx.lineCap = "round";
+    ctx.lineTo(x, y); ctx.stroke();
+    e.preventDefault();
+  };
+  const endSig = () => { sigDrawingRef.current = false; };
+  const clearSig = () => {
+    const canvas = sigCanvasRef.current; if (!canvas) return;
+    canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
+  };
+  const applySig = () => {
+    const canvas = sigCanvasRef.current; if (!canvas || !signingEntry) return;
+    const dataUrl = canvas.toDataURL("image/png");
+    const now = TODAY();
+    setSentList(p => p.map(s => {
+      if (s.internId !== signingEntry.internId) return s;
+      if (sigRole === "supervisor") {
+        return { ...s, supervisorSig: dataUrl, supervisorSignedAt: now, status: s.internSig ? "signed" : s.status };
+      } else {
+        return { ...s, internSig: dataUrl, internSignedAt: now, status: s.supervisorSig ? "signed" : s.status };
+      }
+    }));
+    setSigningEntry(null);
+  };
+
   const [sentList, setSentList] = useState([
     { internId:1, internName:"Marissa Holloway", sentDate:"Aug 12, 2023", status:"signed",    signedDate:"Aug 14, 2023" },
     { internId:2, internName:"Dev Castellano",   sentDate:"Jan 8, 2024",  status:"signed",    signedDate:"Jan 10, 2024" },
@@ -8991,12 +9040,45 @@ Replace all bracketed placeholders with appropriate values based on the supervis
       </Card>}
     </div>}
 
+    {/* Signing modal */}
+    {signingEntry&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.45)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:20}} onClick={()=>setSigningEntry(null)}>
+      <div style={{background:t.surface,borderRadius:18,padding:"28px 32px",width:500,boxShadow:"0 24px 64px rgba(0,0,0,0.18)"}} onClick={e=>e.stopPropagation()}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:18}}>
+          <div>
+            <div style={{fontSize:18,color:t.text,fontWeight:500}}>Sign agreement</div>
+            <div style={{fontSize:13,color:t.muted}}>{signingEntry.internName} — signing as {sigRole}</div>
+          </div>
+          <button onClick={()=>setSigningEntry(null)} style={{background:"none",border:"none",cursor:"pointer",fontSize:20,color:t.faint}}>✕</button>
+        </div>
+        <div style={{display:"flex",gap:8,marginBottom:14}}>
+          <button onClick={()=>setSigRole("supervisor")} style={{flex:1,background:sigRole==="supervisor"?t.accentLight:t.surfaceAlt,color:sigRole==="supervisor"?t.accentText:t.muted,border:`1px solid ${sigRole==="supervisor"?t.accentMid:t.border}`,borderRadius:8,padding:"8px",cursor:"pointer",fontSize:13,fontFamily:"inherit"}}>Supervisor signature</button>
+          <button onClick={()=>setSigRole("intern")} style={{flex:1,background:sigRole==="intern"?t.accentLight:t.surfaceAlt,color:sigRole==="intern"?t.accentText:t.muted,border:`1px solid ${sigRole==="intern"?t.accentMid:t.border}`,borderRadius:8,padding:"8px",cursor:"pointer",fontSize:13,fontFamily:"inherit"}}>Intern signature</button>
+        </div>
+        {sigRole==="supervisor"&&signingEntry.supervisorSig&&<div style={{fontSize:12,color:S.green,marginBottom:8}}>Already signed by supervisor on {signingEntry.supervisorSignedAt}</div>}
+        {sigRole==="intern"&&signingEntry.internSig&&<div style={{fontSize:12,color:S.green,marginBottom:8}}>Already signed by intern on {signingEntry.internSignedAt}</div>}
+        <canvas ref={sigCanvasRef} width={436} height={140}
+          onMouseDown={startSig} onMouseMove={drawSig} onMouseUp={endSig} onMouseLeave={endSig}
+          onTouchStart={startSig} onTouchMove={drawSig} onTouchEnd={endSig}
+          style={{width:"100%",height:140,border:`2px dashed ${t.border}`,borderRadius:10,cursor:"crosshair",touchAction:"none",background:t.bg}}/>
+        <div style={{display:"flex",alignItems:"center",gap:8,marginTop:10,marginBottom:6}}>
+          <span style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace"}}>Ink:</span>
+          {["#1A1A2E","#1A3A8C","#2D5A3D","#8C1A1A"].map(c=><div key={c} onClick={()=>setSigInkColor(c)} style={{width:20,height:20,borderRadius:"50%",background:c,cursor:"pointer",border:sigInkColor===c?`2px solid ${t.text}`:`2px solid transparent`}}/>)}
+          <button onClick={clearSig} style={{marginLeft:"auto",background:"none",border:`1px solid ${t.border}`,borderRadius:6,padding:"3px 10px",cursor:"pointer",fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace"}}>Clear</button>
+        </div>
+        <div style={{fontSize:11,color:t.faint,marginBottom:14,lineHeight:1.5}}>By signing, you confirm that this is your legal electronic signature and agree to the terms of this supervision agreement.</div>
+        <div style={{display:"flex",gap:10}}>
+          <button onClick={applySig} style={{flex:1,background:t.accent,color:"#fff",border:"none",borderRadius:10,padding:"11px",cursor:"pointer",fontSize:14,fontWeight:500,fontFamily:"inherit"}}>Apply signature</button>
+          <button onClick={()=>setSigningEntry(null)} style={{background:"none",border:`1px solid ${t.border}`,borderRadius:10,padding:"11px 20px",cursor:"pointer",fontSize:14,color:t.muted,fontFamily:"inherit"}}>Cancel</button>
+        </div>
+      </div>
+    </div>}
+
     {/* ── TRACKER TAB ── */}
     {tab==="tracker"&&<div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14,marginBottom:20}}>
         <div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:12,padding:"18px 20px",textAlign:"center",boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
           <div style={{fontFamily:"inherit",fontSize:28,color:S.green,lineHeight:1}}>{sentList.filter(s=>s.status==="signed").length}</div>
-          <div style={{fontSize:12,color:t.muted,marginTop:4}}>Signed</div>
+          <div style={{fontSize:12,color:t.muted,marginTop:4}}>Fully signed</div>
         </div>
         <div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:12,padding:"18px 20px",textAlign:"center",boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
           <div style={{fontFamily:"inherit",fontSize:28,color:S.amber,lineHeight:1}}>{sentList.filter(s=>s.status==="awaiting").length}</div>
@@ -9014,16 +9096,24 @@ Replace all bracketed placeholders with appropriate values based on the supervis
           <div key={entry.internId} style={{display:"flex",alignItems:"center",gap:14,padding:"12px 0",borderTop:i>0?`1px solid ${t.borderLight}`:"none"}}>
             <div style={{flex:1}}>
               <div style={{fontSize:14,color:t.text,fontWeight:500}}>{entry.internName}</div>
-              <div style={{fontSize:12,color:t.muted,marginTop:2,fontFamily:"'DM Mono',monospace"}}>Sent {entry.sentDate}{entry.signedDate?` · Signed ${entry.signedDate}`:""}</div>
+              <div style={{fontSize:12,color:t.muted,marginTop:2,fontFamily:"'DM Mono',monospace"}}>Sent {entry.sentDate}</div>
+              {/* Signature status badges */}
+              <div style={{display:"flex",gap:6,marginTop:6}}>
+                {entry.supervisorSig
+                  ? <span style={{display:"inline-flex",alignItems:"center",gap:4,fontSize:11,color:S.green,background:S.greenLight,borderRadius:4,padding:"2px 8px"}}><img src={entry.supervisorSig} alt="" style={{height:14,opacity:0.7}}/> Supervisor signed {entry.supervisorSignedAt}</span>
+                  : <span style={{fontSize:11,color:S.amber,background:S.amberLight,borderRadius:4,padding:"2px 8px"}}>Supervisor: not signed</span>}
+                {entry.internSig
+                  ? <span style={{display:"inline-flex",alignItems:"center",gap:4,fontSize:11,color:S.green,background:S.greenLight,borderRadius:4,padding:"2px 8px"}}><img src={entry.internSig} alt="" style={{height:14,opacity:0.7}}/> Intern signed {entry.internSignedAt}</span>
+                  : <span style={{fontSize:11,color:S.amber,background:S.amberLight,borderRadius:4,padding:"2px 8px"}}>Intern: not signed</span>}
+              </div>
             </div>
-            <div style={{display:"flex",gap:8,alignItems:"center"}}>
-              {entry.status==="signed"
-                ? <Badge color={S.green} bg={S.greenLight}>✓ Signed</Badge>
-                : <Badge color={S.amber} bg={S.amberLight}>Awaiting signature</Badge>}
-              <button onClick={()=>setSentList(p=>p.map(s=>s.internId===entry.internId?{...s,status:"signed",signedDate:"Mar 21, 2026"}:s))}
-                style={{background:"none",border:`1px solid ${t.border}`,borderRadius:6,padding:"4px 10px",cursor:"pointer",fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace"}}>
-                {entry.status==="signed"?"Undo":"Mark signed"}
-              </button>
+            <div style={{display:"flex",gap:6,alignItems:"center",flexShrink:0}}>
+              {entry.supervisorSig&&entry.internSig
+                ? <Badge color={S.green} bg={S.greenLight}>✓ Both signed</Badge>
+                : <button onClick={()=>{setSigningEntry(entry);setSigRole(entry.supervisorSig?"intern":"supervisor");clearSig();}}
+                    style={{background:t.accent,color:"#fff",border:"none",borderRadius:7,padding:"6px 14px",cursor:"pointer",fontSize:12,fontWeight:500,fontFamily:"'DM Mono',monospace"}}>
+                    Sign now
+                  </button>}
             </div>
           </div>
         ))}
@@ -10369,7 +10459,7 @@ useEffect(() => {
   const trialActive = trialEndsAt && trialEndsAt > new Date();
   const supervisorPlan = supervisorProfile?.plan || "starter";
   const effectivePlan = (supervisorPlan==="starter" && trialActive) ? "starter" : supervisorPlan;
-  const trialExpired = trialEndsAt && !trialActive && supervisorPlan==="starter" && !supervisorProfile?.stripe_customer_id;
+  const trialExpired = trialEndsAt && !trialActive && supervisorPlan==="starter" && !supervisorProfile?.stripe_customer_id && !supervisorProfile?.lifetime_free;
   const PLAN_LIMITS = { starter: 10, growth: 20, practice: Infinity };
   const internLimit = PLAN_LIMITS[effectivePlan] || 10;
   const activeInternCount = interns.filter(i=>i.status==="active").length;
