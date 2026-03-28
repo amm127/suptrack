@@ -1620,6 +1620,8 @@ function HoursBreakdown({intern,onUpdateIntern,T}) {
   const t=T||THEMES.sage;
   const [tab,setTab]=useState("supervision");
   const [expandedPeriod,setExpandedPeriod]=useState(null);
+  const [showLogForm,setShowLogForm]=useState(false);
+  const [logForm,setLogForm]=useState({category:"individual_supervision",type:"direct",hours:"",label:"Individual Supervision",supType:"primary"});
   const sessions = intern.sessions||[];
 
   const parseDuration=(dur)=>{
@@ -1635,11 +1637,46 @@ function HoursBreakdown({intern,onUpdateIntern,T}) {
   const groupHrs  = Math.round(groupSessions.reduce((s,e)=>s+parseDuration(e.duration),0)*10)/10;
   const totalSupHrs = Math.round((indivHrs+groupHrs)*10)/10;
 
+  // Supervisor hour log — primary vs secondary breakdown
+  const supLog = intern.hourLog||[];
+  const primaryHrs = Math.round(supLog.filter(e=>e.category==="individual_supervision"||e.category==="primary_supervision_received").reduce((s,e)=>s+e.hours,0)*10)/10;
+  const secondaryHrs = Math.round(supLog.filter(e=>e.category==="secondary_supervision"||e.category==="secondary_supervision_received").reduce((s,e)=>s+e.hours,0)*10)/10;
+  const groupLogHrs = Math.round(supLog.filter(e=>e.category==="group_supervision"||e.category==="group_supervision_received").reduce((s,e)=>s+e.hours,0)*10)/10;
+  const directTotal = Math.round(supLog.filter(e=>e.type==="direct").reduce((s,e)=>s+e.hours,0)*10)/10;
+  const indirectTotal = Math.round(supLog.filter(e=>e.type==="indirect").reduce((s,e)=>s+e.hours,0)*10)/10;
+  const grandTotal = Math.round((directTotal+indirectTotal)*10)/10;
+
   // Intern clinical hours
   const internLog = intern.internHourLog||[];
   const internTotal = internLog.reduce((s,e)=>s+e.hours,0);
   const internDirect = internLog.filter(e=>e.type==="direct").reduce((s,e)=>s+e.hours,0);
   const internIndirect = internLog.filter(e=>e.type==="indirect").reduce((s,e)=>s+e.hours,0);
+
+  const handleLogHours = () => {
+    if(!logForm.hours||Number(logForm.hours)<=0) return;
+    const hrs = Number(logForm.hours);
+    const existing = (intern.hourLog||[]).find(e=>e.category===logForm.category);
+    let newLog;
+    if(existing){
+      newLog = (intern.hourLog||[]).map(e=>e.category===logForm.category?{...e,hours:Math.round((e.hours+hrs)*10)/10}:e);
+    } else {
+      newLog = [...(intern.hourLog||[]),{category:logForm.category,type:logForm.type,hours:hrs,label:logForm.label}];
+    }
+    const newTotal = Math.round(newLog.reduce((s,e)=>s+e.hours,0)*10)/10;
+    onUpdateIntern({...intern,hourLog:newLog,hoursCompleted:newTotal});
+    setLogForm({category:"individual_supervision",type:"direct",hours:"",label:"Individual Supervision",supType:"primary"});
+    setShowLogForm(false);
+  };
+
+  const LOG_CATEGORIES = [
+    {id:"individual_supervision",label:"Individual Supervision (Primary)",type:"direct",supType:"primary"},
+    {id:"secondary_supervision",label:"Individual Supervision (Secondary)",type:"direct",supType:"secondary"},
+    {id:"group_supervision",label:"Group Supervision",type:"direct",supType:"group"},
+    {id:"live_observation",label:"Live Observation / Review",type:"direct",supType:"primary"},
+    {id:"case_consultation",label:"Case Consultation",type:"indirect",supType:"primary"},
+    {id:"documentation_review",label:"Documentation Review",type:"indirect",supType:"primary"},
+    {id:"training_workshop",label:"Training / Workshop",type:"indirect",supType:"primary"},
+  ];
 
   const TABS=[["supervision","Supervision (My Log)"],["intern","Intern's Full Log"],["sessions","Session Notes"],["adjust","Adjust"]];
 
@@ -1654,12 +1691,69 @@ function HoursBreakdown({intern,onUpdateIntern,T}) {
   };
 
   return <div style={{display:"flex",flexDirection:"column",gap:16}}>
-    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12}}>
-      <StatCard T={t} label="Supervision logged" value={totalSupHrs} color={t.accent} sub="hrs by you"/>
-      <StatCard T={t} label="Individual sup." value={indivHrs} color={t.accent}/>
-      <StatCard T={t} label="Group sup." value={groupHrs}/>
-      <StatCard T={t} label="Intern clinical total" value={internTotal} sub="self-reported"/>
+    {/* Summary stats */}
+    <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12}}>
+      <StatCard T={t} label="Total hours logged" value={grandTotal||totalSupHrs} color={t.accent} sub={`${intern.hoursTotal?Math.round(((grandTotal||totalSupHrs)/intern.hoursTotal)*100)+"%":""}${intern.hoursTotal?" of "+intern.hoursTotal:""}`}/>
+      <StatCard T={t} label="Direct hours" value={directTotal||indivHrs+groupHrs} color={t.accent}/>
+      <StatCard T={t} label="Indirect hours" value={indirectTotal}/>
     </div>
+
+    {/* Primary / Secondary / Group breakdown */}
+    <div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:14,overflow:"hidden",boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
+      <div style={{display:"grid",gridTemplateColumns:"2fr 1fr",background:t.surfaceAlt,padding:"8px 18px"}}>
+        <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em"}}>Supervision type</div>
+        <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",textAlign:"right"}}>Hours</div>
+      </div>
+      {[
+        {label:"Primary Supervision",hrs:primaryHrs||indivHrs,type:"Direct",color:S.amber},
+        {label:"Secondary Supervision",hrs:secondaryHrs,type:"Direct",color:S.coral},
+        {label:"Group Supervision",hrs:groupLogHrs||groupHrs,type:"Direct",color:S.blue},
+        {label:"Indirect (documentation, training, etc.)",hrs:indirectTotal,type:"Indirect",color:S.purple},
+      ].map((row,i)=>(
+        <div key={i} style={{display:"grid",gridTemplateColumns:"2fr 1fr",padding:"10px 18px",borderTop:`1px solid ${t.borderLight}`,alignItems:"center"}}>
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            <div style={{width:8,height:8,borderRadius:"50%",background:row.color,flexShrink:0}}/>
+            <div>
+              <div style={{fontSize:13,color:t.text}}>{row.label}</div>
+              <div style={{fontSize:10,color:t.faint,fontFamily:"'DM Mono',monospace"}}>{row.type}</div>
+            </div>
+          </div>
+          <div style={{fontSize:16,color:t.accent,fontFamily:"'DM Mono',monospace",fontWeight:700,textAlign:"right"}}>{row.hrs}</div>
+        </div>
+      ))}
+      <div style={{display:"grid",gridTemplateColumns:"2fr 1fr",padding:"10px 18px",borderTop:`2px solid ${t.border}`,background:t.surfaceAlt}}>
+        <div style={{fontSize:13,color:t.text,fontWeight:700}}>Grand total</div>
+        <div style={{fontSize:18,color:t.accent,fontFamily:"'DM Mono',monospace",fontWeight:700,textAlign:"right"}}>{grandTotal||totalSupHrs}</div>
+      </div>
+    </div>
+
+    {/* Log hours button + form */}
+    <div style={{display:"flex",justifyContent:"flex-end"}}>
+      <Btn T={t} small onClick={()=>setShowLogForm(!showLogForm)}>{showLogForm?"Cancel":"+ Log supervision hours"}</Btn>
+    </div>
+    {showLogForm&&<div style={{background:t.surface,border:`1px solid ${t.accentMid}`,borderRadius:12,padding:"16px 20px",boxShadow:"0 2px 8px rgba(0,0,0,0.06)"}}>
+      <div style={{fontSize:14,color:t.text,fontWeight:500,marginBottom:12}}>Log supervision hours</div>
+      <div style={{display:"grid",gridTemplateColumns:"2fr 1fr",gap:12,marginBottom:12}}>
+        <div>
+          <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:4}}>Category</div>
+          <select value={logForm.category} onChange={e=>{
+            const cat=LOG_CATEGORIES.find(c=>c.id===e.target.value);
+            setLogForm(p=>({...p,category:e.target.value,type:cat?.type||"direct",label:cat?.label||"",supType:cat?.supType||"primary"}));
+          }} style={{width:"100%",border:`1px solid ${t.border}`,borderRadius:8,padding:"9px 12px",fontSize:13,fontFamily:"inherit",color:t.text,background:t.bg,outline:"none",cursor:"pointer"}}>
+            {LOG_CATEGORIES.map(c=><option key={c.id} value={c.id}>{c.label} ({c.type})</option>)}
+          </select>
+        </div>
+        <div>
+          <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:4}}>Hours</div>
+          <input type="number" step="0.5" min="0" value={logForm.hours} onChange={e=>setLogForm(p=>({...p,hours:e.target.value}))} placeholder="e.g. 1.5"
+            style={{width:"100%",border:`1px solid ${t.border}`,borderRadius:8,padding:"9px 12px",fontSize:13,fontFamily:"'DM Mono',monospace",color:t.text,background:t.bg,outline:"none",boxSizing:"border-box"}}/>
+        </div>
+      </div>
+      <div style={{display:"flex",gap:8,alignItems:"center"}}>
+        <Btn T={t} small onClick={handleLogHours} disabled={!logForm.hours||Number(logForm.hours)<=0}>Save hours</Btn>
+        <span style={{fontSize:12,color:t.muted}}>Will be logged as {logForm.type} hours under {logForm.label||logForm.category}</span>
+      </div>
+    </div>}
 
     <div style={{display:"flex",gap:0,borderBottom:`1px solid ${t.border}`}}>
       {TABS.map(([id,label])=>(
