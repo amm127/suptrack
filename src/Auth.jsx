@@ -129,15 +129,15 @@ export default function Auth() {
       {/* Frosted glass card */}
       <div style={{
         background: 'rgba(255,255,255,0.72)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)',
-        padding: '44px 40px 36px', borderRadius: '20px',
+        padding: '32px 40px 36px', borderRadius: '20px',
         boxShadow: '0 8px 40px rgba(27,45,79,0.08), 0 1px 3px rgba(27,45,79,0.06)',
         border: '1px solid rgba(255,255,255,0.6)',
         width: '100%', maxWidth: '420px', position: 'relative', zIndex: 1,
       }}>
-        <img src="/logo.png" alt="SupTrack" style={{ width: 880, maxWidth: '100%', display: 'block', margin: '0 auto 2px' }} />
+        <img src="/logo.png" alt="SupTrack" style={{ width: 880, maxWidth: '100%', display: 'block', margin: '0 auto 8px' }} />
         <p style={{
           color: '#5A7B6E', fontSize: '14px', fontWeight: 400, fontStyle: 'italic',
-          textAlign: 'center', marginBottom: '14px', letterSpacing: '0.02em', marginTop: 0,
+          textAlign: 'center', margin: '0 0 16px', letterSpacing: '0.02em',
         }}>Supervision, simplified.</p>
 
         <p style={{
