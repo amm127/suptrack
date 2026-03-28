@@ -147,6 +147,11 @@ export default function Auth() {
           </span>
         </p>
       </div>
+      <p style={{ marginTop: '20px', fontSize: '12px', color: '#B0A89E', textAlign: 'center' }}>
+        <a href="/privacy" style={{ color: '#B0A89E', textDecoration: 'underline' }}>Privacy Policy</a>
+        {' · '}
+        <a href="/terms" style={{ color: '#B0A89E', textDecoration: 'underline' }}>Terms of Service</a>
+      </p>
     </div>
   )
 }

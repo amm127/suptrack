@@ -749,7 +749,7 @@ function FlagModal({intern,onSave,onClose,T}) {
   const removeFlag=(id)=>setFlags(p=>p.filter(f=>f.id!==id));
 
   return <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.3)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000}} onClick={onClose}>
-    <div style={{background:t.surface,borderRadius:18,padding:"26px 28px",width:500,maxHeight:"80vh",overflowY:"auto",boxShadow:"0 24px 64px rgba(0,0,0,0.14)"}} onClick={e=>e.stopPropagation()}>
+    <div style={{background:t.surface,borderRadius:18,padding:"26px 28px",width:"min(500px,95vw)",maxHeight:"80vh",overflowY:"auto",boxShadow:"0 24px 64px rgba(0,0,0,0.14)"}} onClick={e=>e.stopPropagation()}>
       <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:18}}>
         <div><div style={{fontFamily:"inherit",fontSize:20,color:t.text,marginBottom:3}}>Flags — {dn(intern)}</div><div style={{fontSize:13,color:t.muted}}>Track things to revisit</div></div>
         <button onClick={onClose} style={{background:"none",border:"none",cursor:"pointer",fontSize:18,color:t.muted,padding:4}}>✕</button>
@@ -884,7 +884,7 @@ function ShareModal({title,sharedWith,onSave,onClose,colleagues,setColleagues,T}
 
   return (
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.35)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000}} onClick={onClose}>
-      <div style={{background:t.surface,borderRadius:18,padding:"26px 28px",width:540,maxHeight:"85vh",overflowY:"auto",boxShadow:"0 24px 64px rgba(0,0,0,0.16)"}} onClick={e=>e.stopPropagation()}>
+      <div style={{background:t.surface,borderRadius:18,padding:"26px 28px",width:"min(540px,95vw)",maxHeight:"85vh",overflowY:"auto",boxShadow:"0 24px 64px rgba(0,0,0,0.16)"}} onClick={e=>e.stopPropagation()}>
 
         {/* Header */}
         <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:18}}>
@@ -1205,7 +1205,7 @@ function QuickActionModal({action, interns, groups, onClose, onUpdateIntern, T})
   };
 
   return <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:20}} onClick={onClose}>
-    <div style={{background:t.surface,borderRadius:18,padding:"26px 30px",width:480,maxHeight:"85vh",overflowY:"auto",boxShadow:"0 24px 64px rgba(0,0,0,0.18)"}} onClick={e=>e.stopPropagation()}>
+    <div style={{background:t.surface,borderRadius:18,padding:"26px 30px",width:"min(480px,95vw)",maxHeight:"85vh",overflowY:"auto",boxShadow:"0 24px 64px rgba(0,0,0,0.18)"}} onClick={e=>e.stopPropagation()}>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
         <div style={{fontSize:18,color:t.text,fontWeight:500}}>{titles[action]}</div>
         <button onClick={onClose} style={{background:"none",border:"none",cursor:"pointer",fontSize:20,color:t.faint}}>✕</button>
@@ -1412,7 +1412,7 @@ Use professional clinical language appropriate for licensure documentation. Be s
 
   return (
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.35)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000}} onClick={onClose}>
-      <div style={{background:t.surface,borderRadius:18,padding:"28px 30px",width:620,maxHeight:"88vh",overflowY:"auto",boxShadow:"0 24px 64px rgba(0,0,0,0.18)"}} onClick={e=>e.stopPropagation()}>
+      <div style={{background:t.surface,borderRadius:18,padding:"28px 30px",width:"min(620px,95vw)",maxHeight:"88vh",overflowY:"auto",boxShadow:"0 24px 64px rgba(0,0,0,0.18)"}} onClick={e=>e.stopPropagation()}>
 
         {/* Header */}
         <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:20}}>
@@ -2070,7 +2070,7 @@ function EditProfileModal({intern,onSave,onClose,T}) {
   ];
 
   return <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.45)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:16}} onClick={onClose}>
-    <div style={{background:t.surface,borderRadius:18,width:560,maxHeight:"90vh",display:"flex",flexDirection:"column",boxShadow:"0 24px 64px rgba(0,0,0,0.2)"}} onClick={e=>e.stopPropagation()}>
+    <div style={{background:t.surface,borderRadius:18,width:"min(560px,95vw)",maxHeight:"90vh",display:"flex",flexDirection:"column",boxShadow:"0 24px 64px rgba(0,0,0,0.2)"}} onClick={e=>e.stopPropagation()}>
       {/* Header */}
       <div style={{padding:"20px 24px 0",display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0}}>
         <div style={{fontSize:18,color:t.text,fontWeight:500}}>Edit profile — {intern.preferredName||intern.name.split(" ")[0]}</div>
@@ -5002,7 +5002,7 @@ function AddInternModal({onSave, onClose, onSendLink, groups, lists, T}) {
   const STEPS = ["Personal info","Credentials","Settings"];
 
   return <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:20}} onClick={onClose}>
-    <div style={{background:t.surface,borderRadius:18,padding:"28px 32px",width:560,maxHeight:"90vh",overflowY:"auto",boxShadow:"0 24px 64px rgba(0,0,0,0.18)"}} onClick={e=>e.stopPropagation()}>
+    <div style={{background:t.surface,borderRadius:18,padding:"28px 32px",width:"min(560px,95vw)",maxHeight:"90vh",overflowY:"auto",boxShadow:"0 24px 64px rgba(0,0,0,0.18)"}} onClick={e=>e.stopPropagation()}>
       {/* Header */}
       <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:20}}>
         <div>
@@ -5271,7 +5271,7 @@ function OnboardingModal({onClose,supervisorName,T}) {
   const iStyle={width:"100%",border:`1px solid ${t.border}`,borderRadius:8,padding:"8px 12px",fontSize:13,fontFamily:"inherit",color:t.text,background:t.bg,outline:"none",boxSizing:"border-box"};
 
   return <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:20}} onClick={onClose}>
-    <div style={{background:t.surface,borderRadius:18,width:540,maxHeight:"90vh",overflowY:"auto",boxShadow:"0 24px 64px rgba(0,0,0,0.18)"}} onClick={e=>e.stopPropagation()}>
+    <div style={{background:t.surface,borderRadius:18,width:"min(540px,95vw)",maxHeight:"90vh",overflowY:"auto",boxShadow:"0 24px 64px rgba(0,0,0,0.18)"}} onClick={e=>e.stopPropagation()}>
 
       {/* Header */}
       <div style={{padding:"22px 28px 0",display:"flex",alignItems:"flex-start",justifyContent:"space-between"}}>
@@ -7705,7 +7705,7 @@ function DiscoverPage({interns,onAddIntern,T}) {
   return <div>
     {/* Intern detail modal */}
     {selectedIntern&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:20}} onClick={()=>setSelectedIntern(null)}>
-      <div style={{background:t.surface,borderRadius:16,width:540,maxHeight:"90vh",overflowY:"auto",boxShadow:"0 24px 64px rgba(0,0,0,0.18)"}} onClick={e=>e.stopPropagation()}>
+      <div style={{background:t.surface,borderRadius:16,width:"min(540px,95vw)",maxHeight:"90vh",overflowY:"auto",boxShadow:"0 24px 64px rgba(0,0,0,0.18)"}} onClick={e=>e.stopPropagation()}>
         <div style={{padding:"24px 28px"}}>
           <div style={{display:"flex",alignItems:"flex-start",gap:14,marginBottom:18}}>
             <Avatar initials={selectedIntern.initials} size={60} T={t} photo={selectedIntern.photo}/>
@@ -9566,6 +9566,7 @@ useEffect(() => {
   const [qaDragIdx, setQaDragIdx] = useState(null);
 
   const [portalInternId,setPortalInternId]=useState(null);
+  const [mobileNav,setMobileNav]=useState(false);
   const portalIntern = interns.find(i=>i.id===portalInternId)||null;
   const [navHover,setNavHover]=useState(null);
 
@@ -9824,10 +9825,25 @@ if (!session) return <Auth />
       .gradient-border { border-image: ${t.gradient} 1 !important; }
       .gradient-subtle { background: ${t.gradientSubtle||t.gradient} !important; }
       .gradient-badge { background: ${t.gradientMid||t.gradient} !important; }
-    ` : ""}`}</style>
+    ` : ""}
+    @media(max-width:768px){
+      .st-sidebar{display:none !important;}
+      .st-sidebar.st-sidebar-open{display:flex !important;position:fixed !important;z-index:999;width:260px !important;box-shadow:4px 0 24px rgba(0,0,0,0.15);}
+      .st-sidebar-overlay{display:block !important;}
+      .st-main{padding:20px 16px !important;max-width:100% !important;}
+      .st-mobile-menu{display:flex !important;}
+    }
+    `}</style>
+
+    {/* Mobile menu button */}
+    <button className="st-mobile-menu" onClick={()=>setMobileNav(o=>!o)} style={{display:"none",position:"fixed",top:12,left:12,zIndex:1000,background:t.surface,border:`1px solid ${t.border}`,borderRadius:8,padding:"6px 10px",cursor:"pointer",fontSize:18,alignItems:"center",justifyContent:"center",boxShadow:"0 2px 8px rgba(0,0,0,0.1)"}}>
+      {mobileNav?"✕":"☰"}
+    </button>
+    {/* Mobile overlay */}
+    {mobileNav&&<div className="st-sidebar-overlay" onClick={()=>setMobileNav(false)} style={{display:"none",position:"fixed",inset:0,background:"rgba(0,0,0,0.3)",zIndex:998}}/>}
 
     {/* Sidebar */}
-    <div style={{width:228,background:t.surface,borderRight:`1px solid ${t.border}`,display:"flex",flexDirection:"column",padding:"26px 0",position:"sticky",top:0,height:"100vh",flexShrink:0}}>
+    <div className={`st-sidebar${mobileNav?" st-sidebar-open":""}`} style={{width:228,background:t.surface,borderRight:`1px solid ${t.border}`,display:"flex",flexDirection:"column",padding:"26px 0",position:"sticky",top:0,height:"100vh",flexShrink:0}}>
       <div style={{padding:"0 24px 20px",display:"flex",alignItems:"flex-start",justifyContent:"space-between"}}>
         <div>
           <div onClick={()=>{setPage("dashboard");setSelectedInternId_sv(null);setInternFilter(null);setConsultIntern(null);}}
@@ -9895,7 +9911,7 @@ if (!session) return <Auth />
             return <button key={item.id}
               onMouseEnter={()=>setNavHover(item.id)}
               onMouseLeave={()=>setNavHover(null)}
-              onClick={()=>{setPage(item.id);setSelectedInternId_sv(null);setInternFilter(null);setConsultIntern(null);}}
+              onClick={()=>{setPage(item.id);setSelectedInternId_sv(null);setInternFilter(null);setConsultIntern(null);setMobileNav(false);}}
               style={{width:"100%",background:active?activeBg:navHover===item.id?t.surfaceAlt:"none",border:"none",borderLeft:active?`3px solid ${activeBorder}`:"3px solid transparent",padding:"11px 24px",cursor:"pointer",textAlign:"left",fontSize:isAI?12:14,fontFamily:isAI?"'DM Mono',monospace":f.body,fontWeight:active?500:400,transition:"background 0.1s",display:"flex",alignItems:"center",gap:8}}>
               {t.isRainbow&&<div style={{width:7,height:7,borderRadius:"50%",background:rc,flexShrink:0,opacity:active?1:0.35}}/>}
               {t.isGradient&&<div style={{width:7,height:7,borderRadius:"50%",background:t.gradient,backgroundSize:"200% 200%",animation:"gradientShift 5s ease infinite",flexShrink:0,opacity:active?1:0.4}}/>}
@@ -9943,7 +9959,7 @@ if (!session) return <Auth />
     </div>
 
     {/* Main content */}
-    <div id="suptrack-content" style={{flex:1,padding:"38px 44px",maxWidth:980,overflowY:"auto"}}>
+    <div id="suptrack-content" className="st-main" style={{flex:1,padding:"38px 44px",maxWidth:980,overflowY:"auto"}}>
       {page==="dashboard"&&<Dashboard T={t} interns={interns} groups={groups} lists={lists} colleagues={colleagues} supervisorName={supervisorName}
         onAddIntern={()=>{if(activeInternCount>=internLimit){setUpgradePrompt("intern");return;}setAddInternOpen(true);}}
         onQuickAction={setQuickActionOpen}
