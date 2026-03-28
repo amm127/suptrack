@@ -10674,32 +10674,33 @@ useEffect(() => {
     };
     loadUser();
   },[session]);
-  const saveSupervisorProfile=React.useCallback((updates)=>{
+  const saveSupervisorProfile=React.useCallback(async(updates)=>{
     if(!session?.user)return;
     const row={...updates};
 
     // Keep name in sync everywhere
-    if(row.name){
-      setSupervisorName(row.name);
-      // Also write name into profile_data so both are always consistent
-      if(row.profile_data) row.profile_data.name = row.name;
-      else {
-        // Merge name into existing profile_data
-        const existingPd = supervisorProfile?.profile_data || {};
-        row.profile_data = {...existingPd, name: row.name};
-      }
-    }
+    if(row.name) setSupervisorName(row.name);
     if(row.profile_data?.name && !row.name) row.name = row.profile_data.name;
     if('photo' in row) setSupervisorPhoto(row.photo);
-
     setSupervisorProfile(p=>({...p,...row}));
 
-    console.log("[SupTrack] Saving to Supabase:", {name:row.name, keys:Object.keys(row)});
-    supabase.from("supervisors").update(row).eq("user_id",session.user.id).select().then(({data:updated,error})=>{
-      if(error) console.error("[SupTrack] Save FAILED:",error);
-      else console.log("[SupTrack] Saved OK. DB name:", updated?.[0]?.name);
-    });
-  },[session,supervisorProfile]);
+    // Save to Supabase — try the full row first
+    console.log("[SupTrack] Saving profile:", JSON.stringify(row).slice(0,200));
+    const {data:updated,error} = await supabase.from("supervisors").update(row).eq("user_id",session.user.id).select();
+    if(error){
+      console.error("[SupTrack] Full save failed:",error.message);
+      // Fallback: try saving JUST the name field
+      if(row.name){
+        console.log("[SupTrack] Trying minimal name-only update...");
+        const {error:e2} = await supabase.from("supervisors").update({name:row.name}).eq("user_id",session.user.id);
+        if(e2) console.error("[SupTrack] Name-only save ALSO failed:",e2.message,"— likely RLS policy missing. Run: CREATE POLICY \"Users can update own profile\" ON supervisors FOR UPDATE USING (user_id = auth.uid());");
+        else console.log("[SupTrack] Name-only save OK");
+      }
+    } else {
+      console.log("[SupTrack] Saved OK. DB name:", updated?.[0]?.name||"(no rows returned — check RLS)");
+      if(!updated?.length) console.warn("[SupTrack] WARNING: Update returned 0 rows. The supervisors table likely has RLS enabled without an UPDATE policy. Run in Supabase SQL:\nCREATE POLICY \"Users can update own profile\" ON supervisors FOR UPDATE USING (user_id = auth.uid());");
+    }
+  },[session]);
   const supervisorInitials = supervisorName ? supervisorName.split(" ").filter(Boolean).map(w=>w[0]).join("").slice(0,2).toUpperCase()||"??" : "??";
 
   // Handle Stripe checkout return
