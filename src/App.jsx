@@ -656,6 +656,28 @@ const Avatar = ({initials,size=40,color,textColor,T,photo,editable,onPhotoChange
 const Badge = ({children,color,bg}) => (
   <span style={{background:bg,color,borderRadius:4,padding:"2px 9px",fontSize:11,fontFamily:"'DM Mono',monospace",letterSpacing:"0.03em",fontWeight:500,whiteSpace:"nowrap"}}>{children}</span>
 );
+function SessionNote({session:s,byCol,t,onEdit}){
+  const [editing,setEditing]=useState(false);
+  const [draft,setDraft]=useState(s.notes);
+  return <div style={{background:t.surface,border:`1px solid ${t.border}`,borderLeft:`3px solid ${byCol?S.purple:t.accent}`,borderRadius:12,padding:"16px 20px",marginBottom:12,boxShadow:"0 1px 3px rgba(0,0,0,0.04)"}}>
+    <div style={{display:"flex",gap:8,marginBottom:8,alignItems:"center"}}>
+      <Badge color={t.muted} bg={t.surfaceAlt}>{s.date}</Badge>
+      <Badge color={t.accentText} bg={t.accentLight}>{s.type}</Badge>
+      <Badge color={t.muted} bg={t.surfaceAlt}>{s.duration}</Badge>
+      <span style={{fontSize:12,color:t.accent,opacity:byCol?0.65:1,fontFamily:"'DM Mono',monospace",marginLeft:"auto"}}>{s.author}</span>
+      {!editing&&<button onClick={()=>{setDraft(s.notes);setEditing(true);}} style={{background:"none",border:`1px solid ${t.border}`,borderRadius:6,padding:"2px 8px",cursor:"pointer",fontSize:10,color:t.muted,fontFamily:"'DM Mono',monospace"}}>Edit</button>}
+    </div>
+    {editing
+      ?<div>
+        <textarea value={draft} onChange={e=>setDraft(e.target.value)} style={{width:"100%",minHeight:100,border:`1px solid ${t.border}`,borderRadius:8,padding:"10px 12px",fontSize:14,fontFamily:"inherit",color:t.text,background:t.bg,resize:"vertical",boxSizing:"border-box",outline:"none",lineHeight:1.7}}/>
+        <div style={{display:"flex",gap:8,justifyContent:"flex-end",marginTop:8}}>
+          <button onClick={()=>setEditing(false)} style={{background:"none",border:`1px solid ${t.border}`,borderRadius:6,padding:"4px 12px",cursor:"pointer",fontSize:12,color:t.muted}}>Cancel</button>
+          <button onClick={()=>{onEdit(draft);setEditing(false);}} style={{background:t.accent,color:"#fff",border:"none",borderRadius:6,padding:"4px 14px",cursor:"pointer",fontSize:12,fontWeight:500}}>Save</button>
+        </div>
+      </div>
+      :<p style={{fontSize:14,color:t.text,margin:0,lineHeight:1.7}}>{s.notes}</p>}
+  </div>;
+}
 
 const Btn = ({children,onClick,variant="primary",small,disabled,style={},T}) => {
   const t=T||THEMES.sage;
@@ -1135,11 +1157,14 @@ function QuickActionModal({action, interns, groups, onClose, onUpdateIntern, T})
       ? existingLog.map(e=>e.category===catId?{...e,hours:Math.round((e.hours+hrs)*10)/10}:e)
       : [...existingLog,{category:catId,label:catLabel,type:"direct",hours:hrs}];
     const newTotal = newLog.reduce((s,e)=>s+e.hours,0);
-    onUpdateIntern({...intern,
+    const updatedIntern={...intern,
       sessions:[session,...(intern.sessions||[])],
       hourLog:newLog,
       hoursCompleted: Math.round(newTotal),
-    });
+      individualHours:(intern.individualHours||0)+(isGroup?0:hrs),
+      groupHours:(intern.groupHours||0)+(isGroup?hrs:0),
+    };
+    onUpdateIntern(updatedIntern);
     onClose();
   };
 
@@ -2423,8 +2448,12 @@ function InternProfile({intern,groups,lists,setLists,colleagues,setColleagues,on
     {editProfileOpen&&<EditProfileModal T={t} intern={intern} onSave={onUpdateIntern} onClose={()=>setEditProfileOpen(false)}/>}
     {aiSessionOpen&&<AISessionModal T={t} intern={intern} onSave={session=>{
       const {_hourLog,_newTotal,...cleanSession}=session;
+      const isGroup=cleanSession.type?.toLowerCase().includes("group");
+      const hrs=Math.round((parseInt(cleanSession.duration)||60)/60*10)/10;
       const update={...intern,sessions:[cleanSession,...(intern.sessions||[])]};
       if(_hourLog){update.hourLog=_hourLog;update.hoursCompleted=_newTotal;}
+      update.individualHours=(intern.individualHours||0)+(isGroup?0:hrs);
+      update.groupHours=(intern.groupHours||0)+(isGroup?hrs:0);
       onUpdateIntern(update);
     }} onClose={()=>setAiSessionOpen(false)}/>}
 
@@ -2640,10 +2669,11 @@ function InternProfile({intern,groups,lists,setLists,colleagues,setColleagues,on
           :<Btn T={t} small onClick={()=>alert("AI session notes are available on the Growth plan and above. Upgrade your plan to unlock this feature.")} style={{opacity:0.6}}>✦ Log Session with AI (Growth+)</Btn>}
       </div>
       <div style={{background:t.accentLight,borderRadius:10,padding:"11px 16px",fontSize:13,color:t.accentText,marginBottom:16,border:`1px solid ${t.accentMid}`}}>Individual notes for {dn(intern)}. Notes by colleagues are marked. Group sessions are linked automatically.</div>
-      {(intern.sessions||[]).map((s,i)=>{const byCol=s.author!=="Alyson"; return <div key={i} style={{background:t.surface,border:`1px solid ${t.border}`,borderLeft:`3px solid ${byCol?S.purple:t.accent}`,borderRadius:12,padding:"16px 20px",marginBottom:12,boxShadow:"0 1px 3px rgba(0,0,0,0.04)"}}>
-        <div style={{display:"flex",gap:8,marginBottom:8,alignItems:"center"}}><Badge color={t.muted} bg={t.surfaceAlt}>{s.date}</Badge><Badge color={t.accentText} bg={t.accentLight}>{s.type}</Badge><Badge color={t.muted} bg={t.surfaceAlt}>{s.duration}</Badge><span style={{fontSize:12,color:t.accent,opacity:byCol?0.65:1,fontFamily:"'DM Mono',monospace",marginLeft:"auto"}}>{s.author}</span></div>
-        <p style={{fontSize:14,color:t.text,margin:0,lineHeight:1.7}}>{s.notes}</p>
-      </div>;})}
+      {(intern.sessions||[]).map((s,i)=>{const byCol=s.author!=="Alyson"; return <SessionNote key={i} session={s} index={i} byCol={byCol} t={t} onEdit={(newNotes)=>{
+        const updated=[...(intern.sessions||[])];
+        updated[i]={...updated[i],notes:newNotes};
+        onUpdateIntern({...intern,sessions:updated});
+      }}/>;})}
       {memberGroups.map(g=>(g.sessions||[]).map((s,i)=><div key={`${g.id}-${i}`} style={{background:t.surface,border:`1px solid ${g.color}40`,borderLeft:`3px solid ${g.color}`,borderRadius:12,padding:"16px 18px",marginBottom:10}}>
         <div style={{display:"flex",gap:8,marginBottom:8,alignItems:"center"}}><Badge color={t.muted} bg={t.surfaceAlt}>{s.date}</Badge><Badge color={g.color} bg={g.colorLight}>{g.name}</Badge><span style={{fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace",marginLeft:"auto"}}>{s.author}</span></div>
         <p style={{fontSize:14,color:t.text,margin:0,lineHeight:1.7}}>{s.notes}</p>
@@ -9659,6 +9689,8 @@ useEffect(() => {
           pro_bono:updated.proBono||false,
           hours_completed:updated.hoursCompleted||0,
           hours_total:updated.hoursTotal||0,
+          individual_hours:updated.individualHours||0,
+          group_hours:updated.groupHours||0,
           billing_rate:updated.billingRate||0,
           billing_schedule:updated.billingSchedule||"monthly",
           payments:updated.payments||[],
