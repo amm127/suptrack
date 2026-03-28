@@ -25,7 +25,6 @@ export default function Auth() {
     }
   }, [])
 
-  // Lifetime free codes
   const LIFETIME_FREE_CODES = ['STfree1','STfree2','STfree3','STfree4','STfree5']
 
   const handleSubmit = async () => {
@@ -50,11 +49,8 @@ export default function Auth() {
         window.history.replaceState({}, '', window.location.pathname)
         setMessage('Account created! Check your email to confirm, then sign in.')
       } else {
-        // Check if it's a lifetime free code
         const isLifetimeFree = LIFETIME_FREE_CODES.includes(inviteCode.trim())
-
         if (!isLifetimeFree) {
-          // Normal invite code validation
           const { data: invite, error: inviteError } = await supabase
             .from('invites').select('*').eq('code', inviteCode.trim()).eq('used', false).single()
           if (inviteError || !invite || invite.type === 'intern_portal') {
@@ -62,28 +58,19 @@ export default function Auth() {
             setIsError(true); setLoading(false); return
           }
         }
-
         const { data: signUpData, error } = await supabase.auth.signUp({ email, password, options: { data: { full_name: fullName.trim() } } })
         if (error) {
           setMessage(error.message); setIsError(true)
         } else {
-          // Mark invite code as used (for non-lifetime codes)
           if (!isLifetimeFree) {
             await supabase.from('invites').update({ used: true }).eq('code', inviteCode.trim())
           }
-
-          // If lifetime free code, create supervisor record immediately with lifetime_free flag
           if (isLifetimeFree && signUpData?.user) {
             await supabase.from('supervisors').upsert({
-              user_id: signUpData.user.id,
-              name: fullName.trim() || email,
-              email: email,
-              plan: 'starter',
-              trial_ends_at: null,
-              lifetime_free: true,
+              user_id: signUpData.user.id, name: fullName.trim() || email, email,
+              plan: 'starter', trial_ends_at: null, lifetime_free: true,
             }, { onConflict: 'user_id' })
           }
-
           setMessage('Check your email to confirm your account!')
         }
       }
@@ -96,148 +83,154 @@ export default function Auth() {
 
   const inputStyle = {
     width: '100%', padding: '13px 16px', marginBottom: '14px',
-    border: '1px solid rgba(27,45,79,0.15)', borderRadius: '10px',
+    border: '1px solid #E2E8F0', borderRadius: '10px',
     fontSize: '15px', boxSizing: 'border-box', outline: 'none',
-    background: 'rgba(255,255,255,0.7)', color: '#1B2D4F',
+    background: '#FFFFFF', color: '#1B2D4F',
     transition: 'border-color 0.2s, box-shadow 0.2s',
   }
 
+  const focusHandlers = {
+    onFocus: e => { e.target.style.borderColor = '#4ABFBF'; e.target.style.boxShadow = '0 0 0 3px rgba(74,191,191,0.12)'; },
+    onBlur: e => { e.target.style.borderColor = '#E2E8F0'; e.target.style.boxShadow = 'none'; },
+  }
+
   return (
-    <div style={{
-      display: 'flex', flexDirection: 'column', alignItems: 'center',
-      justifyContent: 'center', minHeight: '100vh', position: 'relative', overflow: 'hidden',
-      background: 'linear-gradient(160deg, #E8F5F0 0%, #D4EDE5 25%, #C5E8E0 50%, #D0E7EC 75%, #E0EEF4 100%)',
-    }}>
-      {/* Soft organic shapes */}
-      <div style={{
-        position: 'absolute', top: '-15%', right: '-10%', width: '50vw', height: '50vw',
-        borderRadius: '50%', background: 'radial-gradient(circle, rgba(74,191,191,0.12) 0%, transparent 70%)',
-        pointerEvents: 'none',
-      }}/>
-      <div style={{
-        position: 'absolute', bottom: '-20%', left: '-15%', width: '60vw', height: '60vw',
-        borderRadius: '50%', background: 'radial-gradient(circle, rgba(123,198,126,0.1) 0%, transparent 70%)',
-        pointerEvents: 'none',
-      }}/>
+    <>
+      <style>{`
+        @media (max-width: 768px) {
+          .auth-split { flex-direction: column !important; }
+          .auth-brand { display: none !important; }
+          .auth-form { min-height: 100vh !important; width: 100% !important; }
+        }
+      `}</style>
 
-      {/* Bottom wave */}
-      <svg style={{ position: 'absolute', bottom: 0, left: 0, width: '100%', height: '120px', pointerEvents: 'none' }} viewBox="0 0 1440 120" preserveAspectRatio="none">
-        <path d="M0,60 C360,110 720,10 1080,70 C1260,100 1380,50 1440,65 L1440,120 L0,120 Z" fill="rgba(27,45,79,0.04)"/>
-        <path d="M0,80 C320,40 640,100 960,60 C1200,30 1360,90 1440,75 L1440,120 L0,120 Z" fill="rgba(74,191,191,0.06)"/>
-      </svg>
+      <div className="auth-split" style={{ display: 'flex', minHeight: '100vh' }}>
 
-      {/* Frosted glass card */}
-      <div style={{
-        background: 'rgba(255,255,255,0.72)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)',
-        padding: '24px 40px 36px', borderRadius: '20px',
-        boxShadow: '0 8px 40px rgba(27,45,79,0.08), 0 1px 3px rgba(27,45,79,0.06)',
-        border: '1px solid rgba(255,255,255,0.6)',
-        width: '100%', maxWidth: '420px', position: 'relative', zIndex: 1,
-      }}>
-        <img src="/logo.png" alt="SupTrack" style={{ width: 880, maxWidth: '100%', display: 'block', margin: '0 auto 4px' }} />
-        <p style={{
-          color: '#5A7B6E', fontSize: '14px', fontWeight: 400, fontStyle: 'italic',
-          textAlign: 'center', margin: '0 0 12px', letterSpacing: '0.02em',
-        }}>Supervision, simplified.</p>
-
-        <p style={{
-          color: '#1B2D4F', margin: '0 0 12px', fontSize: '16px', fontWeight: 500,
-          textAlign: 'center',
+        {/* ── Left: Brand panel ── */}
+        <div className="auth-brand" style={{
+          flex: '0 0 44%', background: '#1B2D4F', display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center', padding: '60px 48px', position: 'relative', overflow: 'hidden',
         }}>
-          {isInternInvite
-            ? 'Create your intern portal account'
-            : isSignUp ? 'Create your account' : 'Sign in to your account'}
-        </p>
+          {/* Subtle glow */}
+          <div style={{ position: 'absolute', top: '-20%', right: '-20%', width: '60%', height: '60%', borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(74,191,191,0.12) 0%, transparent 70%)', pointerEvents: 'none' }}/>
+          <div style={{ position: 'absolute', bottom: '-15%', left: '-10%', width: '50%', height: '50%', borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(90,184,138,0.08) 0%, transparent 70%)', pointerEvents: 'none' }}/>
 
-        {isInternInvite && (
-          <div style={{
-            background: 'rgba(74,191,191,0.1)', border: '1px solid rgba(74,191,191,0.25)', borderRadius: '10px',
-            padding: '12px 14px', marginBottom: '16px', fontSize: '13px', color: '#1B2D4F', lineHeight: 1.6,
-          }}>
-            Your supervisor has invited you to access your supervision portal. Create an account to view your hours, session notes, and documents.
+          <div style={{ position: 'relative', zIndex: 1, maxWidth: 340, textAlign: 'center' }}>
+            <div style={{ background: 'rgba(255,255,255,0.1)', borderRadius: 16, padding: '16px 24px', display: 'inline-block', marginBottom: 20 }}>
+              <img src="/logo.png" alt="SupTrack" style={{ width: 220, display: 'block' }}/>
+            </div>
+            <p style={{ color: '#4ABFBF', fontSize: 18, fontWeight: 400, fontStyle: 'italic', margin: '0 0 36px', letterSpacing: '0.02em' }}>
+              Supervision, simplified.
+            </p>
+
+            <div style={{ textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 18 }}>
+              {[
+                ['Track hours with confidence', 'Audit-ready logs that match your licensing board requirements.'],
+                ['AI-powered session notes', 'Log sessions in seconds with intelligent note generation.'],
+                ['Everything in one place', 'Hours, documents, payments, agreements, and intern portals.'],
+              ].map(([title, desc]) => (
+                <div key={title} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#4ABFBF', marginTop: 6, flexShrink: 0 }}/>
+                  <div>
+                    <div style={{ color: '#FFFFFF', fontSize: 14, fontWeight: 500, marginBottom: 2 }}>{title}</div>
+                    <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: 13, lineHeight: 1.5 }}>{desc}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-        )}
 
-        {isSignUp && (
-          <input type="text" placeholder="Full name" value={fullName}
-            onChange={e => setFullName(e.target.value)} style={inputStyle}
-            onFocus={e => { e.target.style.borderColor = '#4ABFBF'; e.target.style.boxShadow = '0 0 0 3px rgba(74,191,191,0.12)'; }}
-            onBlur={e => { e.target.style.borderColor = 'rgba(27,45,79,0.15)'; e.target.style.boxShadow = 'none'; }}
-          />
-        )}
+          <div style={{ position: 'absolute', bottom: 28, fontSize: 12, color: 'rgba(255,255,255,0.25)' }}>
+            &copy; {new Date().getFullYear()} SupTrack
+          </div>
+        </div>
 
-        <input type="email" placeholder="Email" value={email}
-          onChange={e => setEmail(e.target.value)} style={inputStyle}
-          onFocus={e => { e.target.style.borderColor = '#4ABFBF'; e.target.style.boxShadow = '0 0 0 3px rgba(74,191,191,0.12)'; }}
-          onBlur={e => { e.target.style.borderColor = 'rgba(27,45,79,0.15)'; e.target.style.boxShadow = 'none'; }}
-        />
-        <input type="password" placeholder="Password" value={password}
-          onChange={e => setPassword(e.target.value)} style={inputStyle}
-          onFocus={e => { e.target.style.borderColor = '#4ABFBF'; e.target.style.boxShadow = '0 0 0 3px rgba(74,191,191,0.12)'; }}
-          onBlur={e => { e.target.style.borderColor = 'rgba(27,45,79,0.15)'; e.target.style.boxShadow = 'none'; }}
-        />
+        {/* ── Right: Form panel ── */}
+        <div className="auth-form" style={{
+          flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          padding: '48px 40px', background: '#FAFBFC',
+        }}>
+          <div style={{ width: '100%', maxWidth: 380 }}>
 
-        {isSignUp && !isInternInvite && (
-          <input type="text" placeholder="Invite code" value={inviteCode}
-            onChange={e => setInviteCode(e.target.value)}
-            style={{ ...inputStyle, marginBottom: '20px' }}
-            onFocus={e => { e.target.style.borderColor = '#4ABFBF'; e.target.style.boxShadow = '0 0 0 3px rgba(74,191,191,0.12)'; }}
-            onBlur={e => { e.target.style.borderColor = 'rgba(27,45,79,0.15)'; e.target.style.boxShadow = 'none'; }}
-          />
-        )}
+            {/* Mobile-only logo */}
+            <div className="auth-mobile-logo" style={{ display: 'none' }}>
+              <img src="/logo.png" alt="SupTrack" style={{ width: 160, display: 'block', margin: '0 auto 24px' }}/>
+            </div>
+            <style>{`@media (max-width: 768px) { .auth-mobile-logo { display: block !important; } }`}</style>
 
-        {message && (
-          <p style={{ color: isError ? '#C0392B' : '#2E7A4E', marginBottom: '16px', fontSize: '14px', textAlign: 'center', lineHeight: 1.5 }}>
-            {message}
-          </p>
-        )}
+            <h1 style={{ fontSize: 24, fontWeight: 600, color: '#1B2D4F', margin: '0 0 6px' }}>
+              {isInternInvite ? 'Intern Portal' : isSignUp ? 'Create your account' : 'Welcome back'}
+            </h1>
+            <p style={{ fontSize: 14, color: '#6B7A8D', margin: '0 0 28px' }}>
+              {isInternInvite
+                ? 'Your supervisor invited you to access your portal.'
+                : isSignUp ? 'Start your 14-day free trial.' : 'Sign in to your account.'}
+            </p>
 
-        <button onClick={handleSubmit} disabled={loading}
-          style={{
-            width: '100%', padding: '14px', border: 'none', borderRadius: '12px',
-            fontSize: '15px', fontWeight: 600, cursor: loading ? 'default' : 'pointer',
-            marginBottom: '18px', transition: 'all 0.2s', letterSpacing: '0.01em',
-            background: isInternInvite
-              ? 'linear-gradient(135deg, #1B2D4F 0%, #2A4A7A 100%)'
-              : 'linear-gradient(135deg, #1B2D4F 0%, #3A6B8C 50%, #4ABFBF 100%)',
-            backgroundSize: '200% 200%', color: 'white',
-            boxShadow: '0 4px 16px rgba(27,45,79,0.2)',
-            opacity: loading ? 0.7 : 1,
-          }}
-        >
-          {loading ? 'Loading...' : isSignUp ? 'Create Account' : 'Sign In'}
-        </button>
+            {isInternInvite && (
+              <div style={{
+                background: '#EFF8F8', border: '1px solid #C8E8E8', borderRadius: 10,
+                padding: '12px 14px', marginBottom: 16, fontSize: 13, color: '#1B2D4F', lineHeight: 1.6,
+              }}>
+                Create an account to view your hours, session notes, and documents.
+              </div>
+            )}
 
-        {!isInternInvite && (
-          <p style={{ textAlign: 'center', fontSize: '14px', color: '#5A6B7A', margin: 0 }}>
-            {isSignUp ? 'Already have an account? ' : "Don't have an account? "}
-            <span
-              onClick={() => { setIsSignUp(!isSignUp); setMessage('') }}
-              style={{ color: '#2A6B7A', cursor: 'pointer', fontWeight: 500 }}
-            >
-              {isSignUp ? 'Sign In' : 'Sign Up'}
-            </span>
-          </p>
-        )}
+            {isSignUp && (
+              <input type="text" placeholder="Full name" value={fullName}
+                onChange={e => setFullName(e.target.value)} style={inputStyle} {...focusHandlers}/>
+            )}
+            <input type="email" placeholder="Email" value={email}
+              onChange={e => setEmail(e.target.value)} style={inputStyle} {...focusHandlers}/>
+            <input type="password" placeholder="Password" value={password}
+              onChange={e => setPassword(e.target.value)} style={inputStyle} {...focusHandlers}/>
 
-        {isInternInvite && !isSignUp && (
-          <p style={{ textAlign: 'center', fontSize: '14px', color: '#5A6B7A', margin: 0 }}>
-            Don't have an account?{' '}
-            <span onClick={() => { setIsSignUp(true); setMessage('') }}
-              style={{ color: '#1B2D4F', cursor: 'pointer', fontWeight: 500 }}>
-              Create one
-            </span>
-          </p>
-        )}
+            {isSignUp && !isInternInvite && (
+              <input type="text" placeholder="Invite code" value={inviteCode}
+                onChange={e => setInviteCode(e.target.value)}
+                style={{ ...inputStyle, marginBottom: 20 }} {...focusHandlers}/>
+            )}
+
+            {message && (
+              <p style={{ color: isError ? '#C0392B' : '#2E7A4E', margin: '0 0 14px', fontSize: 14, textAlign: 'center', lineHeight: 1.5 }}>
+                {message}
+              </p>
+            )}
+
+            <button onClick={handleSubmit} disabled={loading}
+              style={{
+                width: '100%', padding: 14, border: 'none', borderRadius: 12,
+                fontSize: 15, fontWeight: 600, cursor: loading ? 'default' : 'pointer',
+                marginBottom: 18, transition: 'opacity 0.2s', letterSpacing: '0.01em',
+                background: 'linear-gradient(135deg, #1B2D4F 0%, #2A5A6A 50%, #3A9E9E 100%)',
+                color: 'white', boxShadow: '0 4px 16px rgba(27,45,79,0.18)',
+                opacity: loading ? 0.7 : 1,
+              }}>
+              {loading ? 'Loading...' : isSignUp ? 'Create Account' : 'Sign In'}
+            </button>
+
+            {!isInternInvite && (
+              <p style={{ textAlign: 'center', fontSize: 14, color: '#6B7A8D', margin: 0 }}>
+                {isSignUp ? 'Already have an account? ' : "Don't have an account? "}
+                <span onClick={() => { setIsSignUp(!isSignUp); setMessage('') }}
+                  style={{ color: '#2A6B7A', cursor: 'pointer', fontWeight: 600 }}>
+                  {isSignUp ? 'Sign In' : 'Sign Up'}
+                </span>
+              </p>
+            )}
+
+            {isInternInvite && !isSignUp && (
+              <p style={{ textAlign: 'center', fontSize: 14, color: '#6B7A8D', margin: 0 }}>
+                Don't have an account?{' '}
+                <span onClick={() => { setIsSignUp(true); setMessage('') }}
+                  style={{ color: '#1B2D4F', cursor: 'pointer', fontWeight: 600 }}>Create one</span>
+              </p>
+            )}
+          </div>
+        </div>
       </div>
-
-      {/* Footer */}
-      <div style={{
-        marginTop: '24px', fontSize: '12px', color: 'rgba(27,45,79,0.4)',
-        textAlign: 'center', position: 'relative', zIndex: 1,
-      }}>
-        &copy; {new Date().getFullYear()} SupTrack
-      </div>
-    </div>
+    </>
   )
 }
