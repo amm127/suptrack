@@ -2390,7 +2390,7 @@ function TagsBox({intern,lists,memberLists,t,onUpdateIntern,setLists}) {
   </div>;
 }
 
-function InternProfile({intern,groups,lists,setLists,colleagues,setColleagues,onBack,onUpdateIntern,onDelete,onConsult,onOpenLab,onGroupClick,T,plan}) {
+function InternProfile({intern,groups,lists,setLists,colleagues,setColleagues,onBack,onUpdateIntern,onDelete,onConsult,onOpenLab,onGroupClick,T,plan,session:authSession}) {
   const canUseAI = plan==="growth"||plan==="practice";
   const t=T||THEMES.sage;
   const [tab,setTab]=useState("overview");
@@ -2403,6 +2403,9 @@ function InternProfile({intern,groups,lists,setLists,colleagues,setColleagues,on
   const [showConfetti,setShowConfetti]=useState(false);
   const [showCompleteConfirm,setShowCompleteConfirm]=useState(false);
   const [showDeleteConfirm,setShowDeleteConfirm]=useState(false);
+  const [portalLoading,setPortalLoading]=useState(false);
+  const [portalInviteLink,setPortalInviteLink]=useState(null);
+  const [portalEmail,setPortalEmail]=useState(intern.portal_email||intern.email||"");
   const tabs=["overview","hours","sessions","cases","evaluations","documents",...(!intern.proBono?["payments"]:[])];
   const tabLabel={overview:"Overview",hours:"Hours",sessions:"Notes",cases:"Cases",evaluations:"Evaluations",documents:"Documents",payments:"Payments"};
   const memberGroups=groups.filter(g=>(intern.groupIds||[]).includes(g.id));
@@ -2658,6 +2661,52 @@ function InternProfile({intern,groups,lists,setLists,colleagues,setColleagues,on
         </div>
         <p style={{fontSize:14,color:t.text,margin:0,lineHeight:1.7,display:"-webkit-box",WebkitLineClamp:3,WebkitBoxOrient:"vertical",overflow:"hidden"}}>{intern.sessions[0].notes}</p>
       </div>}
+
+      {/* Portal access */}
+      <div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:12,padding:"16px 18px",boxShadow:"0 1px 3px rgba(0,0,0,0.04)"}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:intern.portal_enabled?10:0}}>
+          <div>
+            <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:4}}>Intern Portal Access</div>
+            {intern.portal_enabled
+              ? <div style={{display:"flex",alignItems:"center",gap:8}}>
+                  <Badge color="#2E7A4E" bg="#E8F5EE">Portal enabled</Badge>
+                  <span style={{fontSize:12,color:t.muted}}>{intern.portal_email}</span>
+                  {intern.portal_user_id&&<Badge color={t.accentText} bg={t.accentLight}>Account created</Badge>}
+                </div>
+              : <div style={{fontSize:13,color:t.muted}}>Give {dn(intern)} read-only access to their hours, session notes, and documents</div>}
+          </div>
+          {!intern.portal_enabled&&<div style={{display:"flex",gap:8,alignItems:"center"}}>
+            <input value={portalEmail} onChange={e=>setPortalEmail(e.target.value)} placeholder="intern@email.com"
+              style={{border:`1px solid ${t.border}`,borderRadius:8,padding:"7px 12px",fontSize:13,width:220,fontFamily:"inherit",color:t.text,background:t.bg,outline:"none"}}/>
+            <Btn T={t} small disabled={portalLoading||!portalEmail.trim()} onClick={async()=>{
+              if(!portalEmail.trim()||!authSession?.user)return;
+              setPortalLoading(true);
+              try{
+                const res=await fetch("/api/invite-intern",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({internId:intern.id,internEmail:portalEmail.trim(),supervisorId:authSession.user.id})});
+                const data=await res.json();
+                if(data.success){
+                  setPortalInviteLink(data.inviteLink);
+                  onUpdateIntern({...intern,portal_enabled:true,portal_email:portalEmail.trim()});
+                } else { alert(data.error||"Failed to enable portal"); }
+              }catch{ alert("Failed to connect"); }
+              setPortalLoading(false);
+            }}>{portalLoading?"Enabling...":"Enable & Send Invite"}</Btn>
+          </div>}
+        </div>
+        {portalInviteLink&&<div style={{background:t.accentLight,border:`1px solid ${t.accentMid}`,borderRadius:8,padding:"10px 14px",marginTop:10}}>
+          <div style={{fontSize:12,color:t.accentText,fontWeight:500,marginBottom:6}}>Invite link created — share with {dn(intern)}:</div>
+          <div style={{display:"flex",gap:8}}>
+            <input readOnly value={portalInviteLink} style={{flex:1,border:`1px solid ${t.border}`,borderRadius:6,padding:"6px 10px",fontSize:12,fontFamily:"'DM Mono',monospace",color:t.text,background:t.surface,outline:"none"}}/>
+            <button onClick={()=>{navigator.clipboard?.writeText(portalInviteLink);}} style={{background:t.accent,color:"#fff",border:"none",borderRadius:6,padding:"6px 14px",cursor:"pointer",fontSize:12,fontFamily:"'DM Mono',monospace"}}>Copy</button>
+          </div>
+          <div style={{fontSize:11,color:t.muted,marginTop:6}}>They'll create an account and see their own hours, notes, and documents.</div>
+        </div>}
+        {intern.portal_enabled&&!portalInviteLink&&<div style={{fontSize:12,color:t.muted,lineHeight:1.6}}>
+          {intern.portal_user_id
+            ? `${dn(intern)} has created their portal account and can sign in to view their supervision data.`
+            : `Invite sent to ${intern.portal_email}. They haven't created their account yet.`}
+        </div>}
+      </div>
     </div>}
 
     {tab==="hours"&&<HoursBreakdown intern={intern} T={t} onUpdateIntern={onUpdateIntern}/>}
@@ -2783,7 +2832,7 @@ function Dashboard({interns,groups,lists,colleagues,onSelectIntern,onNavigate,on
   ];
   const [greeting] = useState(()=>GREETINGS[Math.floor(Math.random()*GREETINGS.length)]);
 
-  const firstName = supervisorName ? supervisorName.split(" ")[0] : "there";
+  const firstName = supervisorName ? (supervisorName.includes("@")?supervisorName.split("@")[0]:supervisorName.split(" ")[0]) : "there";
   const dateStr = now.toLocaleDateString("en-US",{weekday:"long",year:"numeric",month:"long",day:"numeric"});
   const timeStr = now.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit",hour12:true});
 
@@ -5846,17 +5895,80 @@ const SEAT_PRICE_MONTHLY = 9.99;
 const SEAT_PRICE_ANNUAL  = 99.90;
 
 // ── BillingPage ────────────────────────────────────────────────────────────
-function BillingPage({billing,setBilling,interns,T,F,colleagues=[]}) {
+function BillingPage({billing,setBilling,interns,T,F,colleagues=[],session,supervisorProfile,setSupervisorProfile}) {
   const t=T||THEMES.sage;
   const [tab,setTab]=useState("plan");
   const [cycle,setCycle]=useState(billing.cycle);
   const [copied,setCopied]=useState(false);
   const [addingSeat,setAddingSeat]=useState(false);
   const [newSeatEmail,setNewSeatEmail]=useState("");
-  const [showPricing,setShowPricing]=useState(false);
   const [showPaymentModal,setShowPaymentModal]=useState(false);
-  const [paymentForm,setPaymentForm]=useState({cardNumber:"",expiry:"",cvc:"",name:"",zip:""});
-  const [paymentSaved,setPaymentSaved]=useState(false);
+  const [checkoutLoading,setCheckoutLoading]=useState(null);
+  const [seatLoading,setSeatLoading]=useState(false);
+
+  const handleSelectPlan = async (planId) => {
+    if (!session?.user) return;
+    setCheckoutLoading(planId);
+    try {
+      // If user already has a Stripe subscription, redirect to portal for plan changes
+      if (supervisorProfile?.stripe_customer_id) {
+        const res = await fetch("/api/portal", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: session.user.id }),
+        });
+        const data = await res.json();
+        if (data.url) { window.location.href = data.url; return; }
+        alert(data.error || "Failed to open billing portal");
+        setCheckoutLoading(null);
+        return;
+      }
+      // No subscription yet — create a new checkout session
+      const key = `${planId}_${cycle}`;
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          planId: key,
+          userId: session.user.id,
+          email: session.user.email,
+        }),
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        alert(data.error || "Failed to start checkout");
+        setCheckoutLoading(null);
+      }
+    } catch (err) {
+      alert("Failed to connect to billing service");
+      setCheckoutLoading(null);
+    }
+  };
+
+  const handleUpdateSeats = async (newCount, newSeatsArray) => {
+    if (!session?.user) return;
+    setSeatLoading(true);
+    try {
+      const res = await fetch("/api/update-seats", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: session.user.id, seatCount: newCount }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        alert(data.error || "Failed to update seats");
+        // Revert the optimistic UI update
+        if (newSeatsArray) {
+          setBilling(p => ({ ...p }));
+        }
+      }
+    } catch (err) {
+      alert("Failed to connect to billing service");
+    }
+    setSeatLoading(false);
+  };
 
   const activeInterns = interns.filter(i=>i.status==="active").length;
   const currentPlan   = PLANS[billing.plan];
@@ -5885,66 +5997,48 @@ function BillingPage({billing,setBilling,interns,T,F,colleagues=[]}) {
       <p style={{color:t.muted,fontSize:14,margin:0}}>Manage your subscription, team seats, and referrals</p>
     </div>
 
-    {/* Payment method modal */}
+    {/* Payment method modal — redirects to Stripe portal to securely add a card */}
     {showPaymentModal&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:20}} onClick={()=>setShowPaymentModal(false)}>
-      <div style={{background:t.surface,borderRadius:18,padding:"28px 32px",width:460,boxShadow:"0 24px 64px rgba(0,0,0,0.18)"}} onClick={e=>e.stopPropagation()}>
+      <div style={{background:t.surface,borderRadius:18,padding:"28px 32px",width:420,boxShadow:"0 24px 64px rgba(0,0,0,0.18)"}} onClick={e=>e.stopPropagation()}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
           <div>
             <div style={{fontSize:20,color:t.text,fontWeight:500,marginBottom:2}}>Add payment method</div>
-            <div style={{fontSize:13,color:t.muted}}>Your card won't be charged until your trial ends.</div>
+            <div style={{fontSize:13,color:t.muted}}>You'll be redirected to Stripe to securely enter your card details.</div>
           </div>
           <button onClick={()=>setShowPaymentModal(false)} style={{background:"none",border:"none",cursor:"pointer",fontSize:20,color:t.faint}}>✕</button>
         </div>
-        {paymentSaved
-          ? <div style={{textAlign:"center",padding:"24px 0"}}>
-              <div style={{fontSize:40,marginBottom:12}}>✅</div>
-              <div style={{fontSize:16,color:t.text,fontWeight:500,marginBottom:6}}>Payment method saved!</div>
-              <div style={{fontSize:13,color:t.muted,marginBottom:20}}>You're all set. You won't be charged until your trial ends on {billing.nextBilling}.</div>
-              <button onClick={()=>{setShowPaymentModal(false);setPaymentSaved(false);setBilling(p=>({...p,trialDaysLeft:0,hasPaymentMethod:true}));}}
-                style={{background:t.accent,color:"#fff",border:"none",borderRadius:10,padding:"10px 28px",cursor:"pointer",fontSize:14,fontFamily:"inherit"}}>Done</button>
-            </div>
-          : <div style={{display:"flex",flexDirection:"column",gap:14}}>
-              {/* Card number */}
-              <div>
-                <div style={{fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:6}}>Card number</div>
-                <input value={paymentForm.cardNumber} onChange={e=>setPaymentForm(p=>({...p,cardNumber:e.target.value.replace(/\D/g,"").slice(0,16).replace(/(.{4})/g,"$1 ").trim()}))}
-                  placeholder="1234 5678 9012 3456" maxLength={19}
-                  style={{width:"100%",border:`1px solid ${t.border}`,borderRadius:8,padding:"10px 14px",fontSize:14,fontFamily:"'DM Mono',monospace",color:t.text,background:t.bg,outline:"none",boxSizing:"border-box"}}/>
-              </div>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-                <div>
-                  <div style={{fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:6}}>Expiry</div>
-                  <input value={paymentForm.expiry} onChange={e=>{let v=e.target.value.replace(/\D/g,"").slice(0,4);if(v.length>=3)v=v.slice(0,2)+"/"+v.slice(2);setPaymentForm(p=>({...p,expiry:v}));}}
-                    placeholder="MM/YY" maxLength={5}
-                    style={{width:"100%",border:`1px solid ${t.border}`,borderRadius:8,padding:"10px 14px",fontSize:14,fontFamily:"'DM Mono',monospace",color:t.text,background:t.bg,outline:"none",boxSizing:"border-box"}}/>
-                </div>
-                <div>
-                  <div style={{fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:6}}>CVC</div>
-                  <input value={paymentForm.cvc} onChange={e=>setPaymentForm(p=>({...p,cvc:e.target.value.replace(/\D/g,"").slice(0,4)}))}
-                    placeholder="123" maxLength={4}
-                    style={{width:"100%",border:`1px solid ${t.border}`,borderRadius:8,padding:"10px 14px",fontSize:14,fontFamily:"'DM Mono',monospace",color:t.text,background:t.bg,outline:"none",boxSizing:"border-box"}}/>
-                </div>
-              </div>
-              <div>
-                <div style={{fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:6}}>Name on card</div>
-                <input value={paymentForm.name} onChange={e=>setPaymentForm(p=>({...p,name:e.target.value}))}
-                  placeholder="Alyson K."
-                  style={{width:"100%",border:`1px solid ${t.border}`,borderRadius:8,padding:"10px 14px",fontSize:14,fontFamily:"'DM Sans',system-ui,sans-serif",color:t.text,background:t.bg,outline:"none",boxSizing:"border-box"}}/>
-              </div>
-              <div style={{background:t.surfaceAlt,borderRadius:8,padding:"10px 14px",fontSize:12,color:t.muted,display:"flex",alignItems:"center",gap:8}}>
-                <span>🔒</span> Payments processed securely via Stripe. SupTrack never stores your card details.
-              </div>
-              <div style={{display:"flex",gap:10,marginTop:4}}>
-                <button onClick={()=>{if(!paymentForm.cardNumber||!paymentForm.expiry||!paymentForm.cvc||!paymentForm.name)return;setPaymentSaved(true);}}
-                  style={{flex:1,background:t.isGradient?t.gradient:t.accent,backgroundSize:t.isGradient?"200% 200%":undefined,animation:t.isGradient?"gradientShift 5s ease infinite":undefined,color:"#fff",border:"none",borderRadius:10,padding:"11px 0",cursor:"pointer",fontSize:14,fontWeight:500,fontFamily:"inherit"}}>
-                  Save payment method
-                </button>
-                <button onClick={()=>setShowPaymentModal(false)}
-                  style={{background:"none",border:`1px solid ${t.border}`,borderRadius:10,padding:"11px 20px",cursor:"pointer",fontSize:14,color:t.muted,fontFamily:"inherit"}}>
-                  Cancel
-                </button>
-              </div>
-            </div>}
+        <div style={{background:t.surfaceAlt,borderRadius:10,padding:"16px 18px",marginBottom:20}}>
+          <div style={{fontSize:13,color:t.muted,lineHeight:1.6}}>
+            Your card won't be charged until your trial ends. SupTrack never sees or stores your card details — everything is handled securely by Stripe.
+          </div>
+        </div>
+        <div style={{display:"flex",gap:10}}>
+          <button onClick={async()=>{
+            if(!session?.user)return;
+            setCheckoutLoading("payment");
+            try{
+              // If user already has a Stripe customer, open portal. Otherwise start checkout with their current plan.
+              if(supervisorProfile?.stripe_customer_id){
+                const res=await fetch("/api/portal",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({userId:session.user.id})});
+                const data=await res.json();
+                if(data.url){window.location.href=data.url;return;}
+              }
+              // No Stripe customer yet — start a checkout for their current plan to collect payment
+              const planKey=`${billing.plan||"starter"}_${cycle}`;
+              const res=await fetch("/api/checkout",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({planId:planKey,userId:session.user.id,email:session.user.email})});
+              const data=await res.json();
+              if(data.url)window.location.href=data.url;
+              else{alert(data.error||"Failed to open payment page");setCheckoutLoading(null);}
+            }catch{alert("Failed to connect to billing service");setCheckoutLoading(null);}
+          }}
+            style={{flex:1,background:t.isGradient?t.gradient:t.accent,backgroundSize:t.isGradient?"200% 200%":undefined,animation:t.isGradient?"gradientShift 5s ease infinite":undefined,color:"#fff",border:"none",borderRadius:10,padding:"11px 0",cursor:"pointer",fontSize:14,fontWeight:500,fontFamily:"inherit"}}>
+            {checkoutLoading==="payment"?"Redirecting...":"Continue to Stripe"}
+          </button>
+          <button onClick={()=>setShowPaymentModal(false)}
+            style={{background:"none",border:`1px solid ${t.border}`,borderRadius:10,padding:"11px 20px",cursor:"pointer",fontSize:14,color:t.muted,fontFamily:"inherit"}}>
+            Cancel
+          </button>
+        </div>
       </div>
     </div>}
 
@@ -5987,6 +6081,9 @@ function BillingPage({billing,setBilling,interns,T,F,colleagues=[]}) {
             <div style={{fontSize:13,color:t.muted}}>
               {billing.trialDaysLeft > 0 ? "Free trial — " : "Next billing: "}{billing.trialDaysLeft > 0 ? `${billing.trialDaysLeft} days left` : billing.nextBilling}
             </div>
+            {supervisorProfile?.stripe_customer_id && <button onClick={async()=>{
+              try{const res=await fetch("/api/portal",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({userId:session.user.id})});const data=await res.json();if(data.url)window.location.href=data.url;else alert(data.error||"Failed to open billing portal");}catch{alert("Failed to connect to billing service");}
+            }} style={{marginTop:10,background:"none",border:`1px solid ${t.border}`,borderRadius:8,padding:"6px 14px",cursor:"pointer",fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace"}}>Manage subscription</button>}
           </div>
           <div style={{textAlign:"right"}}>
             <div style={{fontFamily:"inherit",fontSize:28,color:t.accent,lineHeight:1}}>${billing.cycle==="annual"?(currentPlan.annual/12).toFixed(2):currentPlan.monthly}<span style={{fontSize:14,color:t.muted}}>/mo</span></div>
@@ -6019,6 +6116,11 @@ function BillingPage({billing,setBilling,interns,T,F,colleagues=[]}) {
         <div style={{fontSize:13,color:t.muted}}>
           {cycle==="annual" ? `Billed $${totalAnnual.toFixed(2)}/yr — you save $${((totalMonthly*12)-totalAnnual).toFixed(2)} compared to monthly.` : `Billed $${totalMonthly.toFixed(2)}/mo. Switch to annual to save $${((totalMonthly*12)-totalAnnual).toFixed(2)}/yr.`}
         </div>
+        {supervisorProfile?.stripe_customer_id && cycle !== billing.cycle && <div style={{marginTop:12,fontSize:12,color:t.accent}}>
+          To change your current subscription to {cycle} billing, <button onClick={async()=>{
+            try{const res=await fetch("/api/portal",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({userId:session.user.id})});const data=await res.json();if(data.url)window.location.href=data.url;else alert(data.error||"Failed to open billing portal");}catch{alert("Failed to connect to billing service");}
+          }} style={{background:"none",border:"none",color:t.accent,textDecoration:"underline",cursor:"pointer",fontSize:12,fontFamily:"inherit",padding:0}}>manage your subscription</button>.
+        </div>}
       </Card>
 
       {/* Plan cards */}
@@ -6028,8 +6130,9 @@ function BillingPage({billing,setBilling,interns,T,F,colleagues=[]}) {
           {Object.values(PLANS).map(plan=>{
             const active=plan.id===billing.plan;
             const price=cycle==="annual"?plan.annual/12:plan.monthly;
-            return <div key={plan.id} onClick={()=>setBilling(p=>({...p,plan:plan.id,cycle}))}
-              style={{background:active?plan.colorLight:t.surface,border:`2px solid ${active?plan.color:t.border}`,borderRadius:14,padding:"18px 20px",cursor:"pointer",transition:"all 0.15s",display:"flex",flexDirection:"column",textAlign:"left"}}>
+            const isLoading=checkoutLoading===plan.id;
+            return <div key={plan.id} onClick={()=>{if(active||checkoutLoading)return;handleSelectPlan(plan.id);}}
+              style={{background:active?plan.colorLight:t.surface,border:`2px solid ${active?plan.color:t.border}`,borderRadius:14,padding:"18px 20px",cursor:active?"default":"pointer",transition:"all 0.15s",display:"flex",flexDirection:"column",textAlign:"left",opacity:checkoutLoading&&!isLoading?0.6:1}}>
               {/* Badge row — always reserves height so all three cards align */}
               <div style={{height:24,marginBottom:6,display:"flex",alignItems:"center"}}>
                 {plan.badge&&<span style={{fontSize:11,color:plan.color,background:plan.colorLight,border:`1px solid ${plan.color}40`,borderRadius:20,padding:"2px 10px",fontFamily:"'DM Mono',monospace",fontWeight:500}}>{plan.badge}</span>}
@@ -6046,6 +6149,9 @@ function BillingPage({billing,setBilling,interns,T,F,colleagues=[]}) {
                   <span style={{color:plan.color,flexShrink:0}}>✓</span>{f}
                 </div>)}
               </div>
+              {!active&&<button disabled={!!checkoutLoading} style={{marginTop:14,width:"100%",background:isLoading?t.border:(t.isGradient?t.gradient:plan.color),backgroundSize:t.isGradient?"200% 200%":undefined,color:"#fff",border:"none",borderRadius:10,padding:"10px 0",cursor:checkoutLoading?"not-allowed":"pointer",fontSize:13,fontWeight:500,fontFamily:"inherit",opacity:isLoading?0.7:1}}>
+                {isLoading?"Redirecting...":(supervisorProfile?.stripe_customer_id?"Change to "+plan.name:"Select "+plan.name)}
+              </button>}
             </div>;
           })}
         </div>
@@ -6058,17 +6164,17 @@ function BillingPage({billing,setBilling,interns,T,F,colleagues=[]}) {
     </div>}
 
     {/* ── Seats tab ── */}
-    {tab==="seats" && billing.plan!=="practice" && <div style={{display:"flex",flexDirection:"column",gap:16}}>
+    {tab==="seats" && !supervisorProfile?.stripe_customer_id && <div style={{display:"flex",flexDirection:"column",gap:16}}>
       <Card>
         <div style={{textAlign:"center",padding:"24px 0"}}>
           <div style={{fontSize:28,marginBottom:12}}>👥</div>
-          <div style={{fontSize:18,fontWeight:500,color:t.text,marginBottom:8}}>Team Seats are a Practice plan feature</div>
-          <p style={{fontSize:13,color:t.muted,marginBottom:16,maxWidth:360,margin:"0 auto 16px"}}>Add additional supervisors to your account at $9.99/mo each. Each seat gets their own dashboard, interns, and notes.</p>
-          <Btn T={t} onClick={()=>setTab("plan")}>Upgrade to Practice</Btn>
+          <div style={{fontSize:18,fontWeight:500,color:t.text,marginBottom:8}}>Team Seats</div>
+          <p style={{fontSize:13,color:t.muted,marginBottom:16,maxWidth:360,margin:"0 auto 16px"}}>Add additional supervisors to your account at $9.99/mo or $99.90/yr each. Each seat gets their own dashboard, interns, and notes. Available on all plans.</p>
+          <Btn T={t} onClick={()=>setTab("plan")}>Choose a plan to get started</Btn>
         </div>
       </Card>
     </div>}
-    {tab==="seats" && billing.plan==="practice" && <div style={{display:"flex",flexDirection:"column",gap:16}}>
+    {tab==="seats" && supervisorProfile?.stripe_customer_id && <div style={{display:"flex",flexDirection:"column",gap:16}}>
       {/* Cost breakdown */}
       <Card style={{background:t.accentLight,border:`1px solid ${t.accentMid}`}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
@@ -6098,7 +6204,7 @@ function BillingPage({billing,setBilling,interns,T,F,colleagues=[]}) {
             <div style={{display:"flex",gap:8}}>
               <input value={newSeatEmail} onChange={e=>setNewSeatEmail(e.target.value)} placeholder="colleague@email.com"
                 style={{flex:1,border:`1px solid ${t.border}`,borderRadius:8,padding:"8px 12px",fontSize:14,fontFamily:"'DM Sans',system-ui,sans-serif",color:t.text,background:t.surface,outline:"none"}}/>
-              <Btn T={t} small onClick={()=>{if(!newSeatEmail.trim())return;setBilling(p=>({...p,seats:[...p.seats,{id:`s${Date.now()}`,name:newSeatEmail.split("@")[0],email:newSeatEmail.trim(),role:"member",since:TODAY_MONTH()}]}));setNewSeatEmail("");setAddingSeat(false);}}>Send invite</Btn>
+              <Btn T={t} small disabled={seatLoading} onClick={async()=>{if(!newSeatEmail.trim())return;const newSeats=[...billing.seats,{id:`s${Date.now()}`,name:newSeatEmail.split("@")[0],email:newSeatEmail.trim(),role:"member",since:TODAY_MONTH()}];const newExtraCount=newSeats.filter(s=>s.role!=="owner").length;setBilling(p=>({...p,seats:newSeats}));await handleUpdateSeats(newExtraCount);setNewSeatEmail("");setAddingSeat(false);}}>{seatLoading?"Adding...":"Send invite"}</Btn>
               <Btn T={t} variant="secondary" small onClick={()=>{setAddingSeat(false);setNewSeatEmail("");}}>Cancel</Btn>
             </div>
             <div style={{fontSize:12,color:t.muted,marginTop:8}}>+${SEAT_PRICE_MONTHLY}/mo added to your bill. Prorated for the current billing cycle.</div>
@@ -6124,7 +6230,7 @@ function BillingPage({billing,setBilling,interns,T,F,colleagues=[]}) {
                     {seat.role==="admin"?"Admin ✓":"Make admin"}
                   </button>
                   <div style={{fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace"}}>${SEAT_PRICE_MONTHLY}/mo</div>
-                  <button onClick={()=>setBilling(p=>({...p,seats:p.seats.filter(s=>s.id!==seat.id)}))} style={{background:"none",border:"none",cursor:"pointer",fontSize:12,color:S.red,fontFamily:"'DM Mono',monospace"}}>Remove</button>
+                  <button onClick={async()=>{const newSeats=billing.seats.filter(s=>s.id!==seat.id);const newExtraCount=newSeats.filter(s=>s.role!=="owner").length;setBilling(p=>({...p,seats:newSeats}));await handleUpdateSeats(newExtraCount);}} style={{background:"none",border:"none",cursor:"pointer",fontSize:12,color:S.red,fontFamily:"'DM Mono',monospace"}}>Remove</button>
                 </div>}
           </div>
         ))}
@@ -7661,7 +7767,7 @@ function DiscoverInternCard({intern,t,status,onConnect,onAdd,onView}) {
   );
 }
 
-function DiscoverPage({interns,onAddIntern,T}) {
+function DiscoverPage({interns,onAddIntern,T,session}) {
   const t=T||THEMES.sage;
   const [tab,setTab]=useState("interns");
   const [search,setSearch]=useState("");
@@ -7671,6 +7777,17 @@ function DiscoverPage({interns,onAddIntern,T}) {
   // Separate state for connect (expressed interest) vs add (imported to account)
   const [requested,setRequested]=useState(new Set()); // "connected" — request sent
   const [added,setAdded]=useState(new Set());         // "added" — in account
+  // Connection requests inbox
+  const [connectionRequests,setConnectionRequests]=useState([]);
+  const [inboxLoading,setInboxLoading]=useState(false);
+  React.useEffect(()=>{
+    if(!session?.user||tab!=="inbox")return;
+    setInboxLoading(true);
+    supabase.from("connection_requests").select("*").eq("to_user_id",session.user.id).order("created_at",{ascending:false}).then(({data})=>{
+      setConnectionRequests(data||[]);
+      setInboxLoading(false);
+    });
+  },[session,tab]);
 
   const DISCIPLINES=[
     {id:"all",label:"All disciplines"},
@@ -7806,10 +7923,10 @@ function DiscoverPage({interns,onAddIntern,T}) {
     </div>
 
     <div style={{display:"flex",gap:0,border:`1px solid ${t.border}`,borderRadius:10,overflow:"hidden",marginBottom:20,width:"fit-content"}}>
-      {[["interns","Find supervisees"],["supervisors","Find supervisors"]].map(([id,label],i)=>(
+      {[["interns","Find supervisees"],["supervisors","Find supervisors"],["inbox","Requests"]].map(([id,label],i)=>(
         <button key={id} onClick={()=>setTab(id)}
-          style={{background:tab===id?t.accentLight:"none",color:tab===id?t.accentText:t.muted,border:"none",borderRight:i<1?`1px solid ${t.border}`:"none",padding:"9px 22px",cursor:"pointer",fontSize:13,fontFamily:"inherit",fontWeight:tab===id?500:400,transition:"all 0.1s"}}>
-          {label}
+          style={{background:tab===id?t.accentLight:"none",color:tab===id?t.accentText:t.muted,border:"none",borderRight:i<2?`1px solid ${t.border}`:"none",padding:"9px 22px",cursor:"pointer",fontSize:13,fontFamily:"inherit",fontWeight:tab===id?500:400,transition:"all 0.1s"}}>
+          {label}{id==="inbox"&&connectionRequests.filter(r=>r.status==="pending").length>0&&<span style={{marginLeft:6,background:t.accent,color:"#fff",borderRadius:20,fontSize:10,padding:"1px 6px"}}>{connectionRequests.filter(r=>r.status==="pending").length}</span>}
         </button>
       ))}
     </div>
@@ -7856,14 +7973,221 @@ function DiscoverPage({interns,onAddIntern,T}) {
       </div>
     </div>}
 
-    {tab==="supervisors"&&<div style={{textAlign:"center",padding:"60px 20px"}}>
-      <div style={{fontSize:36,marginBottom:16}}>🔭</div>
-      <div style={{fontSize:18,color:t.text,fontWeight:500,marginBottom:8}}>Supervisor discovery coming soon</div>
-      <div style={{fontSize:14,color:t.muted,lineHeight:1.7,maxWidth:400,margin:"0 auto 24px"}}>
-        Interns will be able to browse supervisor profiles, filter by specialty, approach, and location, and request to connect — all without double data entry.
+    {tab==="supervisors"&&<SupervisorDirectory T={t} onConnect={(sup)=>{
+      setRequested(s=>new Set([...s,"sup_"+sup.id]));
+      // Save connection request to Supabase
+      if(session?.user){
+        supabase.from("connection_requests").insert({
+          from_user_id:session.user.id,
+          to_user_id:sup.id,
+          from_name:session.user.user_metadata?.full_name||session.user.email||"",
+          from_email:session.user.email||"",
+          to_name:sup.name,
+          type:"intern_to_supervisor",
+          status:"pending",
+          message:`Connection request from ${session.user.email}`,
+        }).then(({error})=>{if(error)console.error("Connection request error:",error);});
+      }
+    }} requested={requested}/>}
+
+    {/* Connection requests inbox */}
+    {tab==="inbox"&&<div>
+      <div style={{fontSize:14,color:t.text,fontWeight:500,marginBottom:16}}>Connection Requests</div>
+      {inboxLoading&&<div style={{textAlign:"center",padding:"40px 0",color:t.muted,fontSize:14}}>Loading...</div>}
+      {!inboxLoading&&connectionRequests.length===0&&<div style={{textAlign:"center",padding:"40px 0"}}>
+        <div style={{fontSize:28,marginBottom:12}}>📬</div>
+        <div style={{fontSize:14,color:t.muted}}>No connection requests yet. When someone wants to connect, you'll see it here.</div>
+      </div>}
+      {!inboxLoading&&connectionRequests.map(req=>(
+        <div key={req.id} style={{background:t.surface,border:`1px solid ${req.status==="pending"?t.accentMid:t.border}`,borderRadius:12,padding:"16px 18px",marginBottom:10,boxShadow:"0 1px 3px rgba(0,0,0,0.04)"}}>
+          <div style={{display:"flex",alignItems:"center",gap:14}}>
+            <Avatar initials={(req.from_name||"?").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()} size={40} T={t}/>
+            <div style={{flex:1}}>
+              <div style={{fontSize:14,color:t.text,fontWeight:500}}>{req.from_name||req.from_email}</div>
+              <div style={{fontSize:12,color:t.muted,marginTop:2}}>{req.from_email}{req.message&&req.message!==`Connection request from ${req.from_email}`?` — ${req.message}`:""}</div>
+              <div style={{fontSize:11,color:t.faint,marginTop:2,fontFamily:"'DM Mono',monospace"}}>{new Date(req.created_at).toLocaleDateString()}</div>
+            </div>
+            {req.status==="pending"&&<div style={{display:"flex",gap:6}}>
+              <Btn T={t} small onClick={()=>{
+                supabase.from("connection_requests").update({status:"accepted"}).eq("id",req.id).then(()=>{
+                  setConnectionRequests(p=>p.map(r=>r.id===req.id?{...r,status:"accepted"}:r));
+                });
+              }}>Accept</Btn>
+              <Btn T={t} small variant="secondary" onClick={()=>{
+                supabase.from("connection_requests").update({status:"declined"}).eq("id",req.id).then(()=>{
+                  setConnectionRequests(p=>p.map(r=>r.id===req.id?{...r,status:"declined"}:r));
+                });
+              }}>Decline</Btn>
+            </div>}
+            {req.status==="accepted"&&<Badge color="#2E7A4E" bg="#E8F5EE">Accepted</Badge>}
+            {req.status==="declined"&&<Badge color={S.red} bg={S.redLight}>Declined</Badge>}
+          </div>
+        </div>
+      ))}
+    </div>}
+  </div>;
+}
+
+// ── Supervisor Directory — public directory of supervisors ─────────────────
+function SupervisorDirectory({T,onConnect,requested}) {
+  const t=T||THEMES.sage;
+  const [search,setSearch]=useState("");
+  const [filterState,setFilterState]=useState("all");
+  const [filterSpecialty,setFilterSpecialty]=useState("all");
+  const [filterAccepting,setFilterAccepting]=useState(false);
+  const [selectedSup,setSelectedSup]=useState(null);
+  const [supervisors,setSupervisors]=useState([]);
+  const [loading,setLoading]=useState(true);
+
+  // Load public supervisor profiles from Supabase
+  React.useEffect(()=>{
+    supabase.from("supervisors").select("id,user_id,name,email,phone,credential,photo,profile_data,plan").not("profile_data","is",null).then(({data})=>{
+      if(data){
+        setSupervisors(data.filter(s=>s.profile_data&&s.profile_data.name).map(s=>{
+          const pd=s.profile_data||{};
+          return {id:s.user_id,name:pd.name||s.name,tagline:pd.tagline||"",bio:pd.bio||"",credential:pd.credential||s.credential||"",licenseState:pd.licenseState||"",licenseNumber:pd.licenseNumber||"",specialties:pd.specialties||[],accepting:pd.accepting!==false,acceptingStudents:pd.acceptingStudents||false,telehealth:pd.telehealth||false,inPerson:pd.inPerson||false,location:pd.location||pd.licenseState||"",photo:s.photo,feeIndividual:pd.feeIndividual||0,feeGroup:pd.feeGroup||0,feeIndividualUnit:pd.feeIndividualUnit||"month",supervisionStyle:pd.supervisionStyle||"",yearsExperience:pd.yearsExperience||"",languages:pd.languages||["English"],maxSupervisees:pd.maxSupervisees||10,initials:(pd.name||s.name||"").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()};
+        }));
+      }
+      setLoading(false);
+    });
+  },[]);
+
+  // Collect unique states and specialties for filters
+  const allStates=[...new Set(supervisors.map(s=>s.licenseState).filter(Boolean))].sort();
+  const allSpecialties=[...new Set(supervisors.flatMap(s=>s.specialties))].sort();
+
+  const filtered=supervisors.filter(s=>{
+    if(filterAccepting&&!s.accepting) return false;
+    if(filterState!=="all"&&s.licenseState!==filterState) return false;
+    if(filterSpecialty!=="all"&&!s.specialties.includes(filterSpecialty)) return false;
+    if(search.trim()){
+      const q=search.toLowerCase();
+      if(!s.name.toLowerCase().includes(q)&&!s.credential.toLowerCase().includes(q)&&!(s.location||"").toLowerCase().includes(q)&&!s.specialties.some(sp=>sp.toLowerCase().includes(q))&&!(s.bio||"").toLowerCase().includes(q)) return false;
+    }
+    return true;
+  });
+
+  return <div>
+    {/* Filters */}
+    <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap",alignItems:"center"}}>
+      <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search by name, specialty, location..."
+        style={{flex:1,minWidth:200,border:`1px solid ${t.border}`,borderRadius:9,padding:"8px 14px",fontSize:13,fontFamily:"inherit",color:t.text,background:t.bg,outline:"none"}}/>
+      {allStates.length>0&&<select value={filterState} onChange={e=>setFilterState(e.target.value)}
+        style={{border:`1px solid ${t.border}`,borderRadius:9,padding:"8px 12px",fontSize:13,color:t.text,background:t.bg,outline:"none",cursor:"pointer",fontFamily:"inherit"}}>
+        <option value="all">All states</option>
+        {allStates.map(s=><option key={s} value={s}>{s}</option>)}
+      </select>}
+      {allSpecialties.length>0&&<select value={filterSpecialty} onChange={e=>setFilterSpecialty(e.target.value)}
+        style={{border:`1px solid ${t.border}`,borderRadius:9,padding:"8px 12px",fontSize:13,color:t.text,background:t.bg,outline:"none",cursor:"pointer",fontFamily:"inherit"}}>
+        <option value="all">All specialties</option>
+        {allSpecialties.map(s=><option key={s} value={s}>{s}</option>)}
+      </select>}
+      <button onClick={()=>setFilterAccepting(!filterAccepting)}
+        style={{background:filterAccepting?t.accentLight:"none",color:filterAccepting?t.accentText:t.muted,border:`1px solid ${filterAccepting?t.accentMid:t.border}`,borderRadius:9,padding:"8px 14px",cursor:"pointer",fontSize:13,fontFamily:"inherit"}}>
+        {filterAccepting?"Accepting only":"Accepting?"}
+      </button>
+    </div>
+
+    {loading&&<div style={{textAlign:"center",padding:"40px 0",color:t.muted,fontSize:14}}>Loading directory...</div>}
+
+    {!loading&&<div>
+      <div style={{fontSize:12,color:t.faint,marginBottom:14}}>{filtered.length} supervisor{filtered.length!==1?"s":""} found</div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+        {filtered.map(sup=>{
+          const isRequested=requested.has("sup_"+sup.id);
+          return <div key={sup.id} onClick={()=>setSelectedSup(sup)} style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:14,padding:"18px 20px",cursor:"pointer",transition:"all 0.12s",boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
+            <div style={{display:"flex",gap:14,marginBottom:12}}>
+              <Avatar initials={sup.initials} size={48} T={t} photo={sup.photo}/>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:15,color:t.text,fontWeight:500}}>{sup.name}</div>
+                <div style={{fontSize:12,color:t.muted,marginTop:2}}>{sup.credential}{sup.licenseState?` · ${sup.licenseState}`:""}</div>
+                {sup.tagline&&<div style={{fontSize:12,color:t.faint,marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{sup.tagline}</div>}
+              </div>
+              {sup.accepting&&<Badge color="#2E7A4E" bg="#E8F5EE">Accepting</Badge>}
+            </div>
+            {sup.specialties.length>0&&<div style={{display:"flex",gap:4,flexWrap:"wrap",marginBottom:10}}>
+              {sup.specialties.slice(0,4).map(s=><span key={s} style={{background:t.surfaceAlt,border:`1px solid ${t.borderLight}`,borderRadius:20,padding:"2px 10px",fontSize:11,color:t.muted}}>{s}</span>)}
+              {sup.specialties.length>4&&<span style={{fontSize:11,color:t.faint}}>+{sup.specialties.length-4} more</span>}
+            </div>}
+            <div style={{display:"flex",gap:8,alignItems:"center"}}>
+              {sup.telehealth&&<span style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace"}}>Telehealth</span>}
+              {sup.inPerson&&<span style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace"}}>In-person</span>}
+              {sup.feeIndividual>0&&<span style={{fontSize:11,color:t.faint,marginLeft:"auto",fontFamily:"'DM Mono',monospace"}}>${sup.feeIndividual}/{sup.feeIndividualUnit==="session"?"session":"mo"}</span>}
+            </div>
+            <div style={{marginTop:12,display:"flex",gap:8}}>
+              {isRequested
+                ? <div style={{flex:1,textAlign:"center",fontSize:12,color:t.accentText,fontWeight:500,padding:"7px 0"}}>Request sent</div>
+                : <button onClick={e=>{e.stopPropagation();onConnect(sup);}}
+                    style={{flex:1,background:t.accent,color:"#fff",border:"none",borderRadius:8,padding:"7px 0",cursor:"pointer",fontSize:12,fontWeight:500,fontFamily:"inherit"}}>Connect</button>}
+            </div>
+          </div>;
+        })}
+        {!loading&&filtered.length===0&&<div style={{gridColumn:"1/-1",textAlign:"center",padding:"40px 0",color:t.muted,fontSize:14}}>No supervisors match your filters. Try broadening your search.</div>}
       </div>
-      <div style={{background:t.surfaceAlt,borderRadius:12,padding:"16px 20px",maxWidth:440,margin:"0 auto",fontSize:13,color:t.muted,lineHeight:1.7}}>
-        Your public profile at <span style={{color:t.accentText,fontFamily:"'DM Mono',monospace"}}>suptrack.io/supervisor/alyson-k</span> is already live for interns to find you.
+    </div>}
+
+    {/* Supervisor detail modal */}
+    {selectedSup&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:20}} onClick={()=>setSelectedSup(null)}>
+      <div style={{background:t.surface,borderRadius:16,width:"min(560px,95vw)",maxHeight:"90vh",overflowY:"auto",boxShadow:"0 24px 64px rgba(0,0,0,0.18)"}} onClick={e=>e.stopPropagation()}>
+        <div style={{padding:"24px 28px"}}>
+          <div style={{display:"flex",alignItems:"flex-start",gap:16,marginBottom:20}}>
+            <Avatar initials={selectedSup.initials} size={64} T={t} photo={selectedSup.photo}/>
+            <div style={{flex:1}}>
+              <div style={{fontSize:22,color:t.text,fontWeight:500,marginBottom:2}}>{selectedSup.name}</div>
+              <div style={{fontSize:13,color:t.muted}}>{selectedSup.credential}{selectedSup.licenseState?` · ${selectedSup.licenseState}`:""}</div>
+              {selectedSup.tagline&&<div style={{fontSize:13,color:t.faint,marginTop:4}}>{selectedSup.tagline}</div>}
+            </div>
+            <button onClick={()=>setSelectedSup(null)} style={{background:"none",border:"none",cursor:"pointer",fontSize:20,color:t.faint,padding:4,lineHeight:1}}>✕</button>
+          </div>
+
+          {selectedSup.bio&&<div style={{marginBottom:18}}>
+            <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:6}}>About</div>
+            <p style={{fontSize:13,color:t.text,lineHeight:1.7,margin:0}}>{selectedSup.bio}</p>
+          </div>}
+
+          {selectedSup.supervisionStyle&&<div style={{marginBottom:18}}>
+            <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:6}}>Supervision style</div>
+            <p style={{fontSize:13,color:t.text,lineHeight:1.6,margin:0}}>{selectedSup.supervisionStyle}</p>
+          </div>}
+
+          {selectedSup.specialties.length>0&&<div style={{marginBottom:18}}>
+            <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:8}}>Specialties</div>
+            <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+              {selectedSup.specialties.map(s=><span key={s} style={{background:t.accentLight,color:t.accentText,border:`1px solid ${t.accentMid}`,borderRadius:20,padding:"3px 12px",fontSize:12}}>{s}</span>)}
+            </div>
+          </div>}
+
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:20}}>
+            {[
+              selectedSup.yearsExperience&&["Experience",`${selectedSup.yearsExperience} years`],
+              selectedSup.licenseNumber&&["License #",selectedSup.licenseNumber],
+              selectedSup.location&&["Location",selectedSup.location],
+              selectedSup.feeIndividual>0&&["Individual fee",`$${selectedSup.feeIndividual}/${selectedSup.feeIndividualUnit==="session"?"session":"mo"}`],
+              selectedSup.feeGroup>0&&["Group fee",`$${selectedSup.feeGroup}/session`],
+              selectedSup.languages?.length>0&&["Languages",selectedSup.languages.join(", ")],
+            ].filter(Boolean).map(([label,val])=>(
+              <div key={label} style={{background:t.surfaceAlt,borderRadius:8,padding:"10px 12px"}}>
+                <div style={{fontSize:10,color:t.faint,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:3}}>{label}</div>
+                <div style={{fontSize:13,color:t.text}}>{val}</div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{display:"flex",gap:6,marginBottom:20}}>
+            {selectedSup.accepting&&<Badge color="#2E7A4E" bg="#E8F5EE">Accepting new supervisees</Badge>}
+            {selectedSup.acceptingStudents&&<Badge color={t.accentText} bg={t.accentLight}>Practicum students</Badge>}
+            {selectedSup.telehealth&&<Badge color={t.muted} bg={t.surfaceAlt}>Telehealth</Badge>}
+            {selectedSup.inPerson&&<Badge color={t.muted} bg={t.surfaceAlt}>In-person</Badge>}
+          </div>
+
+          {(()=>{
+            const isReq=requested.has("sup_"+selectedSup.id);
+            return isReq
+              ? <div style={{textAlign:"center",padding:"12px",background:t.accentLight,border:`1px solid ${t.accentMid}`,borderRadius:10,fontSize:13,color:t.accentText,fontWeight:500}}>Connection request sent — they'll receive a notification</div>
+              : <button onClick={()=>{onConnect(selectedSup);}}
+                  style={{width:"100%",background:t.accent,color:"#fff",border:"none",borderRadius:10,padding:"12px",cursor:"pointer",fontSize:14,fontWeight:600,fontFamily:"inherit"}}>Send connection request</button>;
+          })()}
+        </div>
       </div>
     </div>}
   </div>;
@@ -9187,9 +9511,199 @@ function SettingsPage({theme,setTheme,setCustomTheme,font,setFont,darkMode,setDa
 
 // ── Intern Portal ──────────────────────────────────────────────────────────
 // ── InternPortalHours — intern's own hours view with reporting periods ────────
+// ── Intern Dashboard — shown when an intern logs in via portal ──────────────
+function InternDashboard({internRecord,sessions:internSessions,hourLogs,supervisorInfo,T,F,onSignOut}) {
+  const t=T||THEMES.sage; const f=F||FONTS.fraunces;
+  const [tab,setTab]=useState("overview");
+
+  // Build intern-like object from the raw DB record
+  const intern = {
+    ...internRecord,
+    preferredName: internRecord.preferred_name||"",
+    licenseGoal: internRecord.license_goal||"",
+    hoursCompleted: internRecord.hours_completed||0,
+    hoursTotal: internRecord.hours_total||0,
+    credential: internRecord.credential||"",
+    credentialBody: internRecord.credential_body||"",
+    initials: (internRecord.name||"").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase(),
+    sessions: (internSessions||[]).map(s=>({date:s.date,type:s.session_type||"",duration:`${s.duration_minutes||60} min`,notes:s.notes||"",_sid:s.id})),
+    documents: internRecord.documents||[],
+    hourLog: [],
+    internHourLog: internRecord.intern_hour_log||[],
+    customHourCategories: internRecord.custom_hour_categories||[],
+    proBono: internRecord.pro_bono||false,
+  };
+
+  // Aggregate hour logs
+  const hlRaw={};(hourLogs||[]).forEach(h=>{const key=h.category;if(!hlRaw[key])hlRaw[key]={category:h.category,type:h.type,hours:0,label:h.label};hlRaw[key].hours+=Number(h.hours)||0;});
+  intern.hourLog=Object.values(hlRaw).map(h=>({...h,hours:Math.round(h.hours*10)/10}));
+
+  const totalHours = intern.hoursCompleted || sumHours(intern.hourLog);
+  const pct = intern.hoursTotal > 0 ? Math.min(100, Math.round(totalHours / intern.hoursTotal * 100)) : 0;
+
+  // Sessions this month
+  const now = new Date();
+  const thisMonthSessions = intern.sessions.filter(s => {
+    const d = new Date(s.date);
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  });
+
+  const displayName = intern.preferredName || (intern.name||"").split(" ")[0];
+
+  const tabs = ["overview","sessions","documents","supervisor"];
+  const tabLabel = {overview:"My Progress",sessions:"Session Notes",documents:"My Documents",supervisor:"My Supervisor"};
+
+  return <div style={{display:"flex",minHeight:"100vh",background:t.bg,fontFamily:f.body}}>
+    <link href={f.url} rel="stylesheet"/>
+    {/* Sidebar */}
+    <div style={{width:210,background:t.surface,borderRight:`1px solid ${t.border}`,display:"flex",flexDirection:"column",padding:"24px 0",position:"sticky",top:0,height:"100vh",flexShrink:0}}>
+      <div style={{padding:"0 20px 24px"}}>
+        <div style={{fontFamily:f.display,fontSize:20,color:t.accent,letterSpacing:"-0.02em"}}>SupTrack</div>
+        <div style={{fontSize:10,color:t.muted,fontFamily:"'DM Mono',monospace",marginTop:2,letterSpacing:"0.06em"}}>INTERN PORTAL</div>
+      </div>
+      <nav style={{flex:1}}>
+        {tabs.map(tt=><button key={tt} onClick={()=>setTab(tt)} style={{width:"100%",background:tab===tt?t.accentLight:"none",border:"none",borderLeft:tab===tt?`3px solid ${t.accent}`:"3px solid transparent",padding:"12px 20px",cursor:"pointer",textAlign:"left",fontSize:13,color:tab===tt?t.accent:t.text,fontFamily:f.body,fontWeight:tab===tt?500:400}}>{tabLabel[tt]}</button>)}
+      </nav>
+      <div style={{padding:"14px 20px",borderTop:`1px solid ${t.border}`}}>
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
+          <Avatar initials={intern.initials} size={32} T={t}/>
+          <div>
+            <div style={{fontSize:13,color:t.text,fontWeight:500}}>{displayName}</div>
+            <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace"}}>{intern.credential}</div>
+          </div>
+        </div>
+        <button onClick={onSignOut} style={{width:"100%",background:t.surfaceAlt,border:`1px solid ${t.border}`,borderRadius:6,padding:"6px 12px",cursor:"pointer",fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textAlign:"center"}}>Sign out</button>
+      </div>
+    </div>
+
+    {/* Main content */}
+    <div style={{flex:1,padding:"36px 44px",maxWidth:820,overflowY:"auto"}}>
+      {tab==="overview"&&<div>
+        <h1 style={{fontFamily:f.display,fontSize:26,fontWeight:400,color:t.text,margin:"0 0 4px",letterSpacing:"-0.01em"}}>Welcome back, {displayName}</h1>
+        <p style={{color:t.muted,fontSize:14,margin:"0 0 28px"}}>Your supervision progress at a glance</p>
+
+        {/* Stats */}
+        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:20}}>
+          <StatCard T={t} label="Hours completed" value={totalHours} color={t.accent}/>
+          <StatCard T={t} label="Hours remaining" value={Math.max(0, intern.hoursTotal - totalHours)} sub={`of ${intern.hoursTotal} required`}/>
+          <StatCard T={t} label="Completion" value={`${pct}%`} sub={`toward ${intern.licenseGoal}`} color={pct>=100?"#2E7A4E":undefined}/>
+          <StatCard T={t} label="Sessions this month" value={thisMonthSessions.length}/>
+        </div>
+
+        {/* Progress bar */}
+        <div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:14,padding:"20px 22px",marginBottom:20,boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
+          <div style={{display:"flex",justifyContent:"space-between",marginBottom:10}}>
+            <span style={{fontSize:14,color:t.text,fontWeight:500}}>Progress toward {intern.licenseGoal}</span>
+            <span style={{fontSize:14,color:t.accent,fontFamily:"'DM Mono',monospace",fontWeight:600}}>{totalHours} / {intern.hoursTotal} hrs</span>
+          </div>
+          <div style={{height:12,background:t.borderLight,borderRadius:999,overflow:"hidden",marginBottom:8}}>
+            <div style={{height:"100%",width:`${pct}%`,background:pct>=100?"linear-gradient(90deg,#4ADE80,#60A5FA)":(t.isGradient?t.gradient:t.accent),backgroundSize:t.isGradient?"200% 200%":undefined,borderRadius:999,transition:"width 0.6s ease"}}/>
+          </div>
+          {pct>=100
+            ? <div style={{fontSize:13,color:"#2E7A4E",fontWeight:500}}>Required hours complete! Contact your supervisor about next steps.</div>
+            : <div style={{fontSize:13,color:t.muted}}>{Math.max(0, intern.hoursTotal - totalHours)} hours remaining — you're {pct}% of the way there</div>}
+        </div>
+
+        {/* Recent sessions */}
+        <div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:14,padding:"20px 22px",marginBottom:20,boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
+          <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:14}}>Recent session notes</div>
+          {intern.sessions.length===0&&<div style={{fontSize:13,color:t.faint,textAlign:"center",padding:"16px 0"}}>No sessions logged yet.</div>}
+          {intern.sessions.slice(0,3).map((s,i)=><div key={i} style={{padding:"12px 0",borderTop:i>0?`1px solid ${t.borderLight}`:"none"}}>
+            <div style={{display:"flex",gap:8,marginBottom:6}}>
+              <Badge color={t.muted} bg={t.surfaceAlt}>{s.date}</Badge>
+              <Badge color={t.accentText} bg={t.accentLight}>{s.type}</Badge>
+              <Badge color={t.muted} bg={t.surfaceAlt}>{s.duration}</Badge>
+            </div>
+            <p style={{fontSize:13,color:t.text,margin:0,lineHeight:1.7,display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}>{s.notes}</p>
+          </div>)}
+          {intern.sessions.length>3&&<button onClick={()=>setTab("sessions")} style={{background:"none",border:"none",cursor:"pointer",color:t.accent,fontSize:12,fontFamily:"'DM Mono',monospace",padding:"8px 0"}}>View all {intern.sessions.length} sessions →</button>}
+        </div>
+
+        {/* License goal info */}
+        <div style={{background:t.accentLight,border:`1px solid ${t.accentMid}`,borderRadius:14,padding:"18px 22px",boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
+          <div style={{fontSize:11,color:t.accentText,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:10}}>License goal</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12}}>
+            {[
+              ["Current credential", intern.credential||"—"],
+              ["Working toward", intern.licenseGoal||"—"],
+              ["Credentialing body", intern.credentialBody||"—"],
+            ].map(([label,val])=><div key={label}>
+              <div style={{fontSize:11,color:t.accentText,opacity:0.7,marginBottom:3}}>{label}</div>
+              <div style={{fontSize:14,color:t.accentText,fontWeight:500}}>{val}</div>
+            </div>)}
+          </div>
+        </div>
+      </div>}
+
+      {/* Sessions tab */}
+      {tab==="sessions"&&<div>
+        <h1 style={{fontFamily:f.display,fontSize:26,fontWeight:400,color:t.text,margin:"0 0 4px"}}>Session Notes</h1>
+        <p style={{color:t.muted,fontSize:14,margin:"0 0 24px"}}>Read-only view of your supervision session notes</p>
+        {intern.sessions.length===0&&<div style={{fontSize:14,color:t.faint,textAlign:"center",padding:"40px 0"}}>No sessions logged yet.</div>}
+        {intern.sessions.map((s,i)=><div key={i} style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:12,padding:"16px 18px",marginBottom:12,boxShadow:"0 1px 3px rgba(0,0,0,0.04)"}}>
+          <div style={{display:"flex",gap:8,marginBottom:8}}>
+            <Badge color={t.muted} bg={t.surfaceAlt}>{s.date}</Badge>
+            <Badge color={t.accentText} bg={t.accentLight}>{s.type}</Badge>
+            <Badge color={t.muted} bg={t.surfaceAlt}>{s.duration}</Badge>
+          </div>
+          <p style={{fontSize:14,color:t.text,margin:0,lineHeight:1.8}}>{s.notes}</p>
+        </div>)}
+      </div>}
+
+      {/* Documents tab */}
+      {tab==="documents"&&<div>
+        <h1 style={{fontFamily:f.display,fontSize:26,fontWeight:400,color:t.text,margin:"0 0 4px"}}>My Documents</h1>
+        <p style={{color:t.muted,fontSize:14,margin:"0 0 24px"}}>Documents shared by your supervisor</p>
+        {(intern.documents||[]).length===0&&<div style={{fontSize:14,color:t.faint,textAlign:"center",padding:"40px 0"}}>No documents shared yet.</div>}
+        {(intern.documents||[]).map((doc,i)=><div key={i} style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:12,padding:"14px 18px",marginBottom:10,display:"flex",alignItems:"center",gap:14,boxShadow:"0 1px 3px rgba(0,0,0,0.04)"}}>
+          <div style={{width:40,height:40,borderRadius:10,background:t.accentLight,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>
+            {doc.type==="Contract"?"📋":doc.type==="License"?"🪪":doc.type==="Insurance"?"🛡":doc.type==="Plan"?"📐":"📄"}
+          </div>
+          <div style={{flex:1}}>
+            <div style={{fontSize:14,color:t.text,fontWeight:500}}>{doc.name}</div>
+            <div style={{fontSize:12,color:t.muted,marginTop:2}}>{doc.type} · {doc.date}</div>
+          </div>
+          {doc.dataUrl&&<a href={doc.dataUrl} download={doc.name} style={{background:t.surfaceAlt,border:`1px solid ${t.border}`,borderRadius:8,padding:"6px 14px",fontSize:12,color:t.accent,textDecoration:"none",fontFamily:"'DM Mono',monospace",cursor:"pointer"}}>Download</a>}
+        </div>)}
+      </div>}
+
+      {/* Supervisor tab */}
+      {tab==="supervisor"&&<div>
+        <h1 style={{fontFamily:f.display,fontSize:26,fontWeight:400,color:t.text,margin:"0 0 4px"}}>My Supervisor</h1>
+        <p style={{color:t.muted,fontSize:14,margin:"0 0 24px"}}>Your supervisor's contact information</p>
+        <div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:14,padding:"24px",marginBottom:16,boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
+          <div style={{display:"flex",gap:18,marginBottom:20}}>
+            <Avatar initials={(supervisorInfo?.name||"SV").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()} size={64} T={t} photo={supervisorInfo?.photo}/>
+            <div>
+              <div style={{fontFamily:f.display,fontSize:22,color:t.text,marginBottom:4}}>{supervisorInfo?.name||"Your Supervisor"}</div>
+              <div style={{fontSize:13,color:t.muted}}>{supervisorInfo?.credential||"Licensed Clinical Supervisor"}</div>
+            </div>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+            {[
+              supervisorInfo?.email&&["Email",supervisorInfo.email],
+              supervisorInfo?.phone&&["Phone",supervisorInfo.phone],
+              supervisorInfo?.license_number&&["License number",supervisorInfo.license_number],
+              supervisorInfo?.license_state&&["State",supervisorInfo.license_state],
+            ].filter(Boolean).map(([label,val])=>(
+              <div key={label} style={{background:t.surfaceAlt,borderRadius:10,padding:"12px 14px"}}>
+                <div style={{fontSize:11,color:t.faint,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:4}}>{label}</div>
+                <div style={{fontSize:14,color:t.text}}>{val}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div style={{background:S.amberLight,border:"1px solid #E8C98A",borderRadius:10,padding:"12px 16px",fontSize:13,color:S.amber,lineHeight:1.6}}>
+          In a clinical emergency, contact your supervisor immediately. If unreachable, contact the crisis line at <strong>988</strong> or your agency's on-call supervisor.
+        </div>
+      </div>}
+    </div>
+  </div>;
+}
+
 function InternPortalHours({intern,onUpdate,T,F}) {
   const t=T||THEMES.sage;
-  const f=F||FONTS.plus_jakarta;
+  const f=F||FONTS.inter;
   const [view,setView]=useState("current"); // current | periods | download
 
   const log      = intern.internHourLog || [];
@@ -9503,7 +10017,7 @@ useEffect(() => {
   const [theme,setTheme]=useState(()=>{try{return localStorage.getItem("suptrack_theme")||"suptrack";}catch{return "suptrack";}});
   const [darkMode,setDarkMode]=useState(()=>{try{return localStorage.getItem("suptrack_dark")==="true";}catch{return false;}});
   const [highContrast,setHighContrast]=useState(true);
-  const [fontKey,setFontKey]=useState(()=>{try{return localStorage.getItem("suptrack_font")||"plus_jakarta";}catch{return "plus_jakarta";}});
+  const [fontKey,setFontKey]=useState(()=>{try{return localStorage.getItem("suptrack_font")||"inter";}catch{return "inter";}});
   const [customTheme,setCustomTheme]=useState(null);
 
   // Persist preferences
@@ -9627,24 +10141,54 @@ useEffect(() => {
   const [supervisorPhoto, setSupervisorPhoto] = useState(null);
   const [supervisorName, setSupervisorName] = useState("");
   const [supervisorProfile, setSupervisorProfile] = useState(null);
+  const [internUser, setInternUser] = useState(null); // non-null if logged-in user is an intern
+  const [internUserSessions, setInternUserSessions] = useState([]);
+  const [internUserHourLogs, setInternUserHourLogs] = useState([]);
+  const [internSupervisorInfo, setInternSupervisorInfo] = useState(null);
+
   React.useEffect(()=>{
     if(!session?.user)return;
-    supabase.from("supervisors").select("*").eq("user_id",session.user.id).single().then(({data,error})=>{
+
+    const loadUser = async () => {
+      // Check if this user is an intern (has portal_user_id matching their auth id)
+      const {data:internData} = await supabase.from("interns").select("*").eq("portal_user_id",session.user.id).single();
+      if(internData){
+        // This is an intern user — load their data
+        setInternUser(internData);
+        const [sessRes,hlRes] = await Promise.all([
+          supabase.from("sessions").select("*").eq("intern_id",internData.id).order("date",{ascending:false}),
+          supabase.from("hour_logs").select("*").eq("intern_id",internData.id),
+        ]);
+        setInternUserSessions(sessRes.data||[]);
+        setInternUserHourLogs(hlRes.data||[]);
+        // Load their supervisor's info
+        if(internData.supervisor_id){
+          const {data:supData} = await supabase.from("supervisors").select("name,email,phone,credential,photo,profile_data").eq("user_id",internData.supervisor_id).single();
+          if(supData){
+            const pd = supData.profile_data||{};
+            setInternSupervisorInfo({name:supData.name,email:supData.email,phone:pd.phone||supData.phone||"",credential:pd.credential||supData.credential||"",photo:supData.photo,license_number:pd.licenseNumber||"",license_state:pd.licenseState||""});
+          }
+        }
+        return; // Don't load supervisor profile for intern users
+      }
+
+      // Not an intern — load as supervisor
+      const {data} = await supabase.from("supervisors").select("*").eq("user_id",session.user.id).single();
       if(data){
-        const displayName=data.name&&data.name.trim()?data.name.trim():(data.profile_data?.name||session.user.user_metadata?.full_name||session.user.email||"");
+        const displayName=data.profile_data?.name?.trim()||(data.name&&data.name.trim()&&data.name!==data.email?data.name.trim():null)||session.user.user_metadata?.full_name||data.name||session.user.email||"";
         setSupervisorName(displayName);
         setSupervisorPhoto(data.photo||null);
         setSupervisorProfile(data);
       } else {
         const email=session.user.email||"";
         const name=session.user.user_metadata?.full_name||email;
-        supabase.from("supervisors").insert({user_id:session.user.id,name:name,email:email,plan:"starter",trial_ends_at:new Date(Date.now()+14*24*60*60*1000).toISOString()}).select().single().then(({data:newRow,error:insErr})=>{
-          if(insErr)console.error("Supervisor insert error:",insErr);
-          if(newRow)setSupervisorProfile(newRow);
-        });
+        const {data:newRow,error:insErr} = await supabase.from("supervisors").insert({user_id:session.user.id,name:name,email:email,plan:"starter",trial_ends_at:new Date(Date.now()+14*24*60*60*1000).toISOString()}).select().single();
+        if(insErr)console.error("Supervisor insert error:",insErr);
+        if(newRow)setSupervisorProfile(newRow);
         setSupervisorName(name);
       }
-    });
+    };
+    loadUser();
   },[session]);
   const saveSupervisorProfile=React.useCallback((updates)=>{
     if(!session?.user)return;
@@ -9656,7 +10200,49 @@ useEffect(() => {
       if(error)console.error("Profile save error:",error);
     });
   },[session]);
-  const supervisorInitials = supervisorName.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()||"??";
+  const supervisorInitials = supervisorName ? supervisorName.split(" ").filter(Boolean).map(w=>w[0]).join("").slice(0,2).toUpperCase()||"??" : "??";
+
+  // Handle Stripe checkout return
+  React.useEffect(()=>{
+    const params = new URLSearchParams(window.location.search);
+    const checkout = params.get("checkout");
+    if (checkout === "success") {
+      // Reload supervisor profile to get updated plan from webhook
+      window.history.replaceState({}, "", window.location.pathname);
+      setPage("billing");
+      // Give webhook a moment to process, then reload profile
+      const reload = () => {
+        if (!session?.user) return;
+        supabase.from("supervisors").select("*").eq("user_id", session.user.id).single().then(({data}) => {
+          if (data) {
+            setSupervisorProfile(data);
+            setBilling(p => ({ ...p, plan: data.plan || "starter", cycle: data.billing_cycle || p.cycle }));
+          }
+        });
+      };
+      reload();
+      setTimeout(reload, 3000);
+      setTimeout(reload, 8000);
+    } else if (checkout === "cancel") {
+      window.history.replaceState({}, "", window.location.pathname);
+      setPage("billing");
+    }
+  }, []);
+
+  // Sync billing state from supervisor profile
+  React.useEffect(() => {
+    if (supervisorProfile?.plan) {
+      setBilling(p => ({
+        ...p,
+        plan: supervisorProfile.plan,
+        cycle: supervisorProfile.billing_cycle || p.cycle,
+        trialDaysLeft: supervisorProfile.trial_ends_at
+          ? Math.max(0, Math.ceil((new Date(supervisorProfile.trial_ends_at) - new Date()) / (1000*60*60*24)))
+          : 0,
+      }));
+    }
+  }, [supervisorProfile]);
+
   const trialEndsAt = supervisorProfile?.trial_ends_at ? new Date(supervisorProfile.trial_ends_at) : null;
   const trialActive = trialEndsAt && trialEndsAt > new Date();
   const supervisorPlan = supervisorProfile?.plan || "starter";
@@ -9785,27 +10371,54 @@ useEffect(() => {
     .filter(n => n && !navHidden.has(n.id));
 if (!session) return <Auth />
 
+  // Intern portal — if logged-in user is an intern, show intern dashboard
+  if (internUser) return <InternDashboard
+    T={t} F={f}
+    internRecord={internUser}
+    sessions={internUserSessions}
+    hourLogs={internUserHourLogs}
+    supervisorInfo={internSupervisorInfo}
+    onSignOut={()=>supabase.auth.signOut()}
+  />;
+
   // Trial expired paywall
+  const [trialCheckoutLoading, setTrialCheckoutLoading] = useState(null);
+  const handleTrialCheckout = async (planId) => {
+    if (!session?.user) return;
+    setTrialCheckoutLoading(planId);
+    try {
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ planId: planId + "_monthly", userId: session.user.id, email: session.user.email }),
+      });
+      const data = await res.json();
+      if (data.url) window.location.href = data.url;
+      else { alert(data.error || "Failed to start checkout"); setTrialCheckoutLoading(null); }
+    } catch { alert("Failed to connect to billing service"); setTrialCheckoutLoading(null); }
+  };
+
   if(trialExpired) return <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:"100vh",background:"#FAF9F8",padding:40}}>
     <div style={{background:"#fff",borderRadius:18,padding:"40px 44px",maxWidth:480,width:"100%",boxShadow:"0 8px 32px rgba(0,0,0,0.1)",textAlign:"center"}}>
       <div style={{fontSize:36,marginBottom:16}}>⏰</div>
       <h1 style={{fontSize:24,fontWeight:600,color:"#1A1A2E",marginBottom:8}}>Your free trial has ended</h1>
       <p style={{fontSize:14,color:"#666",lineHeight:1.6,marginBottom:24}}>Your 14-day trial expired on {trialEndsAt?.toLocaleDateString()}. Choose a plan to continue using SupTrack.</p>
       <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:24,textAlign:"left"}}>
-        <div style={{border:"1px solid #E2DDD8",borderRadius:12,padding:"16px 20px"}}>
-          <div style={{fontWeight:600,fontSize:15}}>Starter — Free</div>
-          <div style={{fontSize:13,color:"#888",marginTop:4}}>Up to 10 supervisees · Manual session notes</div>
-        </div>
-        <div style={{border:"1px solid #7B9FD4",borderRadius:12,padding:"16px 20px",background:"#F0F5FF"}}>
-          <div style={{fontWeight:600,fontSize:15}}>Growth — $29/mo</div>
-          <div style={{fontSize:13,color:"#888",marginTop:4}}>Up to 20 supervisees · AI session notes</div>
-        </div>
-        <div style={{border:"1px solid #5B7B5E",borderRadius:12,padding:"16px 20px",background:"#F0F7F0"}}>
-          <div style={{fontWeight:600,fontSize:15}}>Practice — $59/mo</div>
-          <div style={{fontSize:13,color:"#888",marginTop:4}}>Unlimited supervisees · AI + priority support</div>
-        </div>
+        {[
+          {id:"starter",name:"Starter",price:"$24.99/mo",desc:"Up to 10 supervisees · Hour tracking & session logging",border:"#5B7B5E",bg:"#EEF4EE"},
+          {id:"growth",name:"Growth",price:"$39.99/mo",desc:"Up to 20 supervisees · AI session notes & audit reports",border:"#7B9FD4",bg:"#F0F5FF"},
+          {id:"practice",name:"Practice",price:"$69.99/mo",desc:"Unlimited supervisees · Multi-supervisor & dedicated support",border:"#6B3FA0",bg:"#F2EDFB"},
+        ].map(p=><div key={p.id} style={{border:`1px solid ${p.border}`,borderRadius:12,padding:"16px 20px",background:p.bg,cursor:"pointer",opacity:trialCheckoutLoading&&trialCheckoutLoading!==p.id?0.5:1}} onClick={()=>handleTrialCheckout(p.id)}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div>
+              <div style={{fontWeight:600,fontSize:15}}>{p.name} — {p.price}</div>
+              <div style={{fontSize:13,color:"#888",marginTop:4}}>{p.desc}</div>
+            </div>
+            {trialCheckoutLoading===p.id&&<span style={{fontSize:12,color:p.border}}>Loading...</span>}
+          </div>
+        </div>)}
       </div>
-      <button onClick={()=>{saveSupervisorProfile({plan:"starter"});}} style={{width:"100%",padding:"12px",background:"#7B9FD4",color:"#fff",border:"none",borderRadius:8,fontSize:15,fontWeight:600,cursor:"pointer",marginBottom:10}}>Continue with Starter (free)</button>
+      <button onClick={()=>handleTrialCheckout("starter")} style={{width:"100%",padding:"12px",background:"#7B9FD4",color:"#fff",border:"none",borderRadius:8,fontSize:15,fontWeight:600,cursor:"pointer",marginBottom:10}}>{trialCheckoutLoading==="starter"?"Redirecting...":"Start Starter plan"}</button>
       <button onClick={()=>supabase.auth.signOut()} style={{width:"100%",padding:"10px",background:"none",border:"1px solid #E2DDD8",borderRadius:8,fontSize:14,cursor:"pointer",color:"#666"}}>Sign out</button>
     </div>
   </div>;
@@ -9970,7 +10583,7 @@ if (!session) return <Auth />
         <div onClick={()=>setPage("profile")} style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer",borderRadius:8,padding:"4px 0"}} title="My profile">
           <Avatar initials={supervisorInitials} size={32} T={t} photo={supervisorPhoto}/>
           <div>
-            <div style={{fontSize:13,color:t.text,fontWeight:500}}>{supervisorName.split(" ")[0]}</div>
+            <div style={{fontSize:13,color:t.text,fontWeight:500}}>{supervisorName?(supervisorName.includes("@")?supervisorName.split("@")[0]:supervisorName.split(" ")[0]):"Supervisor"}</div>
             <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace"}}>{trialActive?`Trial · ${Math.ceil((trialEndsAt-new Date())/(1000*60*60*24))}d left`:supervisorPlan==="starter"?"Starter":supervisorPlan==="growth"?"Growth":"Practice"}</div>
           </div>
         </div>
@@ -10000,17 +10613,17 @@ if (!session) return <Auth />
         }}
       />}
       {page==="intern-profile"&&!selectedIntern&&(()=>{setTimeout(()=>setPage("interns"),0);return null;})()}
-      {page==="intern-profile"&&selectedIntern&&<InternProfile T={t} plan={supervisorPlan} intern={selectedIntern} groups={groups} lists={lists} setLists={setLists} colleagues={colleagues} setColleagues={setColleagues} onBack={()=>{setSelectedInternId_sv(null);setPage("interns");}} onUpdateIntern={updateIntern} onDelete={(id)=>{supabase.from("interns").delete().eq("id",id).then(({error})=>{if(error)console.error("Intern delete error:",error);});supabase.from("sessions").delete().eq("intern_id",id).then(({error})=>{if(error)console.error("Sessions delete error:",error);});supabase.from("hour_logs").delete().eq("intern_id",id).then(({error})=>{if(error)console.error("Hour logs delete error:",error);});setInterns(p=>p.filter(i=>i.id!==id));setSelectedInternId_sv(null);setPage("interns");}} onConsult={i=>{setConsultIntern(i);setPage("resources");}} onOpenLab={()=>setPage("lab")} onGroupClick={(gid)=>{setSelectedGroupId(gid);setPage("groups");}}/>}
+      {page==="intern-profile"&&selectedIntern&&<InternProfile T={t} plan={supervisorPlan} session={session} intern={selectedIntern} groups={groups} lists={lists} setLists={setLists} colleagues={colleagues} setColleagues={setColleagues} onBack={()=>{setSelectedInternId_sv(null);setPage("interns");}} onUpdateIntern={updateIntern} onDelete={(id)=>{supabase.from("interns").delete().eq("id",id).then(({error})=>{if(error)console.error("Intern delete error:",error);});supabase.from("sessions").delete().eq("intern_id",id).then(({error})=>{if(error)console.error("Sessions delete error:",error);});supabase.from("hour_logs").delete().eq("intern_id",id).then(({error})=>{if(error)console.error("Hour logs delete error:",error);});setInterns(p=>p.filter(i=>i.id!==id));setSelectedInternId_sv(null);setPage("interns");}} onConsult={i=>{setConsultIntern(i);setPage("resources");}} onOpenLab={()=>setPage("lab")} onGroupClick={(gid)=>{setSelectedGroupId(gid);setPage("groups");}}/>}
       {page==="interns"&&<InterneesPage T={t} interns={interns} groups={groups} lists={lists} colleagues={colleagues} internFilter={internFilter} setInternFilter={setInternFilter} internSort={internSort} setInternSort={setInternSort} internViewMode={internViewMode} setInternViewMode={setInternViewMode} onSelectIntern={i=>{setSelectedInternId_sv(i.id);setPage("intern-profile");}} onGroupClick={(gid)=>{setSelectedGroupId(gid);setPage("groups");}} onAddIntern={()=>{if(activeInternCount>=internLimit){setUpgradePrompt("intern");return;}setAddInternOpen(true);}} onOpenOnboarding={()=>setOnboardingOpen(true)}/>}
       {page==="groups"&&<GroupsPage T={t} groups={groups} interns={interns} colleagues={colleagues} setColleagues={setColleagues} setGroups={setGroups} initialGroupId={selectedGroupId} updateInterns={addSessionCharge} updateIntern={updateIntern} onSelectIntern={i=>{setSelectedInternId_sv(i.id);setPage("intern-profile");}}/>}
 
       {page==="payments"&&<PaymentsPage T={t} interns={interns} groups={groups} onSelectIntern={i=>{setSelectedInternId_sv(i.id);setPage("intern-profile");}}/>}
-      {page==="billing"&&<BillingPage T={t} F={f} colleagues={colleagues} billing={billing} setBilling={setBilling} interns={interns}/>}
+      {page==="billing"&&<BillingPage T={t} F={f} colleagues={colleagues} billing={billing} setBilling={setBilling} interns={interns} session={session} supervisorProfile={supervisorProfile} setSupervisorProfile={setSupervisorProfile}/>}
       {page==="ce"&&<CETrackerPage T={t} ceData={ceData} setCeData={setCeData}/>}
       {page==="calendar"&&<CalendarPage T={t}/>}
       {page==="resources"&&<ResourcesHubPage T={t} interns={interns} consultIntern={consultIntern}/>}
       {page==="resources"&&<ResourcesPage T={t}/>}
-      {page==="discover"&&<DiscoverPage T={t} interns={interns} onAddIntern={newIntern=>setInterns(p=>[...p,newIntern])}/>}
+      {page==="discover"&&<DiscoverPage T={t} session={session} interns={interns} onAddIntern={newIntern=>setInterns(p=>[...p,newIntern])}/>}
       {page==="agreements"&&<AgreementsPage T={t} interns={interns} supervisorName={supervisorName}/>}
 
       {page==="support"&&<SupportPage T={t} supervisorName={supervisorName} supervisorEmail={`${(supervisorName||"Alyson K.").toLowerCase().replace(/[^a-z0-9]/g,".")}@questcounseling.org`} tickets={tickets} setTickets={setTickets}/>}

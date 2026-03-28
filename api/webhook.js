@@ -33,10 +33,21 @@ export default async function handler(req, res) {
       const sub = event.data.object;
       const userId = sub.metadata?.user_id;
       const planName = sub.metadata?.plan_name || 'starter';
+      const cycle = sub.metadata?.cycle || 'monthly';
       if (userId) {
+        // Count seat add-on quantity
+        const seatPriceIds = [
+          'price_1TFlNyPh0EYN12t7zG3zAODs',
+          'price_1TFlOUPh0EYN12t79KaLvSic',
+        ];
+        const seatItem = sub.items?.data?.find(item => seatPriceIds.includes(item.price.id));
+        const seatCount = seatItem ? seatItem.quantity : 0;
+
         await supabase.from('supervisors').update({
           plan: planName,
+          billing_cycle: cycle,
           stripe_customer_id: sub.customer,
+          seat_count: seatCount,
         }).eq('user_id', userId);
       }
       break;
@@ -45,19 +56,27 @@ export default async function handler(req, res) {
       const sub = event.data.object;
       const userId = sub.metadata?.user_id;
       if (userId) {
-        await supabase.from('supervisors').update({ plan: 'starter' }).eq('user_id', userId);
+        await supabase.from('supervisors').update({
+          plan: 'starter',
+          seat_count: 0,
+        }).eq('user_id', userId);
       }
       break;
     }
     case 'checkout.session.completed': {
       const session = event.data.object;
-      const userId = session.subscription
-        ? (await stripe.subscriptions.retrieve(session.subscription)).metadata?.user_id
-        : null;
-      if (userId && session.customer) {
-        await supabase.from('supervisors').update({
-          stripe_customer_id: session.customer,
-        }).eq('user_id', userId);
+      if (session.subscription) {
+        const sub = await stripe.subscriptions.retrieve(session.subscription);
+        const userId = sub.metadata?.user_id;
+        const planName = sub.metadata?.plan_name || 'starter';
+        const cycle = sub.metadata?.cycle || 'monthly';
+        if (userId) {
+          await supabase.from('supervisors').update({
+            plan: planName,
+            billing_cycle: cycle,
+            stripe_customer_id: session.customer,
+          }).eq('user_id', userId);
+        }
       }
       break;
     }
