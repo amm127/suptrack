@@ -4192,8 +4192,9 @@ function GroupsPage({groups,interns,colleagues,setColleagues,setGroups,onSelectI
   };
 
   const deleteGroup=()=>{
-    // Remove group from all interns
+    // Remove group from all interns and Supabase
     const id=selected;
+    supabase.from("groups").delete().eq("id",id).then(({error})=>{if(error)console.error("Group delete error:",error);});
     setGroups(p=>p.filter(g=>g.id!==id));
     // Remove groupId from all interns who had it
     // (handled via updateInterns is not available here, but we can do it via setGroups side effect)
@@ -9425,10 +9426,19 @@ useEffect(() => {
       if(internRes.data)setInterns(internRes.data.map(r=>({...r,preferredName:r.preferred_name||"",internType:r.intern_type||r.discipline||"",credentialBody:r.credential_body||"",licenseGoal:r.license_goal||"",supervisorRole:r.supervisor_role||"",startDate:r.start_date||"",proBono:r.pro_bono||false,groupIds:r.group_ids||[],listIds:r.list_ids||[],hoursCompleted:r.hours_completed||0,hoursTotal:r.hours_total||0,individualHours:r.individual_hours||0,groupHours:r.group_hours||0,billingRate:r.billing_rate||0,billingSchedule:r.billing_schedule||"monthly",initials:(r.name||"").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase(),sessions:sessMap[r.id]||[],cases:r.cases||[],documents:r.documents||[],evaluations:r.evaluations||[],hourLog:hlMap[r.id]||[],internHourLog:r.intern_hour_log||[],customHourCategories:r.custom_hour_categories||[],payments:r.payments||[],paymentStatus:r.payment_status||"current",sharedWith:r.shared_with||[],flags:r.flags||[],photo:r.photo||null})));
     });
   },[session]);
-  const [groups,setGroups]=useState(()=>{
-    try{const s=localStorage.getItem("suptrack_groups");return s?JSON.parse(s):INITIAL_GROUPS;}
-    catch{return INITIAL_GROUPS;}
-  });
+  const [groups,setGroups]=useState([]);
+  const groupsLoadedRef=React.useRef(false);
+  React.useEffect(()=>{
+    if(!session?.user)return;
+    supabase.from("groups").select("*").eq("supervisor_id",session.user.id).then(({data,error})=>{
+      if(data&&data.length>0){setGroups(data.map(g=>({id:g.id,name:g.name||"",color:g.color||"#5B7B5E",colorLight:g.color_light||"#EEF4EE",sharedWith:g.shared_with||[],sessions:g.sessions_data||[],paymentPerIntern:g.payment_per_intern||0,split:g.split||0,...(g.config||{})})));groupsLoadedRef.current=true;}
+      else{
+        // Fall back to localStorage / initial
+        try{const s=localStorage.getItem("suptrack_groups");setGroups(s?JSON.parse(s):INITIAL_GROUPS);}catch{setGroups(INITIAL_GROUPS);}
+        groupsLoadedRef.current=true;
+      }
+    });
+  },[session]);
   const [lists,setLists]=useState(()=>{
     try{const s=localStorage.getItem("suptrack_lists");return s?JSON.parse(s):INITIAL_LISTS;}
     catch{return INITIAL_LISTS;}
@@ -9438,8 +9448,15 @@ useEffect(() => {
     catch{return INITIAL_COLLEAGUES;}
   });
 
-  // Save to localStorage whenever state changes
-  React.useEffect(()=>{try{localStorage.setItem("suptrack_groups",JSON.stringify(groups));}catch{}},[groups]);
+  // Sync groups to Supabase and localStorage
+  React.useEffect(()=>{
+    try{localStorage.setItem("suptrack_groups",JSON.stringify(groups));}catch{}
+    if(!session?.user||!groupsLoadedRef.current||groups.length===0)return;
+    groups.forEach(g=>{
+      const row={id:g.id,supervisor_id:session.user.id,name:g.name||"",color:g.color||"",color_light:g.colorLight||"",shared_with:g.sharedWith||[],sessions_data:g.sessions||[],payment_per_intern:g.paymentPerIntern||0,split:g.split||0};
+      supabase.from("groups").upsert(row,{onConflict:"id"}).then(({error})=>{if(error)console.error("Group upsert error:",error);});
+    });
+  },[groups]);
   React.useEffect(()=>{try{localStorage.setItem("suptrack_lists",JSON.stringify(lists));}catch{}},[lists]);
   React.useEffect(()=>{try{localStorage.setItem("suptrack_colleagues",JSON.stringify(colleagues));}catch{}},[colleagues]);
   const [page,setPage]=useState(()=>{try{const p=localStorage.getItem("suptrack_page");return p&&["dashboard","interns","intern-profile","groups","payments","billing","ce","calendar","consult","lab","resources","discover","agreements","reminders","support","admin","profile","settings"].includes(p)?p:"dashboard";}catch{return "dashboard";}});
@@ -9793,7 +9810,7 @@ if (!session) return <Auth />
         }}
       />}
       {page==="intern-profile"&&!selectedIntern&&(()=>{setTimeout(()=>setPage("interns"),0);return null;})()}
-      {page==="intern-profile"&&selectedIntern&&<InternProfile T={t} intern={selectedIntern} groups={groups} lists={lists} setLists={setLists} colleagues={colleagues} setColleagues={setColleagues} onBack={()=>{setSelectedInternId_sv(null);setPage("interns");}} onUpdateIntern={updateIntern} onDelete={(id)=>{setInterns(p=>p.filter(i=>i.id!==id));setSelectedInternId_sv(null);setPage("interns");}} onConsult={i=>{setConsultIntern(i);setPage("resources");}} onOpenLab={()=>setPage("lab")} onGroupClick={(gid)=>{setSelectedGroupId(gid);setPage("groups");}}/>}
+      {page==="intern-profile"&&selectedIntern&&<InternProfile T={t} intern={selectedIntern} groups={groups} lists={lists} setLists={setLists} colleagues={colleagues} setColleagues={setColleagues} onBack={()=>{setSelectedInternId_sv(null);setPage("interns");}} onUpdateIntern={updateIntern} onDelete={(id)=>{supabase.from("interns").delete().eq("id",id).then(({error})=>{if(error)console.error("Intern delete error:",error);});supabase.from("sessions").delete().eq("intern_id",id).then(({error})=>{if(error)console.error("Sessions delete error:",error);});supabase.from("hour_logs").delete().eq("intern_id",id).then(({error})=>{if(error)console.error("Hour logs delete error:",error);});setInterns(p=>p.filter(i=>i.id!==id));setSelectedInternId_sv(null);setPage("interns");}} onConsult={i=>{setConsultIntern(i);setPage("resources");}} onOpenLab={()=>setPage("lab")} onGroupClick={(gid)=>{setSelectedGroupId(gid);setPage("groups");}}/>}
       {page==="interns"&&<InterneesPage T={t} interns={interns} groups={groups} lists={lists} colleagues={colleagues} internFilter={internFilter} setInternFilter={setInternFilter} internSort={internSort} setInternSort={setInternSort} internViewMode={internViewMode} setInternViewMode={setInternViewMode} onSelectIntern={i=>{setSelectedInternId_sv(i.id);setPage("intern-profile");}} onGroupClick={(gid)=>{setSelectedGroupId(gid);setPage("groups");}} onAddIntern={()=>setAddInternOpen(true)} onOpenOnboarding={()=>setOnboardingOpen(true)}/>}
       {page==="groups"&&<GroupsPage T={t} groups={groups} interns={interns} colleagues={colleagues} setColleagues={setColleagues} setGroups={setGroups} initialGroupId={selectedGroupId} updateInterns={addSessionCharge} updateIntern={updateIntern} onSelectIntern={i=>{setSelectedInternId_sv(i.id);setPage("intern-profile");}}/>}
 
