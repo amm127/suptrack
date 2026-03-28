@@ -11,17 +11,21 @@ const TODAY_MONTH = () => new Date().toLocaleDateString("en-US",{month:"long",ye
 // ── Themes ─────────────────────────────────────────────────────────────────
 const THEMES = {
   // ── SupTrack 🌈 muted rainbow — dusty periwinkle, peach, gold, mauve, sage ─
-  suptrack: { name:"SupTrack",     swatch:"#9AB0CC",
-    bg:"#FAF9F8", surface:"#FFFFFF", surfaceAlt:"#F4F2F0", border:"#E2DDD8", borderLight:"#EDE9E4",
-    text:"#1E1C1A", muted:"#7A7268", faint:"#C0B8B0",
-    accent:"#7B9FD4", accentLight:"#EEF2FA", accentMid:"#C0CCEA", accentText:"#3A5A8A",
-    gradient:"linear-gradient(135deg,#7B9FD4,#88B8A0,#A088C8)",
-    gradientSubtle:"linear-gradient(135deg,#F0F4FA,#F0F8F4,#F5F0FA)",
-    gradientMid:"linear-gradient(135deg,#BACCE8,#B0D8C4,#C8B4E8)",
+  suptrack: { name:"SupTrack",     swatch:"#4ABFBF",
+    bg:"#F5FAF9", surface:"#FFFFFF", surfaceAlt:"#EFF6F4", border:"#D4E4E0", borderLight:"#E4EEEB",
+    text:"#1B2D4F", muted:"#5A7B6E", faint:"#B0C8C0",
+    accent:"#3A9E9E", accentLight:"#E8F5F2", accentMid:"#A8D8D0", accentText:"#1B5E5E",
+    gradient:"linear-gradient(135deg,#3A9E9E,#5AB88A,#4ABFBF)",
+    gradientSubtle:"linear-gradient(135deg,#EFF8F5,#F0FAF4,#E8F8F8)",
+    gradientMid:"linear-gradient(135deg,#A8D8CC,#88C8A0,#90D8D8)",
     isGradient:true,
-    shades:["#EEF2FA","#C0CCEA","#7B9FD4","#88B8A0","#A088C8","#6A5A90"],
-    dark:{ bg:"#141210", surface:"#1E1C18", surfaceAlt:"#282420", border:"#3C3830", borderLight:"#302C28", text:"#F0EAE0", muted:"#A09888", faint:"#3A3630", accent:"#9AB8D8", accentLight:"#1C1A18", accentMid:"#303028", accentText:"#C0D4EC",
-      gradient:"linear-gradient(135deg,#7B9FD4,#88B8A0,#A088C8)" }},
+    sidebarBg:"linear-gradient(180deg,#1B2D4F 0%,#1A3A4A 100%)", sidebarText:"#E0ECE8", sidebarMuted:"#7A9A90", sidebarBorder:"#2A4A5A",
+    sidebarAccent:"#4ABFBF", sidebarAccentBg:"rgba(74,191,191,0.15)",
+    shades:["#E8F5F2","#A8D8D0","#4ABFBF","#3A9E9E","#2A7A6A","#1B4F4F"],
+    dark:{ bg:"#0C1820", surface:"#142028", surfaceAlt:"#1C2830", border:"#2C3E48", borderLight:"#243438", text:"#E8F0EC", muted:"#88A8A0", faint:"#2A3A34", accent:"#4ABFBF", accentLight:"#142028", accentMid:"#2C3E48", accentText:"#88D8D0",
+      gradient:"linear-gradient(135deg,#3A9E9E,#5AB88A,#4ABFBF)",
+      sidebarBg:"linear-gradient(180deg,#0A1418 0%,#0C1820 100%)", sidebarText:"#C0D8D0", sidebarMuted:"#608878", sidebarBorder:"#1C2C34",
+      sidebarAccent:"#4ABFBF", sidebarAccentBg:"rgba(74,191,191,0.12)" }},
 
 
   sunset:   { name:"Sunset",      swatch:"#C4607A",
@@ -10742,16 +10746,16 @@ useEffect(() => {
     {mobileNav&&<div className="st-sidebar-overlay" onClick={()=>setMobileNav(false)} style={{display:"none",position:"fixed",inset:0,background:"rgba(0,0,0,0.3)",zIndex:998}}/>}
 
     {/* Sidebar */}
-    <div className={`st-sidebar${mobileNav?" st-sidebar-open":""}`} style={{width:228,background:t.surface,borderRight:`1px solid ${t.border}`,display:"flex",flexDirection:"column",padding:"26px 0",position:"sticky",top:0,height:"100vh",flexShrink:0}}>
+    <div className={`st-sidebar${mobileNav?" st-sidebar-open":""}`} style={{width:228,background:t.sidebarBg||t.surface,borderRight:`1px solid ${t.sidebarBorder||t.border}`,display:"flex",flexDirection:"column",padding:"26px 0",position:"sticky",top:0,height:"100vh",flexShrink:0}}>
       <div style={{padding:"0 20px 18px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
         <div onClick={()=>{setPage("dashboard");setSelectedInternId_sv(null);setInternFilter(null);setConsultIntern(null);}}
           style={{cursor:"pointer",display:"flex",alignItems:"center",gap:0,flexDirection:"column"}}>
-          <img src="/logo.png" alt="SupTrack" style={{width:120,display:"block"}}/>
+          <img src="/logo.png" alt="SupTrack" style={{width:140,display:"block"}}/>
         </div>
         <button onClick={()=>setEditingNav(e=>!e)} title="Customize sidebar"
-          style={{background:editingNav?t.accentLight:"none",border:`1px solid ${editingNav?t.accentMid:t.border}`,borderRadius:6,padding:"4px 7px",cursor:"pointer",fontSize:12,color:editingNav?t.accentText:t.faint,lineHeight:1,flexShrink:0}}
-          onMouseEnter={e=>{if(!editingNav)e.currentTarget.style.color=t.muted;}}
-          onMouseLeave={e=>{if(!editingNav)e.currentTarget.style.color=t.faint;}}>
+          style={{background:editingNav?(t.sidebarAccentBg||t.accentLight):"none",border:`1px solid ${editingNav?(t.sidebarAccent||t.accentMid):(t.sidebarBorder||t.border)}`,borderRadius:6,padding:"4px 7px",cursor:"pointer",fontSize:12,color:editingNav?(t.sidebarAccent||t.accentText):(t.sidebarMuted||t.faint),lineHeight:1,flexShrink:0}}
+          onMouseEnter={e=>{if(!editingNav)e.currentTarget.style.color=t.sidebarText||t.muted;}}
+          onMouseLeave={e=>{if(!editingNav)e.currentTarget.style.color=t.sidebarMuted||t.faint;}}>
           ⠿
         </button>
       </div>
@@ -10799,54 +10803,54 @@ useEffect(() => {
             const isAI=item.id==="consult"||item.id==="lab";
             const rainbowColors=["#9B6FD4","#B880CC","#F4A0C0","#4DBDBD","#7AD4D4","#C88AC8","#F9C4DA","#4DBDBD","#9B6FD4","#B880CC","#F4A0C0","#4DBDBD","#7AD4D4","#C88AC8"];
             const rc = t.isRainbow ? rainbowColors[idx % rainbowColors.length] : null;
-            const activeBg     = t.isRainbow ? `${rc}18` : t.isGradient ? (t.gradientSubtle||t.accentLight) : isAI ? t.accentMid : t.accentLight;
-            const activeBorder = rc || t.accent;
+            const sAcc = t.sidebarAccent||t.accent;
+            const activeBg     = t.isRainbow ? `${rc}18` : t.sidebarAccentBg ? (active?t.sidebarAccentBg:"none") : t.isGradient ? (t.gradientSubtle||t.accentLight) : isAI ? t.accentMid : t.accentLight;
+            const activeBorder = rc || sAcc;
+            const hoverBg = t.sidebarBg ? "rgba(255,255,255,0.06)" : t.surfaceAlt;
             return <button key={item.id}
               onMouseEnter={()=>setNavHover(item.id)}
               onMouseLeave={()=>setNavHover(null)}
               onClick={()=>{setPage(item.id);setSelectedInternId_sv(null);setInternFilter(null);setConsultIntern(null);setMobileNav(false);}}
-              style={{width:"100%",background:active?activeBg:navHover===item.id?t.surfaceAlt:"none",border:"none",borderLeft:active?`3px solid ${activeBorder}`:"3px solid transparent",padding:"11px 24px",cursor:"pointer",textAlign:"left",fontSize:isAI?12:14,fontFamily:isAI?"'DM Mono',monospace":f.body,fontWeight:active?500:400,transition:"background 0.1s",display:"flex",alignItems:"center",gap:8}}>
+              style={{width:"100%",background:active?activeBg:navHover===item.id?hoverBg:"none",border:"none",borderLeft:active?`3px solid ${activeBorder}`:"3px solid transparent",padding:"11px 24px",cursor:"pointer",textAlign:"left",fontSize:isAI?12:14,fontFamily:isAI?"'DM Mono',monospace":f.body,fontWeight:active?500:400,transition:"background 0.1s",display:"flex",alignItems:"center",gap:8}}>
               {t.isRainbow&&<div style={{width:7,height:7,borderRadius:"50%",background:rc,flexShrink:0,opacity:active?1:0.35}}/>}
-              {t.isGradient&&<div style={{width:7,height:7,borderRadius:"50%",background:t.gradient,backgroundSize:"200% 200%",animation:"gradientShift 5s ease infinite",flexShrink:0,opacity:active?1:0.4}}/>}
-              <span style={{display:"inline-block",...(t.isGradient&&active?{background:t.gradient,backgroundSize:"200% 200%",animation:"gradientShift 5s ease infinite",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"}:{color:active?(rc||t.accent):isAI?t.accentText:t.text})}}>{item.label}</span>
+              {t.isGradient&&!t.sidebarBg&&<div style={{width:7,height:7,borderRadius:"50%",background:t.gradient,backgroundSize:"200% 200%",animation:"gradientShift 5s ease infinite",flexShrink:0,opacity:active?1:0.4}}/>}
+              <span style={{display:"inline-block",...(t.isGradient&&active&&!t.sidebarBg?{background:t.gradient,backgroundSize:"200% 200%",animation:"gradientShift 5s ease infinite",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"}:{color:active?(rc||sAcc):t.sidebarText||(isAI?t.accentText:t.text)})}}>{item.label}</span>
             </button>;
           })}</nav>}
 
       {/* Controls: HC + dark mode — themes in Settings */}
-      <div style={{padding:"12px 24px",borderTop:`1px solid ${t.borderLight}`}}>
-
+      <div style={{padding:"12px 24px",borderTop:`1px solid ${t.sidebarBorder||t.borderLight}`}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:6}}>
           <button onClick={()=>setHighContrast(h=>!h)} title={highContrast?"High contrast on":"High contrast off"}
-            style={{background:highContrast?t.accent:t.surfaceAlt,border:`1px solid ${t.border}`,borderRadius:6,padding:"2px 7px",cursor:"pointer",fontSize:10,color:highContrast?"#fff":t.faint,fontFamily:"'DM Mono',monospace",transition:"all 0.2s"}}>
+            style={{background:highContrast?(t.sidebarAccent||t.accent):(t.sidebarBg?"rgba(255,255,255,0.08)":t.surfaceAlt),border:`1px solid ${t.sidebarBorder||t.border}`,borderRadius:6,padding:"2px 7px",cursor:"pointer",fontSize:10,color:highContrast?"#fff":(t.sidebarMuted||t.faint),fontFamily:"'DM Mono',monospace",transition:"all 0.2s"}}>
             HC
           </button>
           <button onClick={()=>setDarkMode(d=>!d)} title={darkMode?"Light mode":"Dark mode"}
-            style={{background:darkMode?t.accent:t.surfaceAlt,border:`1px solid ${t.border}`,borderRadius:20,width:44,height:24,cursor:"pointer",position:"relative",transition:"background 0.2s",flexShrink:0}}>
-            <span style={{position:"absolute",top:3,left:darkMode?22:2,width:18,height:18,borderRadius:"50%",background:darkMode?"#fff":t.muted,transition:"left 0.2s",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10}}>{darkMode?"🌙":"☀️"}</span>
+            style={{background:darkMode?(t.sidebarAccent||t.accent):(t.sidebarBg?"rgba(255,255,255,0.08)":t.surfaceAlt),border:`1px solid ${t.sidebarBorder||t.border}`,borderRadius:20,width:44,height:24,cursor:"pointer",position:"relative",transition:"background 0.2s",flexShrink:0}}>
+            <span style={{position:"absolute",top:3,left:darkMode?22:2,width:18,height:18,borderRadius:"50%",background:darkMode?"#fff":(t.sidebarMuted||t.muted),transition:"left 0.2s",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10}}>{darkMode?"🌙":"☀️"}</span>
           </button>
         </div>
       </div>
 
       {/* Intern portal */}
-      <div style={{padding:"12px 24px",borderTop:`1px solid ${t.borderLight}`}}>
-        <div style={{fontSize:10,color:t.faint,fontFamily:"'DM Mono',monospace",letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:8}}>Intern portal</div>
-        {interns.filter(i=>i.status==="active").map(i=><button key={i.id} onClick={()=>setPortalInternId(i.id)} style={{display:"flex",alignItems:"center",gap:7,width:"100%",background:"none",border:"none",cursor:"pointer",padding:"3px 0",color:t.muted,fontSize:12,fontFamily:"'DM Mono',monospace"}}>
+      <div style={{padding:"12px 24px",borderTop:`1px solid ${t.sidebarBorder||t.borderLight}`}}>
+        <div style={{fontSize:10,color:t.sidebarMuted||t.faint,fontFamily:"'DM Mono',monospace",letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:8}}>Intern portal</div>
+        {interns.filter(i=>i.status==="active").map(i=><button key={i.id} onClick={()=>setPortalInternId(i.id)} style={{display:"flex",alignItems:"center",gap:7,width:"100%",background:"none",border:"none",cursor:"pointer",padding:"3px 0",color:t.sidebarMuted||t.muted,fontSize:12,fontFamily:"'DM Mono',monospace"}}>
           <Avatar initials={i.initials} size={18} T={t}/>{dn(i).split(" ")[0]}
         </button>)}
       </div>
 
-      <div style={{padding:"12px 24px",borderTop:`1px solid ${t.borderLight}`}}>
+      <div style={{padding:"12px 24px",borderTop:`1px solid ${t.sidebarBorder||t.borderLight}`}}>
         <div onClick={()=>setPage("profile")} style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer",borderRadius:8,padding:"4px 0"}} title="My profile">
           <Avatar initials={supervisorInitials} size={32} T={t} photo={supervisorPhoto}/>
           <div>
-            <div style={{fontSize:13,color:t.text,fontWeight:500}}>{supervisorName?(supervisorName.includes("@")?supervisorName.split("@")[0]:supervisorName.split(" ")[0]):"Supervisor"}</div>
-            <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace"}}>{trialActive?`Trial · ${Math.ceil((trialEndsAt-new Date())/(1000*60*60*24))}d left`:supervisorPlan==="starter"?"Starter":supervisorPlan==="growth"?"Growth":"Practice"}</div>
+            <div style={{fontSize:13,color:t.sidebarText||t.text,fontWeight:500}}>{supervisorName?(supervisorName.includes("@")?supervisorName.split("@")[0]:supervisorName.split(" ")[0]):"Supervisor"}</div>
+            <div style={{fontSize:11,color:t.sidebarMuted||t.muted,fontFamily:"'DM Mono',monospace"}}>{trialActive?`Trial · ${Math.ceil((trialEndsAt-new Date())/(1000*60*60*24))}d left`:supervisorPlan==="starter"?"Starter":supervisorPlan==="growth"?"Growth":"Practice"}</div>
           </div>
         </div>
-        {/* Admin inbox — only shown to account owner, subtle */}
         {isAdmin&&<button onClick={()=>setPage("admin")}
-          style={{marginTop:8,background:"none",border:"none",cursor:"pointer",fontSize:10,color:page==="admin"?t.accent:t.faint,fontFamily:"'DM Mono',monospace",padding:0,display:"flex",alignItems:"center",gap:4}}>
-          🔒 Admin inbox{tickets.filter(tk=>tk.status==="open").length>0&&<span style={{background:t.accent,color:"#fff",borderRadius:20,fontSize:9,padding:"1px 5px"}}>{tickets.filter(tk=>tk.status==="open").length}</span>}
+          style={{marginTop:8,background:"none",border:"none",cursor:"pointer",fontSize:10,color:page==="admin"?(t.sidebarAccent||t.accent):(t.sidebarMuted||t.faint),fontFamily:"'DM Mono',monospace",padding:0,display:"flex",alignItems:"center",gap:4}}>
+          🔒 Admin inbox{tickets.filter(tk=>tk.status==="open").length>0&&<span style={{background:t.sidebarAccent||t.accent,color:"#fff",borderRadius:20,fontSize:9,padding:"1px 5px"}}>{tickets.filter(tk=>tk.status==="open").length}</span>}
         </button>}
       </div>
     </div>
