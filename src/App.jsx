@@ -5782,7 +5782,7 @@ function PublicProfilePage({supervisorPhoto,setSupervisorPhoto,supervisorName:su
         {/* Identity */}
         <Section title="Identity">
           <div style={{display:"flex",gap:16,marginBottom:16,alignItems:"flex-start"}}>
-            <Avatar initials={supervisorInitials||"??"} size={72} T={t} photo={supervisorPhoto} editable={editing} onPhotoChange={setSupervisorPhoto}/>
+            <Avatar initials={supervisorInitials||"??"} size={72} T={t} photo={supervisorPhoto} editable={true} onPhotoChange={(url)=>{setSupervisorPhoto(url);if(onSaveProfile)onSaveProfile({photo:url});}}/>
             <div style={{flex:1}}>
               {editing
                 ? <input {...inp("name")} style={{...inp("name").style,fontSize:18,marginBottom:8}}/>
@@ -11115,10 +11115,10 @@ useEffect(() => {
         </button>)}
       </div>
 
-      <div style={{padding:"12px 24px",borderTop:`1px solid ${t.sidebarBorder||t.borderLight}`}}>
-        <div onClick={()=>setPage("profile")} style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer",borderRadius:8,padding:"4px 0"}} title="My profile">
-          <Avatar initials={supervisorInitials} size={32} T={t} photo={supervisorPhoto}/>
-          <div>
+      <div style={{padding:"14px 24px",borderTop:`1px solid ${t.sidebarBorder||t.borderLight}`}}>
+        <div onClick={()=>setPage("profile")} style={{display:"flex",flexDirection:"column",alignItems:"center",cursor:"pointer",borderRadius:8,padding:"4px 0",gap:6}} title="My profile">
+          <Avatar initials={supervisorInitials} size={36} T={t} photo={supervisorPhoto}/>
+          <div style={{textAlign:"center"}}>
             <div style={{fontSize:13,color:t.sidebarText||t.text,fontWeight:500}}>{supervisorName?(supervisorName.includes("@")?supervisorName.split("@")[0]:supervisorName.split(" ")[0]):"Supervisor"}</div>
             <div style={{fontSize:11,color:t.sidebarMuted||t.muted,fontFamily:"'DM Mono',monospace"}}>{trialActive?`Trial · ${Math.ceil((trialEndsAt-new Date())/(1000*60*60*24))}d left`:supervisorPlan==="starter"?"Starter":supervisorPlan==="growth"?"Growth":"Practice"}</div>
           </div>
