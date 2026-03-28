@@ -649,7 +649,7 @@ const itSty = (t) => {
   const d = discStyle(t);
   return { label: d.label, color: d.color, bg: d.bg };
 };
-const rlSty = (r) => r==="primary" ? { label:"Primary Intern", color:S.amber, bg:S.amberLight }  : { label:"Secondary Intern", color:S.coral, bg:S.coralLight };
+const rlSty = (r) => r==="primary" ? { label:"Primary Intern", color:S.amber, bg:S.amberLight } : r==="student" ? { label:"Student Intern", color:S.blue, bg:S.blueLight } : { label:"Secondary Intern", color:S.coral, bg:S.coralLight };
 const pmSum = (p) => { const on=PERM_DEFS.filter(d=>p[d.id]); return !on.length?"No access":on.length===PERM_DEFS.length?"Full access":on.slice(0,2).map(d=>d.label).join(", ")+(on.length>2?` +${on.length-2}`:""); };
 const retSt = (i) => { if(i.status!=="inactive"||!i.retentionYear) return null; const y=2026-i.retentionYear,l=7-y; if(l<=0) return {label:"Deletion overdue",color:S.red,bg:S.redLight}; if(l<=1) return {label:"Delete in <1 yr",color:S.amber,bg:S.amberLight}; return {label:`${l} yrs retention`,color:"#7A7060",bg:"#F0ECE4"}; };
 const activeFlags = (i) => i.flags?.filter(f=>!f.resolved)||[];
@@ -2083,6 +2083,9 @@ function EditProfileModal({intern,onSave,onClose,T}) {
     credentialBody:intern.credentialBody||"",
     university:    intern.university||"",
     licenseGoal:   intern.licenseGoal||"",
+    // Role & discipline
+    supervisorRole: intern.supervisorRole||"primary",
+    discipline:     intern.discipline||intern.internType||"counseling",
   });
   const [section,setSection]=useState("personal");
   const [errors,setErrors]=useState({});
@@ -2107,6 +2110,8 @@ function EditProfileModal({intern,onSave,onClose,T}) {
       phone:form.phone, email:form.email, startDate:form.startDate,
       credential:form.credential, credentialBody:form.credentialBody,
       university:form.university, licenseGoal:form.licenseGoal,
+      supervisorRole:form.supervisorRole, discipline:form.discipline, internType:form.discipline,
+      supervisor_role:form.supervisorRole,
       employment:{
         employer:form.employer, employerAddress:form.employerAddress,
         contactName:form.contactName, contactTitle:form.contactTitle,
@@ -2214,12 +2219,44 @@ function EditProfileModal({intern,onSave,onClose,T}) {
           <div style={{background:S.amberLight,border:"1px solid #E8C98A",borderRadius:8,padding:"8px 14px",fontSize:12,color:"#7A5A00"}}>
             ⚠ Credential changes are tracked. Only update these to correct data entry errors — do not change them to modify board records.
           </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            <div>
+              {iLabel("Supervisor role")}
+              <select value={form.supervisorRole} onChange={e=>set("supervisorRole",e.target.value)}
+                style={{width:"100%",border:`1px solid ${t.border}`,borderRadius:8,padding:"8px 12px",fontSize:13,fontFamily:"inherit",color:t.text,background:t.bg,outline:"none",cursor:"pointer"}}>
+                {form.discipline==="student"
+                  ? <option value="student">Student</option>
+                  : <>
+                      <option value="primary">Primary Intern</option>
+                      <option value="secondary">Secondary Intern</option>
+                      <option value="student">Student</option>
+                    </>}
+              </select>
+            </div>
+            <div>
+              {iLabel("Discipline")}
+              <select value={form.discipline} onChange={e=>{
+                const d=e.target.value;
+                set("discipline",d);
+                if(d==="student")set("supervisorRole","student");
+              }}
+                style={{width:"100%",border:`1px solid ${t.border}`,borderRadius:8,padding:"8px 12px",fontSize:13,fontFamily:"inherit",color:t.text,background:t.bg,outline:"none",cursor:"pointer"}}>
+                <option value="counseling">Counseling</option>
+                <option value="social_work">Social Work</option>
+                <option value="mft">MFT</option>
+                <option value="substance_use">Substance Use</option>
+                <option value="psychology">Psychology</option>
+                <option value="student">Student / Practicum</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+          </div>
           <div>{iLabel("Current credential")}{inp("credential","e.g. LPC-Intern")}</div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
             <div>{iLabel("Credentialing body")}{inp("credentialBody","e.g. CACREP")}</div>
             <div>{iLabel("Licensure goal")}{inp("licenseGoal","e.g. LPC")}</div>
           </div>
-          {intern.discipline==="student"&&<div>{iLabel("University *")}{inp("university","e.g. University of Nevada, Reno")}</div>}
+          {form.discipline==="student"&&<div>{iLabel("University *")}{inp("university","e.g. University of Nevada, Reno")}</div>}
         </div>}
       </div>
 
@@ -10572,8 +10609,11 @@ useEffect(() => {
           preferred_name:updated.preferredName||"",
           pronouns:updated.pronouns||"",
           discipline:updated.discipline||"",
+          supervisor_role:updated.supervisorRole||"primary",
           credential:updated.credential||"",
+          credential_body:updated.credentialBody||"",
           license_goal:updated.licenseGoal||"",
+          university:updated.university||"",
           status:updated.status||"active",
           pro_bono:updated.proBono||false,
           hours_completed:updated.hoursCompleted||0,
