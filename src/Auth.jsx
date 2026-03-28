@@ -108,20 +108,19 @@ export default function Auth() {
 
         {/* ── Left: Brand panel ── */}
         <div className="auth-brand" style={{
-          flex: '0 0 44%', background: '#1B2D4F', display: 'flex', flexDirection: 'column',
+          flex: '0 0 44%', background: 'linear-gradient(170deg, #C8DFC4 0%, #A8D0B8 30%, #8AC8C0 60%, #7BC4C4 100%)',
+          display: 'flex', flexDirection: 'column',
           alignItems: 'center', justifyContent: 'center', padding: '60px 48px', position: 'relative', overflow: 'hidden',
         }}>
-          {/* Subtle glow */}
-          <div style={{ position: 'absolute', top: '-20%', right: '-20%', width: '60%', height: '60%', borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(74,191,191,0.12) 0%, transparent 70%)', pointerEvents: 'none' }}/>
-          <div style={{ position: 'absolute', bottom: '-15%', left: '-10%', width: '50%', height: '50%', borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(90,184,138,0.08) 0%, transparent 70%)', pointerEvents: 'none' }}/>
+          {/* Soft organic shapes */}
+          <div style={{ position: 'absolute', top: '-10%', right: '-15%', width: '50%', height: '50%', borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 70%)', pointerEvents: 'none' }}/>
+          <div style={{ position: 'absolute', bottom: '-10%', left: '-10%', width: '45%', height: '45%', borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%)', pointerEvents: 'none' }}/>
 
-          <div style={{ position: 'relative', zIndex: 1, maxWidth: 340, textAlign: 'center' }}>
-            <div style={{ background: 'rgba(255,255,255,0.1)', borderRadius: 16, padding: '16px 24px', display: 'inline-block', marginBottom: 20 }}>
-              <img src="/logo.png" alt="SupTrack" style={{ width: 220, display: 'block' }}/>
-            </div>
-            <p style={{ color: '#4ABFBF', fontSize: 18, fontWeight: 400, fontStyle: 'italic', margin: '0 0 36px', letterSpacing: '0.02em' }}>
+          <div style={{ position: 'relative', zIndex: 1, maxWidth: 320, textAlign: 'center' }}>
+            <img src="/logo.png" alt="SupTrack" style={{ width: 220, display: 'block', margin: '0 auto 16px' }}/>
+            <p style={{ color: '#1B2D4F', fontSize: 17, fontWeight: 400, fontStyle: 'italic', margin: '0 0 40px', letterSpacing: '0.02em', opacity: 0.8 }}>
               Supervision, simplified.
             </p>
 
@@ -132,17 +131,17 @@ export default function Auth() {
                 ['Everything in one place', 'Hours, documents, payments, agreements, and intern portals.'],
               ].map(([title, desc]) => (
                 <div key={title} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#4ABFBF', marginTop: 6, flexShrink: 0 }}/>
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#1B2D4F', marginTop: 6, flexShrink: 0, opacity: 0.5 }}/>
                   <div>
-                    <div style={{ color: '#FFFFFF', fontSize: 14, fontWeight: 500, marginBottom: 2 }}>{title}</div>
-                    <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: 13, lineHeight: 1.5 }}>{desc}</div>
+                    <div style={{ color: '#1B2D4F', fontSize: 14, fontWeight: 600, marginBottom: 2 }}>{title}</div>
+                    <div style={{ color: '#2A4A3A', fontSize: 13, lineHeight: 1.5, opacity: 0.7 }}>{desc}</div>
                   </div>
                 </div>
               ))}
             </div>
           </div>
 
-          <div style={{ position: 'absolute', bottom: 28, fontSize: 12, color: 'rgba(255,255,255,0.25)' }}>
+          <div style={{ position: 'absolute', bottom: 28, fontSize: 12, color: 'rgba(27,45,79,0.3)' }}>
             &copy; {new Date().getFullYear()} SupTrack
           </div>
         </div>

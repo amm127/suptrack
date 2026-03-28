@@ -19,12 +19,12 @@ const THEMES = {
     gradientSubtle:"linear-gradient(135deg,#EFF8F5,#F0FAF4,#E8F8F8)",
     gradientMid:"linear-gradient(135deg,#A8D8CC,#88C8A0,#90D8D8)",
     isGradient:true,
-    sidebarBg:"linear-gradient(180deg,#1B2D4F 0%,#1A3A4A 100%)", sidebarText:"#E0ECE8", sidebarMuted:"#7A9A90", sidebarBorder:"#2A4A5A",
-    sidebarAccent:"#4ABFBF", sidebarAccentBg:"rgba(74,191,191,0.15)",
+    sidebarBg:"linear-gradient(180deg,#D0E4CE 0%,#B4D8CC 50%,#9CCCC8 100%)", sidebarText:"#1B2D4F", sidebarMuted:"#4A6A5A", sidebarBorder:"#A8C8B8",
+    sidebarAccent:"#1B5E5E", sidebarAccentBg:"rgba(27,94,94,0.1)",
     shades:["#E8F5F2","#A8D8D0","#4ABFBF","#3A9E9E","#2A7A6A","#1B4F4F"],
     dark:{ bg:"#0C1820", surface:"#142028", surfaceAlt:"#1C2830", border:"#2C3E48", borderLight:"#243438", text:"#E8F0EC", muted:"#88A8A0", faint:"#2A3A34", accent:"#4ABFBF", accentLight:"#142028", accentMid:"#2C3E48", accentText:"#88D8D0",
       gradient:"linear-gradient(135deg,#3A9E9E,#5AB88A,#4ABFBF)",
-      sidebarBg:"linear-gradient(180deg,#0A1418 0%,#0C1820 100%)", sidebarText:"#C0D8D0", sidebarMuted:"#608878", sidebarBorder:"#1C2C34",
+      sidebarBg:"linear-gradient(180deg,#162420 0%,#1A2C28 100%)", sidebarText:"#C0D8CC", sidebarMuted:"#688878", sidebarBorder:"#2A3C34",
       sidebarAccent:"#4ABFBF", sidebarAccentBg:"rgba(74,191,191,0.12)" }},
 
 
@@ -10750,7 +10750,7 @@ useEffect(() => {
       <div style={{padding:"0 20px 18px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
         <div onClick={()=>{setPage("dashboard");setSelectedInternId_sv(null);setInternFilter(null);setConsultIntern(null);}}
           style={{cursor:"pointer",display:"flex",alignItems:"center",gap:0,flexDirection:"column"}}>
-          <div style={{background:"rgba(208,231,236,0.35)",borderRadius:12,padding:"10px 14px",display:"inline-block"}}><img src="/logo.png" alt="SupTrack" style={{width:160,display:"block"}}/></div>
+          <img src="/logo.png" alt="SupTrack" style={{width:160,display:"block"}}/>
         </div>
         <button onClick={()=>setEditingNav(e=>!e)} title="Customize sidebar"
           style={{background:editingNav?(t.sidebarAccentBg||t.accentLight):"none",border:`1px solid ${editingNav?(t.sidebarAccent||t.accentMid):(t.sidebarBorder||t.border)}`,borderRadius:6,padding:"4px 7px",cursor:"pointer",fontSize:12,color:editingNav?(t.sidebarAccent||t.accentText):(t.sidebarMuted||t.faint),lineHeight:1,flexShrink:0}}
@@ -10806,7 +10806,7 @@ useEffect(() => {
             const sAcc = t.sidebarAccent||t.accent;
             const activeBg     = t.isRainbow ? `${rc}18` : t.sidebarAccentBg ? (active?t.sidebarAccentBg:"none") : t.isGradient ? (t.gradientSubtle||t.accentLight) : isAI ? t.accentMid : t.accentLight;
             const activeBorder = rc || sAcc;
-            const hoverBg = t.sidebarBg ? "rgba(255,255,255,0.06)" : t.surfaceAlt;
+            const hoverBg = t.sidebarBg ? "rgba(0,0,0,0.05)" : t.surfaceAlt;
             return <button key={item.id}
               onMouseEnter={()=>setNavHover(item.id)}
               onMouseLeave={()=>setNavHover(null)}
@@ -10822,11 +10822,11 @@ useEffect(() => {
       <div style={{padding:"12px 24px",borderTop:`1px solid ${t.sidebarBorder||t.borderLight}`}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:6}}>
           <button onClick={()=>setHighContrast(h=>!h)} title={highContrast?"High contrast on":"High contrast off"}
-            style={{background:highContrast?(t.sidebarAccent||t.accent):(t.sidebarBg?"rgba(255,255,255,0.08)":t.surfaceAlt),border:`1px solid ${t.sidebarBorder||t.border}`,borderRadius:6,padding:"2px 7px",cursor:"pointer",fontSize:10,color:highContrast?"#fff":(t.sidebarMuted||t.faint),fontFamily:"'DM Mono',monospace",transition:"all 0.2s"}}>
+            style={{background:highContrast?(t.sidebarAccent||t.accent):(t.sidebarBg?"rgba(0,0,0,0.06)":t.surfaceAlt),border:`1px solid ${t.sidebarBorder||t.border}`,borderRadius:6,padding:"2px 7px",cursor:"pointer",fontSize:10,color:highContrast?"#fff":(t.sidebarMuted||t.faint),fontFamily:"'DM Mono',monospace",transition:"all 0.2s"}}>
             HC
           </button>
           <button onClick={()=>setDarkMode(d=>!d)} title={darkMode?"Light mode":"Dark mode"}
-            style={{background:darkMode?(t.sidebarAccent||t.accent):(t.sidebarBg?"rgba(255,255,255,0.08)":t.surfaceAlt),border:`1px solid ${t.sidebarBorder||t.border}`,borderRadius:20,width:44,height:24,cursor:"pointer",position:"relative",transition:"background 0.2s",flexShrink:0}}>
+            style={{background:darkMode?(t.sidebarAccent||t.accent):(t.sidebarBg?"rgba(0,0,0,0.06)":t.surfaceAlt),border:`1px solid ${t.sidebarBorder||t.border}`,borderRadius:20,width:44,height:24,cursor:"pointer",position:"relative",transition:"background 0.2s",flexShrink:0}}>
             <span style={{position:"absolute",top:3,left:darkMode?22:2,width:18,height:18,borderRadius:"50%",background:darkMode?"#fff":(t.sidebarMuted||t.muted),transition:"left 0.2s",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10}}>{darkMode?"🌙":"☀️"}</span>
           </button>
         </div>
