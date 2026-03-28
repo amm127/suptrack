@@ -4228,7 +4228,20 @@ function GroupsPage({groups,interns,colleagues,setColleagues,setGroups,onSelectI
 
   return <div>
     {shareOpen&&ag&&<ShareModal T={t} title={ag.name} sharedWith={ag.sharedWith||[]} colleagues={colleagues} setColleagues={setColleagues} onSave={s=>{setGroups(p=>p.map(g=>g.id!==selected?g:{...g,sharedWith:s}));setShareOpen(false);}} onClose={()=>setShareOpen(false)}/>}
-    {aiGroupOpen&&ag&&<AISessionModal T={t} groupContext={ag} intern={null} onSave={session=>{setGroups(p=>p.map(g=>g.id!==selected?g:{...g,sessions:[{...session,attendees:members.map(m=>m.id)},...g.sessions]}));setAiGroupOpen(false);}} onClose={()=>setAiGroupOpen(false)}/>}
+    {aiGroupOpen&&ag&&<AISessionModal T={t} groupContext={ag} intern={null} onSave={session=>{
+      setGroups(p=>p.map(g=>g.id!==selected?g:{...g,sessions:[{...session,attendees:members.map(m=>m.id)},...g.sessions]}));
+      const hrs=Math.round((parseInt(session.duration)||60)/60*10)/10;
+      members.forEach(m=>{
+        const existingLog=m.hourLog||[];
+        const prev=existingLog.find(e=>e.category==="group_supervision");
+        const newLog=prev
+          ?existingLog.map(e=>e.category==="group_supervision"?{...e,hours:Math.round((e.hours+hrs)*10)/10}:e)
+          :[...existingLog,{category:"group_supervision",label:"Group Supervision",type:"direct",hours:hrs}];
+        const newTotal=newLog.reduce((s,e)=>s+e.hours,0);
+        updateIntern({...m,sessions:[session,...(m.sessions||[])],hourLog:newLog,hoursCompleted:Math.round(newTotal)});
+      });
+      setAiGroupOpen(false);
+    }} onClose={()=>setAiGroupOpen(false)}/>}
 
     {/* Delete confirm modal */}
     {confirmDelete&&ag&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000}} onClick={()=>setConfirmDelete(false)}>
