@@ -9406,7 +9406,8 @@ useEffect(() => {
       supabase.from("hour_logs").select("*").eq("supervisor_id",session.user.id),
     ]).then(([internRes,sessRes,hlRes])=>{
       const sessMap={};(sessRes.data||[]).forEach(s=>{if(!sessMap[s.intern_id])sessMap[s.intern_id]=[];sessMap[s.intern_id].push({date:s.date,type:s.session_type||"",duration:`${s.duration_minutes||60} min`,notes:s.notes||"",category:s.tag||"",author:"",_sid:s.id});});
-      const hlMap={};(hlRes.data||[]).forEach(h=>{if(!hlMap[h.intern_id])hlMap[h.intern_id]=[];hlMap[h.intern_id].push({id:h.id,category:h.category,type:h.type,hours:h.hours,label:h.label});});
+      const hlRaw={};(hlRes.data||[]).forEach(h=>{const key=h.intern_id+"__"+h.category;if(!hlRaw[key])hlRaw[key]={intern_id:h.intern_id,category:h.category,type:h.type,hours:0,label:h.label};hlRaw[key].hours+=Number(h.hours)||0;});
+      const hlMap={};Object.values(hlRaw).forEach(h=>{if(!hlMap[h.intern_id])hlMap[h.intern_id]=[];hlMap[h.intern_id].push({category:h.category,type:h.type,hours:Math.round(h.hours*10)/10,label:h.label});});
       if(internRes.data)setInterns(internRes.data.map(r=>({...r,preferredName:r.preferred_name||"",internType:r.intern_type||r.discipline||"",credentialBody:r.credential_body||"",licenseGoal:r.license_goal||"",supervisorRole:r.supervisor_role||"",startDate:r.start_date||"",proBono:r.pro_bono||false,groupIds:r.group_ids||[],listIds:r.list_ids||[],hoursCompleted:r.hours_completed||0,hoursTotal:r.hours_total||0,individualHours:r.individual_hours||0,groupHours:r.group_hours||0,billingRate:r.billing_rate||0,billingSchedule:r.billing_schedule||"monthly",initials:(r.name||"").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase(),sessions:sessMap[r.id]||[],cases:r.cases||[],documents:r.documents||[],evaluations:r.evaluations||[],hourLog:hlMap[r.id]||[],internHourLog:r.intern_hour_log||[],customHourCategories:r.custom_hour_categories||[],payments:r.payments||[],paymentStatus:r.payment_status||"current",sharedWith:r.shared_with||[],flags:r.flags||[],photo:r.photo||null})));
     });
   },[session]);
@@ -9519,10 +9520,16 @@ useEffect(() => {
           supabase.from("sessions").insert(row).then(({error})=>{if(error){console.error("Session insert error:",error);alert("Session save failed: "+error.message);}else{console.log("[updateIntern] Session saved OK");}});
         });
       }
-      // Sync hour_logs to Supabase — upsert by intern + category
+      // Sync hour_logs to Supabase — insert incremental hours for changed categories
       if(old&&updated.hourLog&&JSON.stringify(updated.hourLog)!==JSON.stringify(old.hourLog||[])){
+        const oldLog=old.hourLog||[];
         (updated.hourLog||[]).forEach(h=>{
-          supabase.from("hour_logs").upsert({intern_id:updated.id,supervisor_id:session.user.id,category:h.category,type:h.type,hours:h.hours,label:h.label},{onConflict:"intern_id,category"}).then(({error})=>{if(error)console.error("Hour log upsert error:",error);});
+          const prev=oldLog.find(o=>o.category===h.category);
+          const delta=h.hours-(prev?prev.hours:0);
+          if(delta<=0)return;
+          const hlRow={intern_id:updated.id,supervisor_id:session.user.id,date:new Date().toISOString().slice(0,10),hours:delta,category:h.category||"",type:h.type||"",label:h.label||""};
+          console.log("[updateIntern] Inserting hour_log:",hlRow);
+          supabase.from("hour_logs").insert(hlRow).then(({error})=>{if(error){console.error("Hour log insert error:",error);alert("Hour log save failed: "+error.message);}else{console.log("[updateIntern] Hour log saved OK");}});
         });
       }
       // Update aggregate fields on the intern row
