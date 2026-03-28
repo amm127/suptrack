@@ -2365,7 +2365,8 @@ function TagsBox({intern,lists,memberLists,t,onUpdateIntern,setLists}) {
   </div>;
 }
 
-function InternProfile({intern,groups,lists,setLists,colleagues,setColleagues,onBack,onUpdateIntern,onDelete,onConsult,onOpenLab,onGroupClick,T}) {
+function InternProfile({intern,groups,lists,setLists,colleagues,setColleagues,onBack,onUpdateIntern,onDelete,onConsult,onOpenLab,onGroupClick,T,plan}) {
+  const canUseAI = plan==="growth"||plan==="practice";
   const t=T||THEMES.sage;
   const [tab,setTab]=useState("overview");
   const [shareOpen,setShareOpen]=useState(false);
@@ -2634,7 +2635,9 @@ function InternProfile({intern,groups,lists,setLists,colleagues,setColleagues,on
 
     {tab==="sessions"&&<div>
       <div style={{display:"flex",justifyContent:"flex-end",marginBottom:14}}>
-        <Btn T={t} small onClick={()=>setAiSessionOpen(true)}>✦ Log Session with AI</Btn>
+        {canUseAI
+          ?<Btn T={t} small onClick={()=>setAiSessionOpen(true)}>✦ Log Session with AI</Btn>
+          :<Btn T={t} small onClick={()=>alert("AI session notes are available on the Growth plan and above. Upgrade your plan to unlock this feature.")} style={{opacity:0.6}}>✦ Log Session with AI (Growth+)</Btn>}
       </div>
       <div style={{background:t.accentLight,borderRadius:10,padding:"11px 16px",fontSize:13,color:t.accentText,marginBottom:16,border:`1px solid ${t.accentMid}`}}>Individual notes for {dn(intern)}. Notes by colleagues are marked. Group sessions are linked automatically.</div>
       {(intern.sessions||[]).map((s,i)=>{const byCol=s.author!=="Alyson"; return <div key={i} style={{background:t.surface,border:`1px solid ${t.border}`,borderLeft:`3px solid ${byCol?S.purple:t.accent}`,borderRadius:12,padding:"16px 20px",marginBottom:12,boxShadow:"0 1px 3px rgba(0,0,0,0.04)"}}>
@@ -9538,13 +9541,14 @@ useEffect(() => {
     if(!session?.user)return;
     supabase.from("supervisors").select("*").eq("user_id",session.user.id).single().then(({data,error})=>{
       if(data){
-        setSupervisorName(data.name||session.user.email||"");
+        const displayName=data.name&&data.name.trim()?data.name.trim():(data.profile_data?.name||session.user.user_metadata?.full_name||session.user.email||"");
+        setSupervisorName(displayName);
         setSupervisorPhoto(data.photo||null);
         setSupervisorProfile(data);
-      } else if(error||!data){
+      } else {
         const email=session.user.email||"";
         const name=session.user.user_metadata?.full_name||email;
-        supabase.from("supervisors").insert({user_id:session.user.id,name:name,email:email}).select().single().then(({data:newRow,error:insErr})=>{
+        supabase.from("supervisors").insert({user_id:session.user.id,name:name,email:email,plan:"starter"}).select().single().then(({data:newRow,error:insErr})=>{
           if(insErr)console.error("Supervisor insert error:",insErr);
           if(newRow)setSupervisorProfile(newRow);
         });
@@ -9563,6 +9567,11 @@ useEffect(() => {
     });
   },[session]);
   const supervisorInitials = supervisorName.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()||"??";
+  const supervisorPlan = supervisorProfile?.plan || "starter";
+  const PLAN_LIMITS = { starter: 10, growth: 20, practice: Infinity };
+  const internLimit = PLAN_LIMITS[supervisorPlan] || 10;
+  const activeInternCount = interns.filter(i=>i.status==="active").length;
+  const [upgradePrompt, setUpgradePrompt] = useState(null);
 
   const addSessionCharge=React.useCallback((internId, charge)=>{
     setInterns(p=>p.map(i=>{
@@ -9824,7 +9833,7 @@ if (!session) return <Auth />
     {/* Main content */}
     <div id="suptrack-content" style={{flex:1,padding:"38px 44px",maxWidth:980,overflowY:"auto"}}>
       {page==="dashboard"&&<Dashboard T={t} interns={interns} groups={groups} lists={lists} colleagues={colleagues} supervisorName={supervisorName}
-        onAddIntern={()=>setAddInternOpen(true)}
+        onAddIntern={()=>{if(activeInternCount>=internLimit){setUpgradePrompt("intern");return;}setAddInternOpen(true);}}
         onQuickAction={setQuickActionOpen}
         onSelectIntern={i=>{setSelectedInternId_sv(i.id);setPage("intern-profile");}}
         onNavigate={navigate}
@@ -9839,8 +9848,8 @@ if (!session) return <Auth />
         }}
       />}
       {page==="intern-profile"&&!selectedIntern&&(()=>{setTimeout(()=>setPage("interns"),0);return null;})()}
-      {page==="intern-profile"&&selectedIntern&&<InternProfile T={t} intern={selectedIntern} groups={groups} lists={lists} setLists={setLists} colleagues={colleagues} setColleagues={setColleagues} onBack={()=>{setSelectedInternId_sv(null);setPage("interns");}} onUpdateIntern={updateIntern} onDelete={(id)=>{supabase.from("interns").delete().eq("id",id).then(({error})=>{if(error)console.error("Intern delete error:",error);});supabase.from("sessions").delete().eq("intern_id",id).then(({error})=>{if(error)console.error("Sessions delete error:",error);});supabase.from("hour_logs").delete().eq("intern_id",id).then(({error})=>{if(error)console.error("Hour logs delete error:",error);});setInterns(p=>p.filter(i=>i.id!==id));setSelectedInternId_sv(null);setPage("interns");}} onConsult={i=>{setConsultIntern(i);setPage("resources");}} onOpenLab={()=>setPage("lab")} onGroupClick={(gid)=>{setSelectedGroupId(gid);setPage("groups");}}/>}
-      {page==="interns"&&<InterneesPage T={t} interns={interns} groups={groups} lists={lists} colleagues={colleagues} internFilter={internFilter} setInternFilter={setInternFilter} internSort={internSort} setInternSort={setInternSort} internViewMode={internViewMode} setInternViewMode={setInternViewMode} onSelectIntern={i=>{setSelectedInternId_sv(i.id);setPage("intern-profile");}} onGroupClick={(gid)=>{setSelectedGroupId(gid);setPage("groups");}} onAddIntern={()=>setAddInternOpen(true)} onOpenOnboarding={()=>setOnboardingOpen(true)}/>}
+      {page==="intern-profile"&&selectedIntern&&<InternProfile T={t} plan={supervisorPlan} intern={selectedIntern} groups={groups} lists={lists} setLists={setLists} colleagues={colleagues} setColleagues={setColleagues} onBack={()=>{setSelectedInternId_sv(null);setPage("interns");}} onUpdateIntern={updateIntern} onDelete={(id)=>{supabase.from("interns").delete().eq("id",id).then(({error})=>{if(error)console.error("Intern delete error:",error);});supabase.from("sessions").delete().eq("intern_id",id).then(({error})=>{if(error)console.error("Sessions delete error:",error);});supabase.from("hour_logs").delete().eq("intern_id",id).then(({error})=>{if(error)console.error("Hour logs delete error:",error);});setInterns(p=>p.filter(i=>i.id!==id));setSelectedInternId_sv(null);setPage("interns");}} onConsult={i=>{setConsultIntern(i);setPage("resources");}} onOpenLab={()=>setPage("lab")} onGroupClick={(gid)=>{setSelectedGroupId(gid);setPage("groups");}}/>}
+      {page==="interns"&&<InterneesPage T={t} interns={interns} groups={groups} lists={lists} colleagues={colleagues} internFilter={internFilter} setInternFilter={setInternFilter} internSort={internSort} setInternSort={setInternSort} internViewMode={internViewMode} setInternViewMode={setInternViewMode} onSelectIntern={i=>{setSelectedInternId_sv(i.id);setPage("intern-profile");}} onGroupClick={(gid)=>{setSelectedGroupId(gid);setPage("groups");}} onAddIntern={()=>{if(activeInternCount>=internLimit){setUpgradePrompt("intern");return;}setAddInternOpen(true);}} onOpenOnboarding={()=>setOnboardingOpen(true)}/>}
       {page==="groups"&&<GroupsPage T={t} groups={groups} interns={interns} colleagues={colleagues} setColleagues={setColleagues} setGroups={setGroups} initialGroupId={selectedGroupId} updateInterns={addSessionCharge} updateIntern={updateIntern} onSelectIntern={i=>{setSelectedInternId_sv(i.id);setPage("intern-profile");}}/>}
 
       {page==="payments"&&<PaymentsPage T={t} interns={interns} groups={groups} onSelectIntern={i=>{setSelectedInternId_sv(i.id);setPage("intern-profile");}}/>}
@@ -9858,7 +9867,7 @@ if (!session) return <Auth />
       {page==="admin"&&!isAdmin&&<div style={{padding:40,color:t.muted,fontSize:14}}>Access restricted.</div>}
       {page==="profile"&&<PublicProfilePage T={t} supervisorPhoto={supervisorPhoto} setSupervisorPhoto={setSupervisorPhoto} supervisorName={supervisorName} setSupervisorName={setSupervisorName} supervisorInitials={supervisorInitials} supervisorProfile={supervisorProfile} onSaveProfile={saveSupervisorProfile}/>}
       {page==="settings"&&<SettingsPage T={t} theme={theme} setTheme={setTheme} setCustomTheme={setCustomTheme} font={fontKey} setFont={setFontKey} darkMode={darkMode} setDarkMode={setDarkMode} highContrast={highContrast} setHighContrast={setHighContrast} supervisorName={supervisorName} setSupervisorName={setSupervisorName} onSaveProfile={saveSupervisorProfile}/>}
-      {!["dashboard","interns","intern-profile","groups","payments","billing","ce","calendar","consult","lab","resources","discover","agreements","reminders","support","admin","profile","settings"].includes(page)&&<Dashboard T={t} interns={interns} groups={groups} lists={lists} colleagues={colleagues} supervisorName={supervisorName} onAddIntern={()=>setAddInternOpen(true)} onQuickAction={setQuickActionOpen} onSelectIntern={i=>{setSelectedInternId_sv(i.id);setPage("intern-profile");}} onNavigate={navigate} onOpenOnboarding={()=>setOnboardingOpen(true)} quickActionOrder={quickActionOrder} quickActionHidden={quickActionHidden} allQuickActions={ALL_QUICK_ACTIONS} onQuickActionReorder={setQuickActionOrder} onQuickActionToggle={(id)=>{setQuickActionHidden(prev=>{const s=new Set(prev);s.has(id)?s.delete(id):s.add(id);return s;});}}/>}
+      {!["dashboard","interns","intern-profile","groups","payments","billing","ce","calendar","consult","lab","resources","discover","agreements","reminders","support","admin","profile","settings"].includes(page)&&<Dashboard T={t} interns={interns} groups={groups} lists={lists} colleagues={colleagues} supervisorName={supervisorName} onAddIntern={()=>{if(activeInternCount>=internLimit){setUpgradePrompt("intern");return;}setAddInternOpen(true);}} onQuickAction={setQuickActionOpen} onSelectIntern={i=>{setSelectedInternId_sv(i.id);setPage("intern-profile");}} onNavigate={navigate} onOpenOnboarding={()=>setOnboardingOpen(true)} quickActionOrder={quickActionOrder} quickActionHidden={quickActionHidden} allQuickActions={ALL_QUICK_ACTIONS} onQuickActionReorder={setQuickActionOrder} onQuickActionToggle={(id)=>{setQuickActionHidden(prev=>{const s=new Set(prev);s.has(id)?s.delete(id):s.add(id);return s;});}}/>}
       {quickActionOpen&&<QuickActionModal T={t} action={quickActionOpen} interns={interns} groups={groups} onUpdateIntern={updateIntern} onClose={()=>setQuickActionOpen(null)}/>}
       {onboardingOpen&&<OnboardingModal T={t} supervisorName={supervisorName} onClose={()=>setOnboardingOpen(false)}/>}
       {addInternOpen&&<AddInternModal T={t} groups={groups} lists={lists}
@@ -9866,6 +9875,31 @@ if (!session) return <Auth />
         onClose={()=>setAddInternOpen(false)}
         onSendLink={()=>{setAddInternOpen(false);setOnboardingOpen(true);}}
       />}
+      {upgradePrompt&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1100}} onClick={()=>setUpgradePrompt(null)}>
+        <div style={{background:"#fff",borderRadius:18,padding:"32px 36px",width:440,boxShadow:"0 24px 64px rgba(0,0,0,0.2)"}} onClick={e=>e.stopPropagation()}>
+          <div style={{fontSize:22,fontWeight:600,color:"#1A1A2E",marginBottom:8}}>Upgrade your plan</div>
+          {upgradePrompt==="intern"&&<p style={{fontSize:14,color:"#666",lineHeight:1.6,marginBottom:20}}>You've reached the maximum of <strong>{internLimit} active supervisees</strong> on the <strong>{supervisorPlan}</strong> plan. Upgrade to add more supervisees.</p>}
+          {upgradePrompt==="ai"&&<p style={{fontSize:14,color:"#666",lineHeight:1.6,marginBottom:20}}>AI-powered session notes are available on the <strong>Growth</strong> plan and above. Upgrade to unlock this feature.</p>}
+          <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:20}}>
+            <div style={{border:"1px solid #E2DDD8",borderRadius:12,padding:"14px 18px",display:"flex",justifyContent:"space-between",alignItems:"center",background:supervisorPlan==="starter"?"#F5F3F0":"#fff"}}>
+              <div><div style={{fontWeight:600,fontSize:14}}>Starter</div><div style={{fontSize:12,color:"#888"}}>Up to 10 supervisees</div></div>
+              {supervisorPlan==="starter"&&<span style={{fontSize:12,color:"#7B9FD4",fontWeight:600}}>Current</span>}
+            </div>
+            <div style={{border:"1px solid #7B9FD4",borderRadius:12,padding:"14px 18px",display:"flex",justifyContent:"space-between",alignItems:"center",background:"#F0F5FF"}}>
+              <div><div style={{fontWeight:600,fontSize:14}}>Growth</div><div style={{fontSize:12,color:"#888"}}>Up to 20 supervisees + AI notes</div></div>
+              {supervisorPlan==="growth"?<span style={{fontSize:12,color:"#7B9FD4",fontWeight:600}}>Current</span>:<span style={{fontSize:12,color:"#7B9FD4",fontWeight:600}}>$29/mo</span>}
+            </div>
+            <div style={{border:"1px solid #5B7B5E",borderRadius:12,padding:"14px 18px",display:"flex",justifyContent:"space-between",alignItems:"center",background:"#F0F7F0"}}>
+              <div><div style={{fontWeight:600,fontSize:14}}>Practice</div><div style={{fontSize:12,color:"#888"}}>Unlimited supervisees + AI + priority support</div></div>
+              {supervisorPlan==="practice"?<span style={{fontSize:12,color:"#5B7B5E",fontWeight:600}}>Current</span>:<span style={{fontSize:12,color:"#5B7B5E",fontWeight:600}}>$59/mo</span>}
+            </div>
+          </div>
+          <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
+            <button onClick={()=>setUpgradePrompt(null)} style={{background:"none",border:"1px solid #E2DDD8",borderRadius:8,padding:"9px 18px",fontSize:14,cursor:"pointer",color:"#666"}}>Maybe later</button>
+            <button onClick={()=>{setUpgradePrompt(null);setPage("billing");}} style={{background:"#7B9FD4",color:"#fff",border:"none",borderRadius:8,padding:"9px 22px",fontSize:14,fontWeight:600,cursor:"pointer"}}>View plans</button>
+          </div>
+        </div>
+      </div>}
     </div>
   </div>;
 }
