@@ -66,91 +66,82 @@ export default function Auth() {
 
   const inp = {
     width: '100%', padding: '14px 18px', marginBottom: '14px',
-    border: '1px solid #E8E4DE', borderRadius: '12px',
+    border: '1px solid rgba(255,255,255,0.35)', borderRadius: '12px',
     fontSize: '15px', boxSizing: 'border-box', outline: 'none',
-    background: '#FAFAF8', color: '#1B2D4F',
+    background: 'rgba(255,255,255,0.08)', color: '#FFFFFF',
     transition: 'border-color 0.2s, box-shadow 0.2s, background 0.2s',
     fontFamily: "'DM Sans', system-ui, sans-serif",
   }
   const fh = {
-    onFocus: e => { e.target.style.borderColor = '#7BC4C4'; e.target.style.boxShadow = '0 0 0 3px rgba(123,196,196,0.1)'; e.target.style.background = '#FFFFFF'; },
-    onBlur: e => { e.target.style.borderColor = '#E8E4DE'; e.target.style.boxShadow = 'none'; e.target.style.background = '#FAFAF8'; },
+    onFocus: e => { e.target.style.borderColor = 'rgba(255,255,255,0.6)'; e.target.style.boxShadow = '0 0 0 3px rgba(255,255,255,0.1)'; e.target.style.background = 'rgba(255,255,255,0.14)'; },
+    onBlur: e => { e.target.style.borderColor = 'rgba(255,255,255,0.35)'; e.target.style.boxShadow = 'none'; e.target.style.background = 'rgba(255,255,255,0.08)'; },
   }
 
   return (
     <>
       <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;1,400;1,500&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
-      <style>{`@media(max-width:540px){.auth-card{margin:16px!important;padding:40px 28px 36px!important;}}`}</style>
+      <style>{`
+        .auth-inp::placeholder { color: rgba(255,255,255,0.5); }
+        @media(max-width:500px){ .auth-glass{margin:0 16px!important;padding:32px 24px!important;} .auth-logo{width:220px!important;} }
+      `}</style>
 
       <div style={{
-        minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-        background: 'linear-gradient(155deg, #B8D8C0 0%, #96CABA 30%, #7EC4C0 60%, #6EBCBC 100%)',
-        position: 'relative', overflow: 'hidden', padding: '24px 16px',
+        minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center',
+        background: 'linear-gradient(155deg, #B8D8C0 0%, #96CABA 25%, #7EC4C0 50%, #6EBCBC 75%, #5EB4B4 100%)',
+        position: 'relative', overflow: 'hidden',
       }}>
         {/* Background glows */}
-        <div style={{ position:'absolute', top:'-5%', left:'-5%', width:'55vw', height:'55vw', borderRadius:'50%',
-          background:'radial-gradient(circle, rgba(255,255,255,0.22) 0%, transparent 60%)', filter:'blur(60px)', pointerEvents:'none' }}/>
-        <div style={{ position:'absolute', bottom:'-8%', right:'-8%', width:'50vw', height:'50vw', borderRadius:'50%',
-          background:'radial-gradient(circle, rgba(255,255,255,0.18) 0%, transparent 55%)', filter:'blur(60px)', pointerEvents:'none' }}/>
+        <div style={{ position:'absolute', top:'-10%', left:'-10%', width:'55vw', height:'55vw', borderRadius:'50%',
+          background:'radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 60%)', filter:'blur(60px)', pointerEvents:'none' }}/>
+        <div style={{ position:'absolute', bottom:'-12%', right:'-8%', width:'50vw', height:'50vw', borderRadius:'50%',
+          background:'radial-gradient(circle, rgba(255,255,255,0.16) 0%, transparent 55%)', filter:'blur(60px)', pointerEvents:'none' }}/>
 
-        {/* ── Single card ── */}
-        <div className="auth-card" style={{
-          background: '#FBFBFA', borderRadius: 22,
-          padding: '56px 48px 48px',
-          boxShadow: '0 8px 40px rgba(27,45,79,0.08), 0 1px 3px rgba(27,45,79,0.04)',
-          width: '100%', maxWidth: 460, position: 'relative', zIndex: 1,
-        }}>
-          {/* Logo */}
-          <img src="/logo.png" alt="SupTrack" style={{
-            width: 260, display: 'block', margin: '0 auto 8px',
+        {/* Logo + Tagline */}
+        <div style={{ paddingTop: 48, textAlign: 'center', position: 'relative', zIndex: 1 }}>
+          <img className="auth-logo" src="/logo.png" alt="SupTrack" style={{
+            width: 300, maxWidth: 300, height: 'auto',
+            display: 'block', margin: '0 auto 16px',
+            filter: 'drop-shadow(0 4px 20px rgba(27,45,79,0.08))',
           }}/>
-
-          {/* Tagline */}
           <p style={{
             fontFamily: "'Lora', Georgia, serif", fontStyle: 'italic', fontWeight: 400,
-            fontSize: 22, color: '#5A9E98', margin: '0 0 28px', textAlign: 'center',
-            letterSpacing: '0.01em',
+            fontSize: 24, color: 'rgba(255,255,255,0.9)', margin: 0,
+            letterSpacing: '0.01em', textShadow: '0 1px 8px rgba(27,45,79,0.06)',
           }}>
             Supervision, simplified.
           </p>
+        </div>
 
-          {/* Divider */}
-          <div style={{ height: 1, background: '#EAE6E0', margin: '0 0 28px' }}/>
+        {/* Spacer */}
+        <div style={{ height: 48 }}/>
 
-          {/* Heading */}
-          <h1 style={{
-            fontFamily: "'Lora', Georgia, serif", fontSize: 26, fontWeight: 600,
-            color: '#1B2D4F', margin: '0 0 6px', textAlign: 'center',
-          }}>
-            {isInternInvite ? 'Intern Portal' : isSignUp ? 'Create your account' : 'Welcome back'}
-          </h1>
-          <p style={{
-            fontFamily: "'DM Sans', system-ui, sans-serif", fontSize: 13,
-            color: '#94A09A', margin: '0 0 24px', textAlign: 'center',
-          }}>
-            {isInternInvite ? 'Your supervisor invited you.' : isSignUp ? 'Start your 14-day free trial.' : 'Sign in to continue.'}
-          </p>
-
-          {/* Form */}
+        {/* Frosted glass form */}
+        <div className="auth-glass" style={{
+          background: 'rgba(255,255,255,0.18)',
+          backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)',
+          borderRadius: 20, padding: '40px 40px 36px',
+          border: '1px solid rgba(255,255,255,0.25)',
+          width: '100%', maxWidth: 400, position: 'relative', zIndex: 1,
+        }}>
           <form onSubmit={e => { e.preventDefault(); handleSubmit(); }}>
 
           {isInternInvite && (
             <div style={{
-              background: '#EFF8F6', border: '1px solid #D0E8E4', borderRadius: 10,
-              padding: '12px 14px', marginBottom: 16, fontSize: 13,
-              color: '#1B2D4F', lineHeight: 1.6, fontFamily: "'DM Sans', system-ui, sans-serif",
+              background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)',
+              borderRadius: 10, padding: '12px 14px', marginBottom: 16, fontSize: 13,
+              color: 'rgba(255,255,255,0.85)', lineHeight: 1.6, fontFamily: "'DM Sans', system-ui, sans-serif",
             }}>
-              Create an account to view your hours, notes, and documents.
+              Your supervisor invited you. Create an account to view your hours, notes, and documents.
             </div>
           )}
 
-          {isSignUp && <input type="text" name="name" autoComplete="name" placeholder="Full name" value={fullName} onChange={e=>setFullName(e.target.value)} style={inp} {...fh}/>}
-          <input type="email" name="email" autoComplete="email" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} style={inp} {...fh}/>
-          <input type="password" name="password" autoComplete={isSignUp?"new-password":"current-password"} placeholder="Password" value={password} onChange={e=>setPassword(e.target.value)} style={inp} {...fh}/>
-          {isSignUp && !isInternInvite && <input type="text" name="invite-code" autoComplete="off" placeholder="Invite code" value={inviteCode} onChange={e=>setInviteCode(e.target.value)} style={{...inp, marginBottom: 20}} {...fh}/>}
+          {isSignUp && <input className="auth-inp" type="text" name="name" autoComplete="name" placeholder="Full name" value={fullName} onChange={e=>setFullName(e.target.value)} style={inp} {...fh}/>}
+          <input className="auth-inp" type="email" name="email" autoComplete="email" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} style={inp} {...fh}/>
+          <input className="auth-inp" type="password" name="password" autoComplete={isSignUp?"new-password":"current-password"} placeholder="Password" value={password} onChange={e=>setPassword(e.target.value)} style={inp} {...fh}/>
+          {isSignUp && !isInternInvite && <input className="auth-inp" type="text" name="invite-code" autoComplete="off" placeholder="Invite code" value={inviteCode} onChange={e=>setInviteCode(e.target.value)} style={{...inp, marginBottom: 20}} {...fh}/>}
 
           {message && (
-            <p style={{ color: isError ? '#B84040' : '#2E7A4E', margin: '0 0 14px', fontSize: 13,
+            <p style={{ color: isError ? '#FFB0B0' : '#B0FFD0', margin: '0 0 14px', fontSize: 13,
               textAlign: 'center', lineHeight: 1.5, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
               {message}
             </p>
@@ -160,22 +151,21 @@ export default function Auth() {
             width: '100%', padding: 15, border: 'none', borderRadius: 12,
             fontSize: 15, fontWeight: 600, cursor: loading ? 'default' : 'pointer',
             transition: 'all 0.2s', fontFamily: "'DM Sans', system-ui, sans-serif",
-            background: '#3A9E9E', color: 'white',
-            boxShadow: '0 4px 16px rgba(58,158,158,0.25)',
-            opacity: loading ? 0.65 : 1,
+            background: '#FFFFFF', color: '#3A9E9E',
+            boxShadow: '0 4px 18px rgba(0,0,0,0.08)',
+            opacity: loading ? 0.7 : 1, letterSpacing: '0.01em',
           }}>
             {loading ? 'Loading...' : isSignUp ? 'Create Account' : 'Sign In'}
           </button>
           </form>
 
-          {/* Toggle */}
-          <p style={{ textAlign: 'center', fontSize: 13, color: '#94A09A', margin: '18px 0 0',
+          <p style={{ textAlign: 'center', fontSize: 13, color: 'rgba(255,255,255,0.6)', margin: '18px 0 0',
             fontFamily: "'DM Sans', system-ui, sans-serif" }}>
             {isInternInvite && !isSignUp ? <>Don't have an account?{' '}
-              <span onClick={()=>{setIsSignUp(true);setMessage('');}} style={{color:'#3A9E9E',cursor:'pointer',fontWeight:600}}>Create one</span>
+              <span onClick={()=>{setIsSignUp(true);setMessage('');}} style={{color:'#fff',cursor:'pointer',fontWeight:600}}>Create one</span>
             </> : <>
               {isSignUp ? 'Already have an account? ' : "Don't have an account? "}
-              <span onClick={()=>{setIsSignUp(!isSignUp);setMessage('');}} style={{color:'#3A9E9E',cursor:'pointer',fontWeight:600}}>
+              <span onClick={()=>{setIsSignUp(!isSignUp);setMessage('');}} style={{color:'#fff',cursor:'pointer',fontWeight:600}}>
                 {isSignUp ? 'Sign In' : 'Sign Up'}
               </span>
             </>}
@@ -183,8 +173,8 @@ export default function Auth() {
         </div>
 
         {/* Copyright */}
-        <p style={{ marginTop: 24, fontSize: 11, color: 'rgba(255,255,255,0.4)',
-          fontFamily: "'DM Sans', system-ui, sans-serif", letterSpacing: '0.04em' }}>
+        <p style={{ marginTop: 28, paddingBottom: 16, fontSize: 11, color: 'rgba(255,255,255,0.3)',
+          fontFamily: "'DM Sans', system-ui, sans-serif", letterSpacing: '0.04em', position: 'relative', zIndex: 1 }}>
           &copy; {new Date().getFullYear()} SupTrack
         </p>
       </div>
