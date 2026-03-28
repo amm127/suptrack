@@ -10743,19 +10743,13 @@ useEffect(() => {
 
     {/* Sidebar */}
     <div className={`st-sidebar${mobileNav?" st-sidebar-open":""}`} style={{width:228,background:t.surface,borderRight:`1px solid ${t.border}`,display:"flex",flexDirection:"column",padding:"26px 0",position:"sticky",top:0,height:"100vh",flexShrink:0}}>
-      <div style={{padding:"0 24px 20px",display:"flex",alignItems:"flex-start",justifyContent:"space-between"}}>
-        <div>
-          <div onClick={()=>{setPage("dashboard");setSelectedInternId_sv(null);setInternFilter(null);setConsultIntern(null);}}
-            style={{fontFamily:f.display,fontSize:22,letterSpacing:"-0.02em",cursor:"pointer",display:"inline-block",
-            ...(t.isRainbow
-              ? {background:"linear-gradient(90deg,#9B6FD4,#C88AC8,#F4A0C0,#4DBDBD,#9B6FD4)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"}
-              : t.isGradient && t.gradient
-              ? {background:t.gradient.replace("135deg","90deg"),WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text",backgroundSize:"200% 200%",animation:"gradientShift 5s ease infinite"}
-              : {color:t.accent})}}>SupTrack</div>
-          <div style={{fontSize:10,color:t.faint,fontFamily:"'DM Mono',monospace",marginTop:2,letterSpacing:"0.07em"}}>SUPERVISION PLATFORM</div>
+      <div style={{padding:"0 20px 18px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <div onClick={()=>{setPage("dashboard");setSelectedInternId_sv(null);setInternFilter(null);setConsultIntern(null);}}
+          style={{cursor:"pointer",display:"flex",alignItems:"center",gap:0,flexDirection:"column"}}>
+          <img src="/logo.png" alt="SupTrack" style={{width:120,display:"block"}}/>
         </div>
         <button onClick={()=>setEditingNav(e=>!e)} title="Customize sidebar"
-          style={{background:editingNav?t.accentLight:"none",border:`1px solid ${editingNav?t.accentMid:t.border}`,borderRadius:6,padding:"4px 7px",cursor:"pointer",fontSize:12,color:editingNav?t.accentText:t.faint,marginTop:2,lineHeight:1,flexShrink:0}}
+          style={{background:editingNav?t.accentLight:"none",border:`1px solid ${editingNav?t.accentMid:t.border}`,borderRadius:6,padding:"4px 7px",cursor:"pointer",fontSize:12,color:editingNav?t.accentText:t.faint,lineHeight:1,flexShrink:0}}
           onMouseEnter={e=>{if(!editingNav)e.currentTarget.style.color=t.muted;}}
           onMouseLeave={e=>{if(!editingNav)e.currentTarget.style.color=t.faint;}}>
           ⠿
