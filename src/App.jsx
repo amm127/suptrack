@@ -7622,6 +7622,7 @@ function SupervisionLabPage({T}) {
   const [selectedVoice, setSelectedVoice] = useState(ELEVENLABS_VOICES[0]);
   const [audioPlaying, setAudioPlaying] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
+  const [voiceFallback, setVoiceFallback] = useState(false);
 
   const [filterLang, setFilterLang] = useState("all");
   // Pre-load browser voices async (Chrome loads them lazily)
@@ -7701,7 +7702,7 @@ function SupervisionLabPage({T}) {
       if(!res.ok) throw new Error();
       const blob=await res.blob(); const url=URL.createObjectURL(blob);
       if(audioRef.current){audioRef.current.src=url;audioRef.current.onplay=()=>{setSpeaking(true);setAudioPlaying(true);};audioRef.current.onended=()=>{setSpeaking(false);setAudioPlaying(false);URL.revokeObjectURL(url);if(onEnd)onEnd();};audioRef.current.onerror=()=>{setSpeaking(false);setAudioPlaying(false);if(onEnd)onEnd();};audioRef.current.play();}
-    } catch{speakBrowser(text, lang, onEnd);}
+    } catch{setVoiceFallback(true);speakBrowser(text, lang, onEnd);}
   };
 
   const VOICE_IDS = {sarah:"21m00Tcm4TlvDq8ikWAM",james:"TxGEqnHWrfWFTfGW9XjX",aria:"pNInz6obpgDQGcFmaJgB",marcus:"VR6AewLTigWG4xSOukaG",elena:"EXAVITQu4vr4xnSDxMaL",daniel:"onwK4e9ZLuTAKqWW03F9",sofia_es:"XB0fDUnXU5powFXDhCwa",pablo_es:"pqHfZKP75CvOlQylNhV4"};
@@ -7860,6 +7861,7 @@ Be direct, clinical, encouraging. Under 400 words.`;
           Natural voices {voiceEnabled?"on":"off"}
         </label>
       </div>
+      {voiceFallback&&<div style={{fontSize:11,color:t.faint,fontFamily:"'DM Mono',monospace",marginBottom:8}}>Using standard voices — premium voices available soon</div>}
 
       {/* Voice picker */}
       <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:8}}>Choose voice</div>
