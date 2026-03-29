@@ -5847,12 +5847,19 @@ function PublicProfilePage({supervisorPhoto,setSupervisorPhoto,supervisorName:su
     {children}
   </div>;},[t]);
 
+  const slug = (profile.name||supName||"").toLowerCase().replace(/\s+/g,"-").replace(/[^a-z0-9-]/g,"")||"your-name";
+  const cardStyle = {background:t.surface,border:`1px solid ${t.border}`,borderRadius:16,padding:"24px 26px",marginBottom:16,boxShadow:"0 2px 12px rgba(30,64,64,0.06)"};
+  const sectionLabel = (text) => <div style={{fontSize:11,color:"#608080",fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:2,marginBottom:14}}>{text}</div>;
+  const fieldLabel = (text) => <div style={{fontSize:11,color:"#608080",fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:1.5,marginBottom:5}}>{text}</div>;
+  const fieldValue = (val) => <div style={{fontSize:15,color:"#102828"}}>{val||"—"}</div>;
+
   return <div>
-    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:24}}>
-      <div>
-        <h1 style={{fontFamily:"inherit",fontSize:28,fontWeight:400,color:t.text,margin:"0 0 4px",letterSpacing:"-0.02em"}}>Public Profile</h1>
-        <p style={{color:t.muted,fontSize:14,margin:0}}>How interns find you on SupTrack · <span style={{fontFamily:"'DM Mono',monospace",fontSize:12}}>suptrack.com/supervisor/{(profile.name||supName||"").toLowerCase().replace(/\s+/g,"-").replace(/[^a-z0-9-]/g,"") || "your-name"}</span></p>
-      </div>
+    {/* Header */}
+    <div style={{textAlign:"center",marginBottom:8}}>
+      <h1 style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:36,fontWeight:700,color:"#1E4040",margin:"0 0 4px",letterSpacing:-1}}>{profile.name||supName||"Your Profile"}</h1>
+      <p style={{color:"#608080",fontSize:13,margin:0,fontFamily:"'DM Mono',monospace",letterSpacing:0.5}}>suptrack.com/supervisor/{slug}</p>
+    </div>
+    <div style={{display:"flex",justifyContent:"flex-end",marginBottom:20}}>
       <Btn T={t} style={{flexShrink:0}} onClick={()=>{
         if(editing){
           const displayName=profile.name.split(",")[0].trim()||supName;
@@ -5865,75 +5872,71 @@ function PublicProfilePage({supervisorPhoto,setSupervisorPhoto,supervisorName:su
       }}>{editing?"✓ Save profile":"Edit profile"}</Btn>
     </div>
 
-    <div style={{display:"grid",gridTemplateColumns:"1fr .42fr",gap:18,alignItems:"start"}}>
+    <div style={{display:"grid",gridTemplateColumns:"1.5fr 1fr",gap:24,alignItems:"start"}}>
 
-      {/* ── LEFT COLUMN ── */}
+      {/* ── LEFT COLUMN (60%) ── */}
       <div>
-        {/* Identity */}
-        <Section title="Identity">
-          <div style={{display:"flex",gap:16,marginBottom:16,alignItems:"flex-start"}}>
-            <Avatar initials={supervisorInitials||"??"} size={72} T={t} photo={supervisorPhoto} editable={true} onPhotoChange={(url)=>{setSupervisorPhoto(url);if(onSaveProfile)onSaveProfile({photo:url});}}/>
-            <div style={{flex:1}}>
+        {/* Identity card */}
+        <div style={cardStyle}>
+          {sectionLabel("Identity")}
+          <div style={{display:"flex",flexDirection:"column",alignItems:"center",marginBottom:20}}>
+            <Avatar initials={supervisorInitials||"??"} size={80} T={{...t,accentMid:"#1E4040",accentText:"#F0DECA"}} photo={supervisorPhoto} editable={true} onPhotoChange={(url)=>{setSupervisorPhoto(url);if(onSaveProfile)onSaveProfile({photo:url});}}/>
+            <div style={{marginTop:12,textAlign:"center"}}>
               {editing
-                ? <input {...inp("name")} style={{...inp("name").style,fontSize:18,marginBottom:8}}/>
-                : <div style={{fontSize:22,color:t.text,fontWeight:500,marginBottom:4}}>{profile.name}</div>}
+                ? <input {...inp("name")} style={{...inp("name").style,fontSize:22,fontFamily:"'Fraunces',Georgia,serif",fontWeight:600,textAlign:"center",marginBottom:6}}/>
+                : <div style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:28,fontWeight:600,color:"#102828"}}>{profile.name||"—"}</div>}
               {editing
-                ? <input {...inp("tagline")} placeholder="Title · Organization"/>
-                : <div style={{fontSize:13,color:t.muted}}>{profile.tagline}</div>}
+                ? <input {...inp("tagline")} placeholder="Title · Organization" style={{...inp("tagline").style,textAlign:"center",fontSize:13}}/>
+                : <div style={{fontSize:13,color:"#608080",marginTop:4}}>{profile.tagline||""}</div>}
             </div>
           </div>
-          <Field label="Bio">
-            {editing
-              ? <div>
-                  <textarea value={profile.bio} onChange={e=>p("bio",e.target.value)}
-                    style={{width:"100%",minHeight:110,border:`1px solid ${t.border}`,borderRadius:8,padding:"10px 12px",fontSize:13,fontFamily:"inherit",color:t.text,background:t.bg,resize:"vertical",boxSizing:"border-box",outline:"none",lineHeight:1.7}}/>
-                  <div style={{fontSize:11,color:t.faint,textAlign:"right",marginTop:3,fontFamily:"'DM Mono',monospace"}}>{profile.bio.length} chars</div>
-                </div>
-              : <p style={{fontSize:13,color:t.text,lineHeight:1.7,margin:0}}>{profile.bio}</p>}
-          </Field>
-          {editing&&<Field label="Supervision style / approach">
+          {fieldLabel("Bio")}
+          {editing
+            ? <div>
+                <textarea value={profile.bio} onChange={e=>p("bio",e.target.value)}
+                  placeholder="Add a bio to help interns get to know you"
+                  style={{width:"100%",minHeight:110,border:`1px solid ${t.border}`,borderRadius:10,padding:"12px 14px",fontSize:14,fontFamily:"inherit",color:t.text,background:t.bg,resize:"vertical",boxSizing:"border-box",outline:"none",lineHeight:1.7}}/>
+                <div style={{fontSize:11,color:t.faint,textAlign:"right",marginTop:3,fontFamily:"'DM Mono',monospace"}}>{profile.bio.length} chars</div>
+              </div>
+            : <p style={{fontSize:14,color:profile.bio?"#102828":"#A0B8B4",lineHeight:1.7,margin:0,fontStyle:profile.bio?"normal":"italic"}}>{profile.bio||"Add a bio to help interns get to know you"}</p>}
+          {editing&&<div style={{marginTop:14}}>
+            {fieldLabel("Supervision style / approach")}
             <input {...inp("supervisionStyle")} placeholder="e.g. Collaborative, strengths-based, DBT-informed"/>
-          </Field>}
-        </Section>
+          </div>}
+          {!editing&&profile.supervisionStyle&&<div style={{marginTop:14}}>{fieldLabel("Supervision style")}<div style={{fontSize:14,color:"#102828",lineHeight:1.6}}>{profile.supervisionStyle}</div></div>}
+        </div>
 
-        {/* Credentials */}
-        <Section title="Credentials & License">
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-            <Field label="Credential / License type">
-              {editing ? <input {...inp("credential")} placeholder="e.g. LPC-S, LCSW-S"/>
-                : <div style={{fontSize:14,color:t.text,fontWeight:500}}>{profile.credential}</div>}
-            </Field>
-            <Field label="License number">
-              {editing ? <input {...inp("licenseNumber")} placeholder="e.g. TX-LPC-123456"/>
-                : <div style={{fontSize:14,color:t.text,fontFamily:"'DM Mono',monospace"}}>{profile.licenseNumber}</div>}
-            </Field>
-            <Field label="State / Jurisdiction">
-              {editing ? <input {...inp("licenseState")} placeholder="e.g. TX, CA, NY"/>
-                : <div style={{fontSize:14,color:t.text}}>{profile.licenseState}</div>}
-            </Field>
-            <Field label="Years of experience">
-              {editing ? <input {...inp("yearsExperience")} placeholder="e.g. 10+"/>
-                : <div style={{fontSize:14,color:t.text}}>{profile.yearsExperience} years</div>}
-            </Field>
-          </div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-            <Field label="Credentialing body">
-              {editing ? <input {...inp("credentialBody")} placeholder="e.g. Texas State Board of Examiners"/>
-                : <div style={{fontSize:13,color:t.muted}}>{profile.credentialBody}</div>}
-            </Field>
-            <Field label="License goal">
-              {editing ? <input {...inp("licenseGoal")} placeholder="e.g. AAMFT Approved Supervisor"/>
-                : <div style={{fontSize:13,color:t.muted}}>{profile.licenseGoal}</div>}
-            </Field>
-          </div>
-          <Field label="Phone">
-            {editing ? <input {...inp("phone")} placeholder="e.g. (555) 123-4567" type="tel"/>
-              : <div style={{fontSize:13,color:t.muted}}>{profile.phone||"—"}</div>}
-          </Field>
-        </Section>
+        {/* Credentials card */}
+        <div style={cardStyle}>
+          {sectionLabel("Credentials & License")}
 
-        {/* Specialties */}
-        <Section title="Specialties">
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+            {[
+              ["Credential / License type","credential","e.g. LPC-S"],
+              ["License number","licenseNumber","e.g. TX-LPC-123456"],
+              ["State / Jurisdiction","licenseState","e.g. TX, CA, NY"],
+              ["Years of experience","yearsExperience","e.g. 10+"],
+              ["Credentialing body","credentialBody","e.g. State Board"],
+              ["Phone","phone","e.g. (555) 123-4567"],
+            ].map(([label,key,ph])=>{
+              const val=profile[key];
+              if(!editing&&!val) return null;
+              return <div key={key} style={{marginBottom:4}}>
+                {fieldLabel(label)}
+                {editing ? <input {...inp(key)} placeholder={ph}/> : fieldValue(val)}
+              </div>;
+            }).filter(Boolean)}
+          </div>
+          {editing&&<div style={{marginTop:8}}>
+            {fieldLabel("License goal")}
+            <input {...inp("licenseGoal")} placeholder="e.g. AAMFT Approved Supervisor"/>
+          </div>}
+          {!editing&&profile.licenseGoal&&<div style={{marginTop:8}}>{fieldLabel("License goal")}{fieldValue(profile.licenseGoal)}</div>}
+        </div>
+
+        {/* Specialties card */}
+        <div style={cardStyle}>
+          {sectionLabel("Specialties")}
           <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:editing?12:0}}>
             {profile.specialties.map(s=>(
               <div key={s} style={{display:"flex",alignItems:"center",gap:4,background:t.accentLight,border:`1px solid ${t.accentMid}`,borderRadius:20,padding:"4px 12px"}}>
@@ -5967,14 +5970,16 @@ function PublicProfilePage({supervisorPhoto,setSupervisorPhoto,supervisorName:su
               <Btn T={t} small onClick={()=>addSpecialty(newSpecialty)}>Add</Btn>
             </div>
           </div>}
-        </Section>
+        </div>
       </div>
 
-      {/* ── RIGHT COLUMN ── */}
+      {/* ── RIGHT COLUMN (38%) ── */}
       <div>
-        {/* Fees */}
-        <Section title="Supervision fees">
-          <Field label="Individual supervision">
+        {/* Fees card */}
+        <div style={cardStyle}>
+          {sectionLabel("Supervision fees")}
+          <div style={{marginBottom:16}}>
+            {fieldLabel("Individual supervision")}
             {editing
               ? <div style={{display:"flex",alignItems:"center",gap:8}}>
                   <span style={{fontSize:14,color:t.muted}}>$</span>
@@ -5986,9 +5991,10 @@ function PublicProfilePage({supervisorPhoto,setSupervisorPhoto,supervisorName:su
                     {["month","session","hour"].map(u=><option key={u}>{u}</option>)}
                   </select>
                 </div>
-              : <div style={{fontSize:20,color:t.text,fontWeight:500}}>${profile.feeIndividual}<span style={{fontSize:12,color:t.muted,fontWeight:400}}>/{profile.feeIndividualUnit}</span></div>}
-          </Field>
-          <Field label="Group supervision (per intern)">
+              : <div style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:28,fontWeight:700,color:"#102828"}}>${profile.feeIndividual}<span style={{fontSize:14,color:"#608080",fontWeight:400,fontFamily:"'DM Sans',system-ui"}}>/{profile.feeIndividualUnit}</span></div>}
+          </div>
+          <div style={{marginBottom:16}}>
+            {fieldLabel("Group supervision (per intern)")}
             {editing
               ? <div style={{display:"flex",alignItems:"center",gap:8}}>
                   <span style={{fontSize:14,color:t.muted}}>$</span>
@@ -6000,15 +6006,16 @@ function PublicProfilePage({supervisorPhoto,setSupervisorPhoto,supervisorName:su
                     {["session","month","hour"].map(u=><option key={u}>{u}</option>)}
                   </select>
                 </div>
-              : <div style={{fontSize:20,color:t.text,fontWeight:500}}>${profile.feeGroup}<span style={{fontSize:12,color:t.muted,fontWeight:400}}>/{profile.feeGroupUnit}</span></div>}
-          </Field>
+              : <div style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:28,fontWeight:700,color:"#102828"}}>${profile.feeGroup}<span style={{fontSize:14,color:"#608080",fontWeight:400,fontFamily:"'DM Sans',system-ui"}}>/{profile.feeGroupUnit}</span></div>}
+          </div>
           {editing&&<div style={{background:t.surfaceAlt,borderRadius:8,padding:"8px 12px",fontSize:12,color:t.muted,lineHeight:1.6}}>
-            Fees shown on your public profile help interns find the right fit before reaching out.
+            Fees shown on your public profile help interns find the right fit.
           </div>}
-        </Section>
+        </div>
 
         {/* Accepting */}
-        <Section title="Accepting supervisees">
+        <div style={cardStyle}>
+          {sectionLabel("Accepting supervisees")}
           {[["Student Interns / Practicum","acceptingStudents"],["State Licensed Interns","acceptingLicensed"]].map(([label,key])=>(
             <div key={key} style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
               <span style={{fontSize:13,color:t.text}}>{label}</span>
@@ -6018,32 +6025,35 @@ function PublicProfilePage({supervisorPhoto,setSupervisorPhoto,supervisorName:su
               </button>
             </div>
           ))}
-          {editing&&<Field label="Max supervisees">
+          {editing&&<div style={{marginTop:10}}>
+            {fieldLabel("Max supervisees")}
             <input type="number" value={profile.maxSupervisees} onChange={e=>p("maxSupervisees",Number(e.target.value))}
-              style={{width:80,border:`1px solid ${t.border}`,borderRadius:8,padding:"6px 10px",fontSize:14,fontFamily:"'DM Mono',monospace",color:t.text,background:t.bg,outline:"none"}}/>
-          </Field>}
-        </Section>
+              style={{width:80,border:`1px solid ${t.border}`,borderRadius:10,padding:"6px 10px",fontSize:14,fontFamily:"'DM Mono',monospace",color:t.text,background:t.bg,outline:"none"}}/>
+          </div>}
+        </div>
 
-        {/* Logistics */}
-        <Section title="Location & format">
-          <Field label="Location">
+        {/* Location & Format */}
+        <div style={cardStyle}>
+          {sectionLabel("Location & format")}
+          <div style={{marginBottom:12}}>
+            {fieldLabel("Location")}
             {editing ? <input {...inp("location")} placeholder="City, State"/>
-              : <div style={{fontSize:13,color:t.text}}>{profile.location}</div>}
-          </Field>
+              : fieldValue(profile.location)}
+          </div>
           <div style={{display:"flex",gap:8}}>
             {[["Telehealth","telehealth"],["In-person","inPerson"]].map(([label,key])=>(
               <button key={key} onClick={()=>editing&&p(key,!profile[key])}
-                style={{flex:1,background:profile[key]?t.accentLight:t.surfaceAlt,color:profile[key]?t.accentText:t.muted,border:`1px solid ${profile[key]?t.accentMid:t.border}`,borderRadius:8,padding:"7px 0",cursor:editing?"pointer":"default",fontSize:13,transition:"all 0.15s"}}>
+                style={{flex:1,background:profile[key]?t.accentLight:t.surfaceAlt,color:profile[key]?t.accentText:t.muted,border:`1px solid ${profile[key]?t.accentMid:t.border}`,borderRadius:10,padding:"8px 0",cursor:editing?"pointer":"default",fontSize:13,transition:"all 0.15s"}}>
                 {profile[key]?"✓ ":""}{label}
               </button>
             ))}
           </div>
-        </Section>
+        </div>
 
         {/* Live URL */}
-        <div style={{background:t.isGradient?(t.gradientSubtle||t.accentLight):t.accentLight,border:`1px solid ${t.isGradient?"transparent":t.accentMid}`,borderRadius:12,padding:"14px 16px",fontSize:13,color:t.accentText,lineHeight:1.7}}>
+        <div style={{background:t.accentLight,border:`1px solid ${t.accentMid}`,borderRadius:16,padding:"16px 18px",fontSize:13,color:t.accentText,lineHeight:1.7}}>
           🌐 Live at:<br/>
-          <span style={{fontFamily:"'DM Mono',monospace",fontSize:11}}>suptrack.com/supervisor/{(profile.name||supName||"").toLowerCase().replace(/\s+/g,"-").replace(/[^a-z0-9-]/g,"") || "your-name"}</span><br/><br/>
+          <span style={{fontFamily:"'DM Mono',monospace",fontSize:11}}>suptrack.com/supervisor/{slug}</span><br/><br/>
           Interns searching for supervisors can find your profile and send a request directly to your SupTrack inbox.
         </div>
       </div>
