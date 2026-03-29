@@ -648,7 +648,7 @@ const itSty = (t) => {
 };
 const rlSty = (r) => r==="primary" ? { label:"Primary Intern", color:S.amber, bg:S.amberLight } : r==="student" ? { label:"Student Intern", color:S.blue, bg:S.blueLight } : { label:"Secondary Intern", color:S.coral, bg:S.coralLight };
 const pmSum = (p) => { const on=PERM_DEFS.filter(d=>p[d.id]); return !on.length?"No access":on.length===PERM_DEFS.length?"Full access":on.slice(0,2).map(d=>d.label).join(", ")+(on.length>2?` +${on.length-2}`:""); };
-const retSt = (i) => { if(i.status!=="inactive"||!i.retentionYear) return null; const y=2026-i.retentionYear,l=7-y; if(l<=0) return {label:"Deletion overdue",color:S.red,bg:S.redLight}; if(l<=1) return {label:"Delete in <1 yr",color:S.amber,bg:S.amberLight}; return {label:`${l} yrs retention`,color:"#7A7060",bg:"#F0ECE4"}; };
+const retSt = (i) => { if(i.status!=="inactive"&&i.status!=="completed"||!i.retentionYear) return null; const y=new Date().getFullYear()-i.retentionYear,l=7-y; if(l<=0) return {label:"Deletion overdue",color:S.red,bg:S.redLight}; if(l<=1) return {label:"Delete in <1 yr",color:S.amber,bg:S.amberLight}; return {label:`${l} yrs retention`,color:"#7A7060",bg:"#F0ECE4"}; };
 const activeFlags = (i) => i.flags?.filter(f=>!f.resolved)||[];
 
 const downloadCSV = (rows,filename) => { const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(",")).join("\n"); const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"})); a.download=filename; a.click(); };
@@ -2637,12 +2637,16 @@ function InternProfile({intern,groups,lists,setLists,colleagues,setColleagues,on
   const memberGroups=groups.filter(g=>(intern.groupIds||[]).includes(g.id));
   const memberLists=lists.filter(l=>(intern.listIds||[]).includes(l.id));
 
+  const [showCelebration,setShowCelebration]=useState(false);
   const handleCompleteIntern=()=>{
     setShowCompleteConfirm(false);
     setShowConfetti(true);
+    const now=new Date();
+    const dateStr=now.toLocaleDateString("en-US",{month:"short",year:"numeric"});
     setTimeout(()=>{
-      onUpdateIntern({...intern,status:"inactive",inactiveDate:"Mar 2026",retentionYear:2026});
+      onUpdateIntern({...intern,status:"completed",inactiveDate:dateStr,completedDate:now.toISOString(),retentionYear:now.getFullYear()});
       setShowConfetti(false);
+      setShowCelebration(true);
     },2600);
   };
   const rs=retSt(intern); const af=activeFlags(intern);
@@ -2707,6 +2711,7 @@ function InternProfile({intern,groups,lists,setLists,colleagues,setColleagues,on
           <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center"}}>
             <RoleBadge role={intern.supervisorRole}/><TypeBadge type={intern.discipline||intern.internType}/>
             {intern.status==="active"&&<PayBadge intern={intern} T={t}/>}
+            {intern.status==="completed"&&<Badge color="#2E7A4E" bg="#E8F5EE">🎓 Completed {intern.inactiveDate}</Badge>}
             {intern.status==="inactive"&&<Badge color="#7A7060" bg="#F0ECE4">Inactive since {intern.inactiveDate}</Badge>}
             {rs&&<Badge color={rs.color} bg={rs.bg}>{rs.label}</Badge>}
             {memberLists.map(l=><Badge key={l.id} color={l.color} bg={l.colorLight}>{l.name}</Badge>)}
@@ -2735,6 +2740,20 @@ function InternProfile({intern,groups,lists,setLists,colleagues,setColleagues,on
 
       {/* Confetti */}
       <Confetti active={showConfetti}/>
+
+      {/* Celebration modal */}
+      {showCelebration&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1100}} onClick={()=>setShowCelebration(false)}>
+        <div style={{background:t.surface,borderRadius:20,padding:"40px 44px",maxWidth:460,width:"90%",textAlign:"center",boxShadow:"0 24px 64px rgba(0,0,0,0.2)"}} onClick={e=>e.stopPropagation()}>
+          <div style={{fontSize:56,marginBottom:16}}>🎉</div>
+          <h2 style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:26,fontWeight:700,color:"#1E4040",margin:"0 0 10px"}}>Congratulations!</h2>
+          <p style={{fontSize:15,color:t.text,lineHeight:1.7,margin:"0 0 8px"}}><strong>{intern.name}</strong> has completed their supervision hours!</p>
+          <p style={{fontSize:13,color:t.muted,margin:"0 0 28px"}}>Their records will be kept in the Completed section for your records and board documentation.</p>
+          <div style={{display:"flex",gap:10,justifyContent:"center"}}>
+            <Btn T={t} onClick={()=>{setShowCelebration(false);onBack();}}>Back to supervisees</Btn>
+            <Btn T={t} variant="secondary" onClick={()=>setShowCelebration(false)}>View their profile</Btn>
+          </div>
+        </div>
+      </div>}
     </div>
 
     <div style={{display:"flex",borderBottom:`1px solid ${t.border}`,marginBottom:22}}>
@@ -4306,14 +4325,16 @@ function InterneesPage({interns,groups,lists,colleagues,internFilter,setInternFi
   }[internFilter] || (() => true);
 
   const statusFiltered = interns.filter(i =>
-    showMode==="active"   ? i.status==="active" :
-    showMode==="inactive" ? i.status==="inactive" :
+    showMode==="active"    ? i.status==="active" :
+    showMode==="completed" ? i.status==="completed" :
+    showMode==="inactive"  ? i.status==="inactive"||i.status==="completed" :
     true
   );
   const filtered = statusFiltered.filter(filterFn);
   const filterLabel = {primary:"Primary Interns",secondary:"Secondary Interns",student:"Student Interns",licensed:"State Licensed",sos:"Supervision of Supervision",flagged:"Flagged"}[internFilter];
-  const activeCount   = interns.filter(i=>i.status==="active").length;
-  const inactiveCount = interns.filter(i=>i.status==="inactive").length;
+  const activeCount    = interns.filter(i=>i.status==="active").length;
+  const completedCount = interns.filter(i=>i.status==="completed").length;
+  const inactiveCount  = interns.filter(i=>i.status==="inactive"||i.status==="completed").length;
 
   const SORT_OPTIONS = [
     { id:"group",          label:"By group" },
@@ -4441,11 +4462,12 @@ function InterneesPage({interns,groups,lists,colleagues,internFilter,setInternFi
       <div style={{display:"flex",border:`1px solid ${t.border}`,borderRadius:8,overflow:"hidden",flexShrink:0}}>
         {[
           {id:"active",   label:`Active (${activeCount})`},
-          {id:"both",     label:"Both"},
+          {id:"completed",label:`Completed (${completedCount})`},
+          {id:"both",     label:"All"},
           {id:"inactive", label:`Inactive (${inactiveCount})`},
         ].map((opt,i)=>(
           <button key={opt.id} onClick={()=>setShowMode(opt.id)}
-            style={{background:showMode===opt.id?t.accentLight:"none",color:showMode===opt.id?t.accentText:t.muted,border:"none",borderRight:i<2?`1px solid ${t.border}`:"none",padding:"6px 12px",cursor:"pointer",fontSize:12,fontFamily:"'DM Mono',monospace",whiteSpace:"nowrap",transition:"all 0.1s"}}>
+            style={{background:showMode===opt.id?t.accentLight:"none",color:showMode===opt.id?t.accentText:t.muted,border:"none",borderRight:i<3?`1px solid ${t.border}`:"none",padding:"6px 12px",cursor:"pointer",fontSize:12,fontFamily:"'DM Mono',monospace",whiteSpace:"nowrap",transition:"all 0.1s"}}>
             {opt.label}
           </button>
         ))}
