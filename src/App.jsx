@@ -7699,10 +7699,21 @@ function SupervisionLabPage({T}) {
       const headers={"Content-Type":"application/json"};
       if(authKey){try{const d=JSON.parse(localStorage.getItem(authKey));if(d?.access_token)headers.Authorization=`Bearer ${d.access_token}`;}catch{}}
       const res = await fetch("/api/generate-voice",{method:"POST",headers,body:JSON.stringify({text:text.slice(0,500),voiceId})});
-      if(!res.ok) throw new Error();
+      if(!res.ok) {
+        const errBody = await res.text().catch(()=>"");
+        console.error("Voice API error:", res.status, errBody);
+        throw new Error("Voice API " + res.status);
+      }
+      const contentType = res.headers.get("content-type")||"";
+      if(!contentType.includes("audio")) { console.error("Voice API returned non-audio:", contentType); throw new Error("Not audio"); }
       const blob=await res.blob(); const url=URL.createObjectURL(blob);
-      if(audioRef.current){audioRef.current.src=url;audioRef.current.onplay=()=>{setSpeaking(true);setAudioPlaying(true);};audioRef.current.onended=()=>{setSpeaking(false);setAudioPlaying(false);URL.revokeObjectURL(url);if(onEnd)onEnd();};audioRef.current.onerror=()=>{setSpeaking(false);setAudioPlaying(false);if(onEnd)onEnd();};audioRef.current.play();}
-    } catch{setVoiceFallback(true);speakBrowser(text, lang, onEnd);}
+      // Use a fresh Audio element (more reliable than reusing audioRef)
+      const audio = new Audio(url);
+      audio.onplay=()=>{setSpeaking(true);setAudioPlaying(true);};
+      audio.onended=()=>{setSpeaking(false);setAudioPlaying(false);URL.revokeObjectURL(url);if(onEnd)onEnd();};
+      audio.onerror=()=>{setSpeaking(false);setAudioPlaying(false);URL.revokeObjectURL(url);speakBrowser(text, lang, onEnd);};
+      await audio.play();
+    } catch(e){console.error("Voice generation failed, using browser:", e);setVoiceFallback(true);speakBrowser(text, lang, onEnd);}
   };
 
   const VOICE_IDS = {sarah:"21m00Tcm4TlvDq8ikWAM",james:"TxGEqnHWrfWFTfGW9XjX",aria:"pNInz6obpgDQGcFmaJgB",marcus:"VR6AewLTigWG4xSOukaG",elena:"EXAVITQu4vr4xnSDxMaL",daniel:"onwK4e9ZLuTAKqWW03F9",sofia_es:"XB0fDUnXU5powFXDhCwa",pablo_es:"pqHfZKP75CvOlQylNhV4"};

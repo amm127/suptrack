@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 
 export default async function handler(req, res) {
+  console.log('ElevenLabs key exists:', !!process.env.ELEVENLABS_API_KEY);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const { text, voiceId } = req.body;
@@ -17,15 +18,17 @@ export default async function handler(req, res) {
     userId = user?.id || null;
   }
 
-  // Rate limit: 20 requests per hour per user
+  // Rate limit: 20 requests per hour per user (non-blocking if table missing)
   if (userId) {
-    const hourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-    const { count } = await supabase
-      .from('voice_usage')
-      .select('*', { count: 'exact', head: true })
-      .eq('supervisor_id', userId)
-      .gte('created_at', hourAgo);
-    if (count >= 20) return res.status(429).json({ error: 'Rate limit: 20 voice requests per hour' });
+    try {
+      const hourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+      const { count } = await supabase
+        .from('voice_usage')
+        .select('*', { count: 'exact', head: true })
+        .eq('supervisor_id', userId)
+        .gte('created_at', hourAgo);
+      if (count >= 20) return res.status(429).json({ error: 'Rate limit: 20 voice requests per hour' });
+    } catch (_) { /* table may not exist yet — skip rate limiting */ }
   }
 
   if (!process.env.ELEVENLABS_API_KEY) {
@@ -54,14 +57,14 @@ export default async function handler(req, res) {
 
     const audioBuffer = await response.arrayBuffer();
 
-    // Log usage
+    // Log usage (non-blocking — table may not exist yet)
     if (userId) {
       supabase.from('voice_usage').insert({
         supervisor_id: userId,
         characters_used: text.length,
         voice_name: voiceId,
         created_at: new Date().toISOString(),
-      }).then(() => {});
+      }).then(() => {}).catch(() => {});
     }
 
     res.setHeader('Content-Type', 'audio/mpeg');
