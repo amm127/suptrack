@@ -754,7 +754,7 @@ function Avatar({initials,size=40,color,textColor,T,photo,editable,onPhotoChange
   return <div style={{position:"relative",width:size,height:size,flexShrink:0}}>
     {photo
       ? <img src={photo} alt={initials} style={{width:size,height:size,borderRadius:"50%",objectFit:"cover",display:"block"}}/>
-      : <div style={{width:size,height:size,borderRadius:"50%",background:color||t.accentMid,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"system-ui, sans-serif",fontSize:size*0.33,color:textColor||t.accentText}}>{initials}</div>}
+      : <div style={{width:size,height:size,minWidth:size,minHeight:size,borderRadius:"50%",background:color||t.accentMid,display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden",fontFamily:"Arial, Helvetica, sans-serif",fontWeight:700,fontSize:Math.floor(size*0.36),lineHeight:"1",color:textColor||t.accentText,userSelect:"none"}}>{initials}</div>}
     {editable&&<label style={{position:"absolute",inset:0,borderRadius:"50%",background:"rgba(0,0,0,0.42)",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",opacity:0,transition:"opacity 0.15s"}}
       onMouseEnter={e=>e.currentTarget.style.opacity=1} onMouseLeave={e=>e.currentTarget.style.opacity=0}>
       <span style={{fontSize:Math.max(10,size*0.28),color:"#fff"}}>📷</span>
@@ -838,7 +838,7 @@ function FlagDots({intern}) {
 function SharedAvatars({sharedWith,size=22,colleagues=[]}) {
   if(!sharedWith?.length) return null;
   return <div style={{display:"flex",alignItems:"center",gap:2}}>
-    {sharedWith.map((s,i)=>{ const c=colleagues.find(x=>x.id===s.colleagueId); if(!c) return null; return <div key={c.id} title={`${c.name}: ${pmSum(s.perms)}`} style={{width:size,height:size,borderRadius:"50%",background:c.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:size*0.38,color:"#fff",border:"2px solid white",marginLeft:i>0?-6:0,zIndex:10-i,flexShrink:0}}>{c.initials}</div>; })}
+    {sharedWith.map((s,i)=>{ const c=colleagues.find(x=>x.id===s.colleagueId); if(!c) return null; return <div key={c.id} title={`${c.name}: ${pmSum(s.perms)}`} style={{width:size,height:size,minWidth:size,minHeight:size,borderRadius:"50%",background:c.color,display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden",fontFamily:"Arial, Helvetica, sans-serif",fontWeight:700,fontSize:Math.floor(size*0.36),lineHeight:"1",color:"#fff",border:"2px solid white",marginLeft:i>0?-6:0,zIndex:10-i,flexShrink:0,userSelect:"none"}}>{c.initials}</div>; })}
     <span style={{fontSize:11,color:"#9A9185",fontFamily:"'DM Mono',monospace",marginLeft:4}}>shared</span>
   </div>;
 }
