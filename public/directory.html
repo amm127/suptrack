@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Find a Supervisor — SupTrack</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/fraunces@5/index.css"/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'DM Sans',system-ui,sans-serif;background:#EEF2F0;color:#102828;min-height:100vh}
+  .header{background:#1E4040;padding:20px 0;text-align:center}
+  .header a{text-decoration:none}
+  .header .logo{font-family:'Fraunces',Georgia,serif;font-size:28px;font-weight:700;color:#F0DECA;letter-spacing:-1px}
+  .header .sub{font-size:12px;color:#7A9898;margin-top:2px;letter-spacing:1px}
+  .container{max-width:1100px;margin:0 auto;padding:32px 24px}
+  h1{font-family:'Fraunces',Georgia,serif;font-size:32px;font-weight:700;color:#1E4040;margin-bottom:4px}
+  .subtitle{color:#608080;font-size:15px;margin-bottom:28px}
+  .filters{background:#FAFDFB;border:1px solid #C8D8D4;border-radius:14px;padding:18px 22px;margin-bottom:24px;display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+  .filters input,.filters select{border:1px solid #C8D8D4;border-radius:10px;padding:9px 14px;font-size:14px;font-family:inherit;color:#102828;background:#FAFDFB;outline:none}
+  .filters input:focus,.filters select:focus{border-color:#1E4040}
+  .filters input{flex:1;min-width:180px}
+  .filters select{min-width:140px;cursor:pointer}
+  .filters .toggle{display:flex;align-items:center;gap:6px;font-size:13px;color:#608080;cursor:pointer}
+  .filters .toggle input{width:auto;margin:0}
+  .count{font-size:13px;color:#608080;margin-bottom:16px;font-family:'DM Mono',monospace}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  @media(max-width:900px){.grid{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:600px){.grid{grid-template-columns:1fr}.filters{flex-direction:column}}
+  .card{background:#FAFDFB;border:1px solid #C8D8D4;border-radius:16px;padding:22px;box-shadow:0 2px 12px rgba(30,64,64,0.06);transition:box-shadow 0.15s;display:flex;flex-direction:column}
+  .card:hover{box-shadow:0 6px 24px rgba(30,64,64,0.1)}
+  .card .top{display:flex;gap:14px;margin-bottom:14px}
+  .avatar{width:52px;height:52px;border-radius:50%;background:#1E4040;display:flex;align-items:center;justify-content:center;color:#F0DECA;font-size:18px;font-weight:700;flex-shrink:0;overflow:hidden}
+  .avatar img{width:100%;height:100%;object-fit:cover}
+  .name{font-family:'Fraunces',Georgia,serif;font-size:18px;font-weight:600;color:#1E4040}
+  .cred{font-size:12px;color:#608080;margin-top:2px}
+  .loc{font-size:12px;color:#608080;margin-top:2px;font-family:'DM Mono',monospace}
+  .badges{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+  .badge{padding:3px 10px;border-radius:6px;font-size:11px;font-family:'DM Mono',monospace}
+  .badge-teal{background:#E0EAE8;color:#1E4040}
+  .badge-green{background:#E8F5EE;color:#2E7A4E}
+  .badge-gray{background:#E8E8E8;color:#888}
+  .fee{font-size:13px;color:#102828;margin-bottom:8px;font-family:'DM Mono',monospace}
+  .specs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px}
+  .spec{background:#E8F0EE;color:#1E4040;border-radius:20px;padding:2px 10px;font-size:11px}
+  .bio{font-size:13px;color:#608080;line-height:1.5;margin-bottom:14px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .btns{display:flex;gap:8px;margin-top:auto}
+  .btn-view{flex:1;background:none;border:1px solid #C8D8D4;border-radius:10px;padding:8px;font-size:13px;color:#1E4040;cursor:pointer;font-family:inherit;text-decoration:none;text-align:center}
+  .btn-view:hover{background:#E8F0EE}
+  .btn-req{flex:1;background:#1E4040;border:none;border-radius:10px;padding:8px;font-size:13px;color:#C8E8E0;cursor:pointer;font-family:inherit;font-weight:600}
+  .btn-req:hover{background:#102828}
+  .empty{text-align:center;padding:60px 20px;color:#608080}
+  .footer{text-align:center;padding:40px 0 24px;font-size:11px;color:rgba(30,64,64,0.3)}
+</style>
+</head>
+<body>
+<div class="header"><a href="/"><span class="logo">✦ SupTrack</span><div class="sub">CLINICAL SUPERVISION DIRECTORY</div></a></div>
+<div class="container">
+  <h1>Find a Supervisor</h1>
+  <div class="subtitle">Browse clinical supervisors accepting new supervisees</div>
+
+  <div class="filters">
+    <input id="search" type="text" placeholder="Search by name, specialty, or location..."/>
+    <select id="f-type"><option value="">All license types</option></select>
+    <select id="f-format"><option value="">Any format</option><option value="telehealth">Telehealth</option><option value="inPerson">In-person</option></select>
+    <label class="toggle"><input type="checkbox" id="f-accepting"/> Accepting only</label>
+    <button onclick="clearFilters()" style="background:none;border:1px solid #C8D8D4;border-radius:8px;padding:7px 14px;font-size:12px;color:#608080;cursor:pointer;font-family:inherit">Clear</button>
+  </div>
+
+  <div class="count" id="count"></div>
+  <div class="grid" id="grid"></div>
+  <div class="empty" id="empty" style="display:none">
+    <div style="font-size:28px;margin-bottom:10px;opacity:0.3">✦</div>
+    <div style="font-family:'Fraunces',Georgia,serif;font-size:20px;color:#1E4040;margin-bottom:8px">No supervisors found</div>
+    <div>Try broadening your search or clearing filters.</div>
+  </div>
+</div>
+<div class="footer">&copy; 2026 SupTrack</div>
+
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+const supabase = createClient('https://mkjreqkrjhnjsbtchjhy.supabase.co','sb_publishable_5FsDbxIWWF235kR0zBCC3g_1pniQXJq');
+
+let allSups = [];
+
+async function load() {
+  const {data} = await supabase.from('supervisors').select('user_id,name,email,phone,credential,photo,profile_data').not('profile_data','is',null);
+  const typeSet = new Set();
+  allSups = (data||[]).filter(s=>s.profile_data?.name).map(s=>{
+    const pd = s.profile_data||{};
+    if(pd.credential) typeSet.add(pd.credential);
+    return {
+      id:s.user_id, name:pd.name||s.name, credential:pd.credential||s.credential||'',
+      licenseState:pd.licenseState||'', location:pd.location||pd.licenseState||'',
+      specialties:pd.specialties||[], bio:pd.bio||'', tagline:pd.tagline||'',
+      accepting:pd.accepting!==false, telehealth:pd.telehealth||false, inPerson:pd.inPerson||false,
+      feeIndividual:pd.feeIndividual||0, feeGroup:pd.feeGroup||0,
+      feeIndividualUnit:pd.feeIndividualUnit||'month', photo:s.photo,
+      slug:(pd.name||s.name||'').toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,''),
+      initials:(pd.name||s.name||'').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase(),
+    };
+  });
+  // Populate license type filter
+  const sel = document.getElementById('f-type');
+  [...typeSet].sort().forEach(t=>{const o=document.createElement('option');o.value=t;o.textContent=t;sel.appendChild(o);});
+  render();
+}
+
+function getFiltered() {
+  const q = (document.getElementById('search')?.value||'').toLowerCase();
+  const type = document.getElementById('f-type')?.value||'';
+  const format = document.getElementById('f-format')?.value||'';
+  const accepting = document.getElementById('f-accepting')?.checked;
+  return allSups.filter(s=>{
+    if(accepting && !s.accepting) return false;
+    if(type && s.credential!==type) return false;
+    if(format==='telehealth' && !s.telehealth) return false;
+    if(format==='inPerson' && !s.inPerson) return false;
+    if(q && !s.name.toLowerCase().includes(q) && !s.credential.toLowerCase().includes(q) && !(s.location||'').toLowerCase().includes(q) && !s.specialties.some(sp=>sp.toLowerCase().includes(q)) && !s.bio.toLowerCase().includes(q)) return false;
+    return true;
+  });
+}
+
+function render() {
+  const filtered = getFiltered();
+  document.getElementById('count').textContent = `Showing ${filtered.length} supervisor${filtered.length!==1?'s':''}`;
+  document.getElementById('empty').style.display = filtered.length===0?'block':'none';
+  document.getElementById('grid').innerHTML = filtered.map(s=>`
+    <div class="card">
+      <div class="top">
+        <div class="avatar">${s.photo?`<img src="${s.photo}" alt="${s.name}"/>`:s.initials}</div>
+        <div>
+          <div class="name">${s.name}</div>
+          <div class="cred">${s.credential}${s.licenseState?' · '+s.licenseState:''}</div>
+          ${s.location?`<div class="loc">${s.location}</div>`:''}
+        </div>
+      </div>
+      <div class="badges">
+        ${s.telehealth?'<span class="badge badge-teal">Telehealth</span>':''}
+        ${s.inPerson?'<span class="badge badge-teal">In-person</span>':''}
+        ${s.accepting?'<span class="badge badge-green">Accepting</span>':'<span class="badge badge-gray">Not accepting</span>'}
+      </div>
+      ${s.feeIndividual>0?`<div class="fee">$${s.feeIndividual}/${s.feeIndividualUnit}${s.feeGroup>0?' · $'+s.feeGroup+'/group per intern':''}</div>`:''}
+      <div class="specs">
+        ${s.specialties.slice(0,3).map(sp=>`<span class="spec">${sp}</span>`).join('')}
+        ${s.specialties.length>3?`<span class="spec">+${s.specialties.length-3} more</span>`:''}
+      </div>
+      ${s.bio?`<div class="bio">${s.bio}</div>`:''}
+      <div class="btns">
+        <a href="/supervisor/${s.slug}" class="btn-view">View Profile</a>
+        <button class="btn-req" onclick="window.location.href='/supervisor/${s.slug}'">Request Supervision</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+window.clearFilters = () => {
+  document.getElementById('search').value='';
+  document.getElementById('f-type').value='';
+  document.getElementById('f-format').value='';
+  document.getElementById('f-accepting').checked=false;
+  render();
+};
+
+document.getElementById('search').addEventListener('input',render);
+document.getElementById('f-type').addEventListener('change',render);
+document.getElementById('f-format').addEventListener('change',render);
+document.getElementById('f-accepting').addEventListener('change',render);
+
+load();
+</script>
+</body>
+</html>
