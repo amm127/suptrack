@@ -11011,6 +11011,7 @@ useEffect(() => {
     {id:"payments",   label:"Payments"},
     {id:"ce",         label:"CE Tracker"},
     {id:"resources",  label:"Resources"},
+    {id:"lab",        label:"✦ Supervision Lab"},
     {id:"agreements", label:"Agreements"},
     {id:"reminders",   label:"Reminders"},
     {id:"discover",   label:"🔭 Discover"},
@@ -11292,6 +11293,7 @@ useEffect(() => {
       {page==="calendar"&&<CalendarPage T={t}/>}
       {page==="resources"&&<ResourcesHubPage T={t} interns={interns} consultIntern={consultIntern}/>}
       {page==="resources"&&<ResourcesPage T={t}/>}
+      {page==="lab"&&<SupervisionLabPage T={t}/>}
       {page==="discover"&&<DiscoverPage T={t} session={session} interns={interns} onAddIntern={newIntern=>setInterns(p=>[...p,newIntern])}/>}
       {page==="agreements"&&<AgreementsPage T={t} interns={interns} supervisorName={supervisorName} session={session}/>}
 
