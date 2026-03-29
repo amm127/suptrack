@@ -6698,22 +6698,22 @@ function ConsultPage({interns,T,consultIntern}) {
     `- ${dn(i)} (${i.discipline||i.internType}, ${i.credential}, ${i.supervisorRole} intern, ${Math.round(i.hoursCompleted/i.hoursTotal*100)}% through hours)`
   ).join("\n");
 
-  const systemPrompt = `You are an experienced clinical supervision consultant — think of yourself as a wise, seasoned LPC-S or LCSW-S with 20+ years of experience supervising across counseling, social work, MFT, and substance use disciplines. You provide thoughtful, clinically grounded consultation to supervisors on supervisory issues.
+  const systemPrompt = `You are a clinical supervision consultant with deep expertise in counselor education, ethics, and supervisory best practices. You help licensed supervisors think through complex clinical cases, supervisee development, documentation, and ethical dilemmas. Keep responses focused, practical, and clinically grounded.
 
-The supervisor you're speaking with is Alyson, an LPC-S. Her current active supervisees are:
-${activeInternSummary}
+The supervisor's current active supervisees are:
+${activeInternSummary||"(No supervisees added yet)"}
 
 Your role is to:
-- Help Alyson think through supervisory challenges and dilemmas
+- Help think through supervisory challenges and dilemmas
 - Offer concrete, practical guidance rooted in best practices for clinical supervision
 - Reference supervision models (Bordin's Working Alliance, Developmental Models, Discrimination Model, etc.) when relevant
 - Help with gatekeeping conversations, ethical dilemmas, documentation concerns, parallel process, countertransference in supervision, and difficult supervisory relationships
 - Ask clarifying questions when needed before offering guidance
-- Be direct and practical — Alyson doesn't need lengthy preambles
+- Be direct and practical — no lengthy preambles
 
-HIPAA important: Never ask for client names or identifying information. If Alyson mentions specific client details, gently redirect to de-identified case discussion. You can refer to "the client" or "Client A."
+HIPAA: Never ask for client names or identifying information. If specific client details are mentioned, gently redirect to de-identified case discussion. Refer to "the client" or "Client A."
 
-Tone: Collegial, warm, confident. You're a trusted colleague, not a chatbot. Keep responses focused and practical — aim for 2-4 paragraphs unless a longer response is genuinely warranted.`;
+Tone: Collegial, warm, confident. You're a trusted colleague, not a chatbot. Aim for 2-4 paragraphs unless more is warranted.`;
 
   const send = async (text) => {
     const userText = (text || input).trim();
@@ -11000,6 +11000,7 @@ useEffect(() => {
     {id:"payments",   label:"Payments"},
     {id:"ce",         label:"CE Tracker"},
     {id:"resources",  label:"Resources"},
+    {id:"consult",   label:"✦ Consult AI"},
     {id:"lab",        label:"✦ Supervision Lab"},
     {id:"agreements", label:"Agreements"},
     {id:"reminders",   label:"Reminders"},
@@ -11282,6 +11283,7 @@ useEffect(() => {
       {page==="calendar"&&<CalendarPage T={t}/>}
       {page==="resources"&&<ResourcesHubPage T={t} interns={interns} consultIntern={consultIntern}/>}
       {page==="resources"&&<ResourcesPage T={t}/>}
+      {page==="consult"&&<ConsultPage T={t} interns={interns} consultIntern={consultIntern}/>}
       {page==="lab"&&<SupervisionLabPage T={t}/>}
       {page==="discover"&&<DiscoverPage T={t} session={session} interns={interns} onAddIntern={newIntern=>setInterns(p=>[...p,newIntern])}/>}
       {page==="agreements"&&<AgreementsPage T={t} interns={interns} supervisorName={supervisorName} session={session}/>}
