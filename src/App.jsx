@@ -5381,8 +5381,9 @@ function AddInternModal({onSave, onClose, onSendLink, groups, lists, T}) {
     name:"", preferredName:"", pronouns:"", gender:"", race:"", ethnicity:"",
     discipline:"counseling", credential:"LPC-Intern", credentialBody:"CACREP",
     licenseGoal:"LPC", startDate: new Date().toLocaleDateString("en-US",{month:"short",year:"numeric"}),
-    supervisorRole:"primary", proBono:false, groupIds:[], listIds:[], dob:"",
+    supervisorRole:"", proBono:false, isPracticum:false, groupIds:[], listIds:[], dob:"",
     university:"", paymentAmount:"", paymentFrequency:"monthly",
+    hoursTotal:"", customCredential:"", customBody:"", customGoal:"",
   });
   const [step, setStep] = useState(1); // 1=personal, 2=credential, 3=settings
   const [error, setError] = useState("");
@@ -5435,24 +5436,28 @@ function AddInternModal({onSave, onClose, onSendLink, groups, lists, T}) {
     if (form.discipline==="student"&&!form.university?.trim()) { setStep(2); setError("University name is required for practicum students."); return; }
     const initials = form.name.trim().split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
     const id = Date.now();
+    const finalCredential = form.credential==="Other"?form.customCredential:form.credential;
+    const finalBody = form.credentialBody==="Other"?form.customBody:form.credentialBody;
+    const finalGoal = form.licenseGoal==="Other"?form.customGoal:form.licenseGoal;
+    const finalHoursTotal = form.hoursTotal ? Number(form.hoursTotal) : 0;
     const newIntern = {
       id, name:form.name.trim(), preferredName:form.preferredName.trim(),
       initials, pronouns:form.pronouns.trim(),
       gender:form.gender||"", race:form.race||"", ethnicity:form.ethnicity||"",
       discipline:form.discipline, internType:form.discipline,
-      credential:form.credential, credentialBody:form.credentialBody,
+      credential:finalCredential, credentialBody:finalBody,
       university:form.discipline==="student"?form.university:"",
-      licenseGoal:form.licenseGoal, startDate:form.startDate,
-      supervisorRole:form.supervisorRole,
-      status:"active", proBono:form.proBono,
+      licenseGoal:finalGoal, startDate:form.startDate,
+      supervisorRole:form.discipline==="student"?"student":(form.supervisorRole||""),
+      status:"active", proBono:form.proBono||form.isPracticum, isPracticum:form.isPracticum,
       groupIds:form.groupIds, listIds:form.listIds,
       dob:form.dob, photo:null, flags:[],
-      hoursCompleted:0, hoursTotal:form.discipline==="substance_use"?2000:form.discipline==="student"?300:3000,
+      hoursCompleted:0, hoursTotal:finalHoursTotal,
       individualHours:0, groupHours:0,
       hourLog:[], internHourLog:[], customHourCategories:[],
-      payments:form.proBono?[]:[{month:TODAY(),amount:form.paymentAmount,status:"overdue"}],
-      paymentStatus:form.proBono?"current":"overdue",
-      billingSchedule:form.paymentFrequency||"monthly", billingRate:form.paymentAmount,
+      payments:(form.proBono||form.isPracticum)?[]:(form.paymentAmount?[{month:TODAY(),amount:form.paymentAmount,status:"overdue"}]:[]),
+      paymentStatus:(form.proBono||form.isPracticum)?"current":(form.paymentAmount?"overdue":"current"),
+      billingSchedule:form.paymentFrequency||"monthly", billingRate:(form.proBono||form.isPracticum)?0:form.paymentAmount,
       sessions:[], cases:[], documents:[], evaluations:[],
       sharedWith:[],
     };
@@ -5596,28 +5601,65 @@ function AddInternModal({onSave, onClose, onSendLink, groups, lists, T}) {
                   <label style={labelStyle}>Current credential</label>
                   <select value={form.credential} onChange={e=>set("credential",e.target.value)} style={{...inputStyle,cursor:"pointer"}}>
                     {creds.map(c=><option key={c}>{c}</option>)}
+                    <option value="Other">Other</option>
                   </select>
+                  {form.credential==="Other"&&<input value={form.customCredential} onChange={e=>set("customCredential",e.target.value)} placeholder="Please specify credential type" style={{...inputStyle,marginTop:6}}/>}
                 </div>
                 <div>
                   <label style={labelStyle}>Credentialing body</label>
                   <select value={form.credentialBody} onChange={e=>set("credentialBody",e.target.value)} style={{...inputStyle,cursor:"pointer"}}>
                     {bodies.map(b=><option key={b}>{b}</option>)}
+                    <option value="Other">Other</option>
                   </select>
+                  {form.credentialBody==="Other"&&<input value={form.customBody} onChange={e=>set("customBody",e.target.value)} placeholder="Please specify credentialing body" style={{...inputStyle,marginTop:6}}/>}
                 </div>
               </div>
               <div>
                 <label style={labelStyle}>Licensure goal</label>
                 <select value={form.licenseGoal} onChange={e=>set("licenseGoal",e.target.value)} style={{...inputStyle,cursor:"pointer"}}>
                   {goals.map(g=><option key={g}>{g}</option>)}
+                  <option value="Other">Other</option>
                 </select>
+                {form.licenseGoal==="Other"&&<input value={form.customGoal} onChange={e=>set("customGoal",e.target.value)} placeholder="Please specify licensure goal" style={{...inputStyle,marginTop:6}}/>}
               </div>
             </>}
       </div>}
 
       {/* Step 3 — Settings */}
       {step===3&&<div style={{display:"flex",flexDirection:"column",gap:14}}>
-        {/* Pro bono toggle */}
+        {/* Supervisor role — optional */}
+        {form.discipline!=="student"&&<div>
+          <label style={labelStyle}>Supervisor role (optional)</label>
+          <select value={form.supervisorRole} onChange={e=>set("supervisorRole",e.target.value)} style={{...inputStyle,cursor:"pointer"}}>
+            <option value="">— Not specified —</option>
+            <option value="primary">Primary Supervisor</option>
+            <option value="secondary">Secondary Supervisor</option>
+          </select>
+        </div>}
+
+        {/* Required hours — customizable */}
+        <div>
+          <label style={labelStyle}>Required hours for licensure</label>
+          <input type="number" min="0" value={form.hoursTotal} onChange={e=>set("hoursTotal",e.target.value)}
+            placeholder="e.g. 3000 — varies by board and state"
+            style={inputStyle}/>
+          <div style={{fontSize:11,color:t.faint,marginTop:3}}>Leave blank if unknown — you can set this later</div>
+        </div>
+
+        {/* Practicum student toggle */}
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",background:t.surfaceAlt,borderRadius:10,padding:"12px 16px"}}>
+          <div>
+            <div style={{fontSize:14,color:t.text,fontWeight:500}}>Graduate practicum (unpaid)</div>
+            <div style={{fontSize:12,color:t.muted,marginTop:2}}>Hides payment fields and labels as practicum student</div>
+          </div>
+          <button onClick={()=>{set("isPracticum",!form.isPracticum);if(!form.isPracticum)set("proBono",true);}}
+            style={{background:form.isPracticum?t.accent:t.border,border:"none",borderRadius:20,width:44,height:24,cursor:"pointer",position:"relative",transition:"all 0.2s",flexShrink:0}}>
+            <span style={{position:"absolute",top:3,left:form.isPracticum?22:2,width:18,height:18,borderRadius:"50%",background:"#fff",transition:"left 0.2s"}}/>
+          </button>
+        </div>
+
+        {/* Pro bono toggle — hidden if practicum */}
+        {!form.isPracticum&&<div style={{display:"flex",alignItems:"center",justifyContent:"space-between",background:t.surfaceAlt,borderRadius:10,padding:"12px 16px"}}>
           <div>
             <div style={{fontSize:14,color:t.text,fontWeight:500}}>Pro bono</div>
             <div style={{fontSize:12,color:t.muted,marginTop:2}}>No payment tracking for this supervisee</div>
@@ -5626,10 +5668,10 @@ function AddInternModal({onSave, onClose, onSendLink, groups, lists, T}) {
             style={{background:form.proBono?t.accent:t.border,border:"none",borderRadius:20,width:44,height:24,cursor:"pointer",position:"relative",transition:"all 0.2s",flexShrink:0}}>
             <span style={{position:"absolute",top:3,left:form.proBono?22:2,width:18,height:18,borderRadius:"50%",background:"#fff",transition:"left 0.2s"}}/>
           </button>
-        </div>
+        </div>}
 
-        {/* Payment settings — only if not pro bono */}
-        {!form.proBono&&<div style={{border:`1px solid ${t.border}`,borderRadius:10,padding:"14px 16px",display:"flex",flexDirection:"column",gap:12}}>
+        {/* Payment settings — only if not pro bono and not practicum */}
+        {!form.proBono&&!form.isPracticum&&<div style={{border:`1px solid ${t.border}`,borderRadius:10,padding:"14px 16px",display:"flex",flexDirection:"column",gap:12}}>
           <div style={{fontSize:13,color:t.text,fontWeight:500}}>Billing</div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
             <div>
