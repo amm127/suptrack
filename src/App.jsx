@@ -1,8 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { supabase } from '../lib/supabase'
 import Auth from './Auth'
-const ANTHROPIC_API_KEY = import.meta.env.VITE_ANTHROPIC_API_KEY || "";
-console.log("[SupTrack] VITE_ANTHROPIC_API_KEY loaded:", ANTHROPIC_API_KEY ? `${ANTHROPIC_API_KEY.slice(0,12)}...(${ANTHROPIC_API_KEY.length} chars)` : "MISSING — check Vercel env vars");
+// API keys are now server-side only — no VITE_ prefix needed
 // ── Date helpers — no hardcoded dates in runtime logic ─────────────────────
 const TODAY = () => new Date().toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});
 const TODAY_MONTH = () => new Date().toLocaleDateString("en-US",{month:"long",year:"numeric"});
@@ -516,6 +515,17 @@ const DEFAULT_SECTIONS = [
 const dn    = (i) => i.preferredName || i.name.split(" ")[0]; // display name — preferred or first name
 
 // ── iCal / Google Calendar helpers ────────────────────────────────────────
+// ── AI API helper (routes through server to protect API key) ──────────────
+const callAI = async (messages, systemPrompt, maxTokens) => {
+  const res = await fetch("/api/ai-chat", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ messages, systemPrompt, maxTokens }),
+  });
+  const data = await res.json();
+  if (data.error) throw new Error(data.error);
+  return data.text || "";
+};
+
 // ── Email notification helper ─────────────────────────────────────────────
 const sendEmail = async (to, type, data, notifPrefs) => {
   // Check notification preferences — skip if this type is disabled
@@ -1428,7 +1438,6 @@ function AISessionModal({intern,groupContext,onSave,onClose,T}) {
 
   const generate = async () => {
     if (form.topics.length===0 && !form.customNotes.trim()) { setError("Select at least one topic or add custom notes."); return; }
-    if (!ANTHROPIC_API_KEY) { setError("No API key configured — set VITE_ANTHROPIC_API_KEY in your .env file."); return; }
     setError("");
     setStep("generating");
 
@@ -1442,20 +1451,15 @@ function AISessionModal({intern,groupContext,onSave,onClose,T}) {
       form.progress ? `Supervisee progress: ${form.progress}` : "",
     ].filter(Boolean).join("\n");
 
-    const prompt = `You are a clinical supervision documentation assistant. Generate a concise, professional supervision session note based on the following structured inputs. The note should be 3-5 sentences maximum, written in third person, past tense, clinical but warm in tone. Do not add information that was not provided. Do not pad the note with unnecessary language. Format: one paragraph only.
-
-Session details:
-${details}`;
-
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch("/api/generate-note", {
         method:"POST",
-        headers:{"Content-Type":"application/json","x-api-key":ANTHROPIC_API_KEY,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
-        body:JSON.stringify({ model:"claude-sonnet-4-20250514", max_tokens:300, messages:[{role:"user",content:prompt}] })
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({ supervisee:fullName, credential:intern?.credential, sessionType:form.sessionType, date:form.date, duration:form.duration, topics:form.topics, customNotes:form.customNotes, progress:form.progress })
       });
       const data = await res.json();
-      const text = data.content?.filter(c=>c.type==="text").map(c=>c.text).join("") || "";
-      if (!text) throw new Error("Empty response");
+      const text = data.text || data.text||data.content?.filter(c=>c.type==="text").map(c=>c.text).join("") || "";
+      if (!text) throw new Error(data.error || "Empty response");
       setResult(text);
       setStep("result");
     } catch(e) {
@@ -5336,9 +5340,9 @@ function EvaluationTab({intern,onUpdateIntern,T}) {
     const ratingText=EVAL_QUESTIONS.map(q=>`- ${q.label}: ${ratings[q.id]}/5`).join("\n");
     const prompt=`You are a licensed clinical supervisor writing a formal evaluation of a supervisee. Write a professional, balanced evaluation summary based on these ratings and notes.\n\nSupervisee: ${intern.name}\nEvaluation type: ${evalType}\nCredential goal: ${intern.licenseGoal}\n\nRatings (1-5):\n${ratingText}\n\nStrengths: ${strengths||"Not specified"}\nGrowth areas: ${growth||"Not specified"}\nGoals: ${goals||"Not specified"}\n\nWrite a 2-3 paragraph professional evaluation in third person. Reference the supervisee by last name. Be specific, balanced, and clinically appropriate.`;
     try{
-      const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":ANTHROPIC_API_KEY,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:600,messages:[{role:"user",content:prompt}]})});
+      const res=await fetch("/api/ai-chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({maxTokens:600,messages:[{role:"user",content:prompt}]})});
       const data=await res.json();
-      setGeneratedSummary(data.content?.filter(c=>c.type==="text").map(c=>c.text).join("")||"");
+      setGeneratedSummary(data.text||data.content?.filter(c=>c.type==="text").map(c=>c.text).join("")||"");
     }catch(e){setGeneratedSummary("Unable to generate. Please write manually.");}
     setGenerating(false);
   };
@@ -6931,7 +6935,7 @@ function ConsultPage({interns,T,consultIntern}) {
   const [input,setInput]=useState(consultIntern ? `I want to consult about a supervisee situation involving ${consultIntern.preferredName||consultIntern.name.split(" ")[0]} (${consultIntern.discipline||consultIntern.internType}, ${consultIntern.credential}). ` : "");
   const [loading,setLoading]=useState(false);
   const [hipaaAck,setHipaaAck]=useState(false);
-  const apiKey=ANTHROPIC_API_KEY;
+
 
   const activeInternSummary = interns.filter(i=>i.status==="active").map(i=>
     `- ${dn(i)} (${i.discipline||i.internType}, ${i.credential}, ${i.supervisorRole} intern, ${Math.round(i.hoursCompleted/i.hoursTotal*100)}% through hours)`
@@ -6957,29 +6961,23 @@ Tone: Collegial, warm, confident. You're a trusted colleague, not a chatbot. Aim
   const send = async (text) => {
     const userText = (text || input).trim();
     if (!userText || loading) return;
-    if (!apiKey) {
-      setMessages(p=>[...p,{role:"user",content:userText},{role:"assistant",content:"⚠ No API key configured. Set VITE_ANTHROPIC_API_KEY in your .env file."}]);
-      setInput("");
-      return;
-    }
     setInput("");
     const newMessages = [...messages, { role:"user", content:userText }];
     setMessages(newMessages);
     setLoading(true);
 
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch("/api/ai-chat", {
         method:"POST",
-        headers:{"Content-Type":"application/json","x-api-key":ANTHROPIC_API_KEY,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+        headers:{"Content-Type":"application/json"},
         body:JSON.stringify({
-          model:"claude-sonnet-4-20250514",
-          max_tokens:1000,
-          system:systemPrompt,
+          maxTokens:1000,
+          systemPrompt:systemPrompt,
           messages:newMessages.map(m=>({ role:m.role, content:m.content })),
         })
       });
       const data = await res.json();
-      const reply = data.content?.filter(c=>c.type==="text").map(c=>c.text).join("")||"";
+      const reply = data.text||data.content?.filter(c=>c.type==="text").map(c=>c.text).join("")||"";
       setMessages(p=>[...p,{role:"assistant",content:reply}]);
     } catch(e) {
       setMessages(p=>[...p,{role:"assistant",content:"Something went wrong. Please try again."}]);
@@ -7020,14 +7018,10 @@ Tone: Collegial, warm, confident. You're a trusted colleague, not a chatbot. Aim
           </p>
         </div>
         <div style={{display:"flex",gap:8,alignItems:"center"}}>
-          {apiKey&&<span style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace"}}>🔑 Key set</span>}
           {messages.length>0&&<Btn T={t} variant="secondary" small onClick={()=>setMessages([])}>New Conversation</Btn>}
         </div>
       </div>
 
-      {!apiKey&&<div style={{background:S.amberLight,border:"1px solid #E8C98A",borderRadius:8,padding:"10px 14px",marginBottom:12,fontSize:13,color:"#7A5A00",flexShrink:0}}>
-        ⚠ AI features require an API key. Set <strong>VITE_ANTHROPIC_API_KEY</strong> in your .env file.
-      </div>}
 
       {/* HIPAA reminder strip */}
       <div style={{background:S.amberLight,border:`1px solid #E8C98A`,borderRadius:8,padding:"8px 14px",marginBottom:16,fontSize:12,color:S.amber,flexShrink:0}}>
@@ -7563,7 +7557,7 @@ function SupervisionLabPage({T}) {
   const [elKey, setElKey] = useState("");
   const [elKeyInput, setElKeyInput] = useState("");
   const [elKeySaved, setElKeySaved] = useState(false);
-  const apiKey=ANTHROPIC_API_KEY;
+
   const [filterLang, setFilterLang] = useState("all");
   // Pre-load browser voices async (Chrome loads them lazily)
   const [browserVoices, setBrowserVoices] = useState([]);
@@ -7694,9 +7688,9 @@ function SupervisionLabPage({T}) {
     const hist = newTranscript.map(m=>`${m.role==="supervisor"?(isSpanish?"Supervisora":"Supervisor"):"You"}: ${m.text}`).join("\n");
     const systemPrompt = `${scenario.persona}\n\nYou are in a live supervision session. Stay fully in character. Do not break character or reveal you are an AI.\n${isSpanish?"IMPORTANTE: Responde SOLAMENTE en español natural. 2-5 oraciones máximo.":"Keep responses to 2-5 sentences of natural spoken dialogue."}\n\nConversation so far:\n${hist}\n\nRespond only with your character's next spoken words. No labels, no stage directions.`;
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":ANTHROPIC_API_KEY,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:200,messages:[{role:"user",content:`[${isSpanish?"La supervisora dijo":"The supervisor said"}]: ${text}`}],system:systemPrompt})});
+      const res = await fetch("/api/ai-chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({maxTokens:200,messages:[{role:"user",content:`[${isSpanish?"La supervisora dijo":"The supervisor said"}]: ${text}`}],systemPrompt:systemPrompt})});
       const data = await res.json();
-      const reply = data.content?.filter(c=>c.type==="text").map(c=>c.text).join("")||(isSpanish?"¿Puedes repetir eso?":"Could you repeat that?");
+      const reply = data.text||data.content?.filter(c=>c.type==="text").map(c=>c.text).join("")||(isSpanish?"¿Puedes repetir eso?":"Could you repeat that?");
       const updated = [...newTranscript, { role:"supervisee", text:reply, ts: fmt(sessionTime) }];
       setTranscript(updated); setLoading(false); speakAndListen(reply);
     } catch(e) {
@@ -7751,9 +7745,9 @@ Provide feedback in ${isSpanish?"Spanish (Español)":"English"} with these secti
 
 Be direct, clinical, encouraging. Under 400 words.`;
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":ANTHROPIC_API_KEY,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:600,messages:[{role:"user",content:prompt}]})});
+      const res = await fetch("/api/ai-chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({maxTokens:600,messages:[{role:"user",content:prompt}]})});
       const data = await res.json();
-      const fb = data.content?.filter(c=>c.type==="text").map(c=>c.text).join("")||"";
+      const fb = data.text||data.content?.filter(c=>c.type==="text").map(c=>c.text).join("")||"";
       setFeedback(fb);
       // Save to history
       const saved = {
@@ -7776,7 +7770,6 @@ Be direct, clinical, encouraging. Under 400 words.`;
       <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:4}}>
         <h1 style={{fontFamily:"inherit",fontSize:28,fontWeight:400,color:t.text,margin:0,letterSpacing:"-0.02em"}}>✦ Supervision Lab</h1>
         <div style={{display:"flex",gap:8,alignItems:"center"}}>
-          {apiKey&&<span style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace"}}>🔑 AI key set</span>}
           {sessionHistory.length>0&&<button onClick={()=>setPhase("history")}
             style={{background:t.accentLight,color:t.accentText,border:`1px solid ${t.accentMid}`,borderRadius:8,padding:"7px 14px",cursor:"pointer",fontSize:12,fontFamily:"'DM Mono',monospace",flexShrink:0}}>
             Session history ({sessionHistory.length})
@@ -7789,9 +7782,6 @@ Be direct, clinical, encouraging. Under 400 words.`;
       </div>
     </div>
 
-    {!apiKey&&<div style={{background:S.amberLight,border:"1px solid #E8C98A",borderRadius:8,padding:"10px 14px",marginBottom:14,fontSize:13,color:"#7A5A00"}}>
-      ⚠ AI features require an API key. Set <strong>VITE_ANTHROPIC_API_KEY</strong> in your .env file.
-    </div>}
 
     {/* Voice settings */}
     <div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:14,padding:"18px 20px",marginBottom:18}}>
@@ -8032,9 +8022,9 @@ Write a professional Supervision of Supervision feedback letter that:
 
 Keep the tone warm, collegial, and clinically precise. Write in the voice of a senior LPC-S or LCSW-S writing to a newly credentialed supervisee-supervisor. 3-4 paragraphs.`;
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":ANTHROPIC_API_KEY,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:700,messages:[{role:"user",content:prompt}]})});
+      const res = await fetch("/api/ai-chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({maxTokens:700,messages:[{role:"user",content:prompt}]})});
       const data = await res.json();
-      setReviewLetter(data.content?.filter(c=>c.type==="text").map(c=>c.text).join("")||"");
+      setReviewLetter(data.text||data.content?.filter(c=>c.type==="text").map(c=>c.text).join("")||"");
     } catch(e) { setReviewLetter("Unable to generate letter. Please write feedback manually above."); }
     setGeneratingReviewLetter(false);
   };
@@ -9498,12 +9488,12 @@ ${template}
 Replace all bracketed placeholders with appropriate values based on the supervisory details above. Keep the professional format. Where specific details are unknown (like license numbers), leave a clear blank line. Make the language warm but professional.`;
 
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method:"POST", headers:{"Content-Type":"application/json","x-api-key":ANTHROPIC_API_KEY,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
-        body:JSON.stringify({ model:"claude-sonnet-4-20250514", max_tokens:2000, messages:[{role:"user",content:prompt}] })
+      const res = await fetch("/api/ai-chat", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({ maxTokens:2000, messages:[{role:"user",content:prompt}] })
       });
       const data = await res.json();
-      setGeneratedAgreement(data.content?.filter(c=>c.type==="text").map(c=>c.text).join("")||"");
+      setGeneratedAgreement(data.text||data.text||data.content?.filter(c=>c.type==="text").map(c=>c.text).join("")||"");
     } catch(e) { setGeneratedAgreement("Unable to generate. Please use the base template above."); }
     setGenerating(false);
   };
@@ -9920,7 +9910,6 @@ ${agForm.superviseeName||""}${agForm.superviseeCredential?", "+agForm.supervisee
               ))}
             </div>
             <Btn T={t} onClick={async()=>{
-              if(!ANTHROPIC_API_KEY){setGeneratedLetter("⚠ No API key configured. Set VITE_ANTHROPIC_API_KEY in your .env file.");return;}
               setGeneratingLetter(true);setGeneratedLetter("");
               const prompt=`Write a formal supervisor attestation letter for a clinical intern's licensing board application.
 
@@ -9947,9 +9936,9 @@ Write a formal attestation letter for submission to a state licensing board. Inc
 
 Professional, formal tone. Leave blanks for anything unknown.`;
               try{
-                const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":ANTHROPIC_API_KEY,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1500,messages:[{role:"user",content:prompt}]})});
+                const res=await fetch("/api/ai-chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({maxTokens:1500,messages:[{role:"user",content:prompt}]})});
                 const data=await res.json();
-                setGeneratedLetter(data.content?.filter(c=>c.type==="text").map(c=>c.text).join("")||"Error — check API key.");
+                setGeneratedLetter(data.text||data.content?.filter(c=>c.type==="text").map(c=>c.text).join("")||"Error — check API key.");
               }catch{setGeneratedLetter("Unable to generate. Check your Anthropic API key.");}
               setGeneratingLetter(false);
             }} disabled={generatingLetter}>{generatingLetter?"✦ Writing…":"✦ Generate attestation letter"}</Btn>
