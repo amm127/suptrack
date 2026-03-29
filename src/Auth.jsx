@@ -43,18 +43,36 @@ export default function Auth() {
         window.history.replaceState({}, '', window.location.pathname)
         setMessage('Account created! Check your email to confirm, then sign in.')
       } else {
-        const isLifetimeFree = LIFETIME_FREE_CODES.includes(inviteCode.trim())
-        if (!isLifetimeFree) {
-          const { data: invite, error: inviteError } = await supabase
-            .from('invites').select('*').eq('code', inviteCode.trim()).eq('used', false).single()
-          if (inviteError || !invite || invite.type === 'intern_portal') { setMessage('Invalid or already used invite code.'); setIsError(true); setLoading(false); return }
+        const code = inviteCode.trim();
+        const isLifetimeFree = LIFETIME_FREE_CODES.includes(code);
+        let validInvite = null;
+
+        // Only validate invite code if one was entered (it's optional)
+        if (code && !isLifetimeFree) {
+          const { data: invite } = await supabase
+            .from('invites').select('*').eq('code', code).eq('used', false).single();
+          if (invite && invite.type !== 'intern_portal') {
+            validInvite = invite;
+          }
+          // If code entered but invalid, just warn — don't block signup
+          if (!invite && code) { /* silently ignore invalid optional code */ }
         }
+
+        // Create the account — no code required
         const { data: signUpData, error } = await supabase.auth.signUp({ email, password, options: { data: { full_name: fullName.trim() } } })
         if (error) { setMessage(error.message); setIsError(true) }
         else {
-          if (!isLifetimeFree) await supabase.from('invites').update({ used: true }).eq('code', inviteCode.trim())
-          if (isLifetimeFree && signUpData?.user) await supabase.from('supervisors').upsert({ user_id: signUpData.user.id, name: fullName.trim() || email, email, plan: 'starter', trial_ends_at: null, lifetime_free: true }, { onConflict: 'user_id' })
-          setMessage('Check your email to confirm your account!')
+          // Mark invite as used if valid
+          if (validInvite) await supabase.from('invites').update({ used: true }).eq('code', code);
+          // Handle lifetime free codes
+          if (isLifetimeFree && signUpData?.user) {
+            await supabase.from('supervisors').upsert({ user_id: signUpData.user.id, name: fullName.trim() || email, email, plan: 'starter', trial_ends_at: null, lifetime_free: true }, { onConflict: 'user_id' });
+          }
+          // Track referral if code looks like a referral code
+          if (code && !isLifetimeFree && !validInvite && signUpData?.user) {
+            supabase.from('referrals').insert({ referrer_id: null, referred_email: email, referred_user_id: signUpData.user.id, status: 'signed_up' }).then(()=>{});
+          }
+          setMessage('Account created! Check your email to confirm, then sign in.');
         }
       }
     } else {
@@ -140,7 +158,7 @@ export default function Auth() {
               {isSignUp && <input className="st-auth-inp" type="text" name="name" autoComplete="name" placeholder="Full name" value={fullName} onChange={e=>setFullName(e.target.value)}/>}
               <input className="st-auth-inp" type="email" name="email" autoComplete="email" placeholder="Email address" value={email} onChange={e=>setEmail(e.target.value)}/>
               <input className="st-auth-inp" type="password" name="password" autoComplete={isSignUp?'new-password':'current-password'} placeholder="Password" value={password} onChange={e=>setPassword(e.target.value)}/>
-              {isSignUp && !isInternInvite && <input className="st-auth-inp" type="text" name="invite-code" autoComplete="off" placeholder="Invite code" value={inviteCode} onChange={e=>setInviteCode(e.target.value)}/>}
+              {isSignUp && !isInternInvite && <input className="st-auth-inp" type="text" name="invite-code" autoComplete="off" placeholder="Referral code (optional)" value={inviteCode} onChange={e=>setInviteCode(e.target.value)} style={{opacity:0.7,fontSize:13}}/>}
             </div>
 
             {message && (
