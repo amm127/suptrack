@@ -1374,57 +1374,49 @@ function QuickActionModal({action, interns, groups, onClose, onUpdateIntern, T})
 function AISessionModal({intern,groupContext,onSave,onClose,T}) {
   const t=T||THEMES.sage;
   const [step,setStep]=useState("input");
+  const TOPICS = ["Case conceptualization","Ethics","Transference / countertransference","Treatment planning","Professional development","Crisis intervention","Documentation","Self-care","Multicultural considerations","Gatekeeping","Other"];
   const [form,setForm]=useState({
     date: TODAY(),
     duration: "60",
-    sessionType: groupContext ? "Group Supervision" : "Individual Supervision",
-    summary:"",
-    bullets:"",
+    sessionType: groupContext ? "Group" : "Individual",
+    supervisee: intern ? intern.name : "",
+    topics: [],
+    customNotes: "",
+    progress: "",
   });
   const [result,setResult]=useState("");
   const [editing,setEditing]=useState(false);
   const [error,setError]=useState("");
-  const internName = intern ? (intern.preferredName || intern.name.split(" ")[0]) : "";
-  const fullName   = intern ? intern.name : groupContext?.name || "Group";
+  const fullName = intern ? intern.name : groupContext?.name || form.supervisee || "Supervisee";
+
+  const toggleTopic = (topic) => setForm(p=>({...p, topics: p.topics.includes(topic) ? p.topics.filter(t=>t!==topic) : [...p.topics, topic]}));
 
   const generate = async () => {
-    if (!form.summary.trim()) { setError("Please enter at least a brief summary."); return; }
+    if (form.topics.length===0 && !form.customNotes.trim()) { setError("Select at least one topic or add custom notes."); return; }
     if (!ANTHROPIC_API_KEY) { setError("No API key configured — set VITE_ANTHROPIC_API_KEY in your .env file."); return; }
     setError("");
     setStep("generating");
 
-    const bulletList = form.bullets.trim()
-      ? form.bullets.split("\n").filter(b=>b.trim()).map(b=>`- ${b.trim()}`).join("\n")
-      : "";
+    const details = [
+      `Supervisee: ${fullName}${intern?.credential ? ` (${intern.credential})` : ""}`,
+      `Session type: ${form.sessionType}`,
+      `Date: ${form.date}`,
+      `Duration: ${form.duration} minutes`,
+      `Topics covered: ${form.topics.join(", ")||"General supervision"}`,
+      form.customNotes.trim() ? `Additional notes: ${form.customNotes.trim()}` : "",
+      form.progress ? `Supervisee progress: ${form.progress}` : "",
+    ].filter(Boolean).join("\n");
 
-    const prompt = `You are helping a licensed clinical supervisor write a professional supervision session note. Write a polished, structured clinical supervision note based on the following input.
+    const prompt = `You are a clinical supervision documentation assistant. Generate a concise, professional supervision session note based on the following structured inputs. The note should be 3-5 sentences maximum, written in third person, past tense, clinical but warm in tone. Do not add information that was not provided. Do not pad the note with unnecessary language. Format: one paragraph only.
 
 Session details:
-- Supervisee: ${fullName}${intern?.credential ? ` (${intern.credential})` : ""}
-- Session type: ${form.sessionType} supervision
-- Date: ${form.date}
-- Duration: ${form.duration} minutes
-- Supervisor's summary: ${form.summary}
-${bulletList ? `- Key points/themes:\n${bulletList}` : ""}
-
-Write a professional supervision note in third person (referring to the supervisee by their last name or "the supervisee"). The note should:
-1. Open with a brief session overview sentence
-2. Cover clinical content discussed (cases, interventions, presenting concerns)
-3. Note any supervisory interventions, guidance given, or skills addressed
-4. Include a brief closing statement about next steps or follow-up items if relevant
-
-Use professional clinical language appropriate for licensure documentation. Be specific and concrete. Do not invent details not provided — only expand and professionalize what was given. Keep it to 3–5 paragraphs.`;
+${details}`;
 
     try {
-      console.log("[AISessionModal] API key found:", ANTHROPIC_API_KEY ? `${ANTHROPIC_API_KEY.slice(0,10)}...` : "(empty)");
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method:"POST",
         headers:{"Content-Type":"application/json","x-api-key":ANTHROPIC_API_KEY,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
-        body:JSON.stringify({
-          model:"claude-sonnet-4-20250514",
-          max_tokens:1000,
-          messages:[{role:"user",content:prompt}]
-        })
+        body:JSON.stringify({ model:"claude-sonnet-4-20250514", max_tokens:300, messages:[{role:"user",content:prompt}] })
       });
       const data = await res.json();
       const text = data.content?.filter(c=>c.type==="text").map(c=>c.text).join("") || "";
@@ -1432,23 +1424,21 @@ Use professional clinical language appropriate for licensure documentation. Be s
       setResult(text);
       setStep("result");
     } catch(e) {
-      setError(`Generation failed: ${e.message||"Unknown error"}. Check your API key and try again.`);
+      setError(`Generation failed: ${e.message||"Unknown error"}.`);
       setStep("input");
     }
   };
 
   const save = () => {
     const note = editing ? document.getElementById("ai-note-edit")?.value || result : result;
+    const sessionType = `${form.sessionType} Supervision`;
     const session = {
       date: form.date,
-      type: form.sessionType,
+      type: sessionType,
       duration: `${form.duration} min`,
-      author: "Alyson",
+      author: "Supervisor",
       notes: note,
     };
-    // Determine if direct or indirect from session type
-    const directTypes = ["Individual Supervision","Group Supervision","Triadic Supervision","Live Supervision","Phone / Telehealth","Group"];
-    const isDirect = directTypes.some(d=>form.sessionType.includes(d.split(" ")[0]));
     const isGroup = form.sessionType.toLowerCase().includes("group");
     const hrs = Math.round((Number(form.duration)/60)*10)/10;
     const catId = isGroup ? "group_supervision" : "individual_supervision";
@@ -1486,56 +1476,59 @@ Use professional clinical language appropriate for licensure documentation. Be s
         </div>
 
         {step==="input" && <>
-          {/* Form */}
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:16}}>
-            <div>
-              <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:6}}>Date</div>
-              <input value={form.date} onChange={e=>setForm(p=>({...p,date:e.target.value}))}
-                style={{width:"100%",border:`1px solid ${t.border}`,borderRadius:8,padding:"8px 12px",fontSize:13,fontFamily:"'DM Sans',system-ui,sans-serif",color:t.text,background:t.bg,outline:"none",boxSizing:"border-box"}}/>
-            </div>
-            <div>
-              <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:6}}>Duration (min)</div>
-              <input value={form.duration} onChange={e=>setForm(p=>({...p,duration:e.target.value}))}
-                style={{width:"100%",border:`1px solid ${t.border}`,borderRadius:8,padding:"8px 12px",fontSize:13,fontFamily:"'DM Sans',system-ui,sans-serif",color:t.text,background:t.bg,outline:"none",boxSizing:"border-box"}}/>
-            </div>
-            <div>
-              <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:6}}>Category</div>
-              <select value={form.sessionType} onChange={e=>setForm(p=>({...p,sessionType:e.target.value}))}
-                style={{width:"100%",border:`1px solid ${t.border}`,borderRadius:8,padding:"8px 12px",fontSize:13,fontFamily:"'DM Sans',system-ui,sans-serif",color:t.text,background:t.surface,outline:"none"}}>
-                <optgroup label="Direct">
-                  <option value="Individual Supervision">Individual Supervision</option>
-                  <option value="Group Supervision">Group Supervision</option>
-                  <option value="Triadic Supervision">Triadic Supervision</option>
-                  <option value="Live Supervision">Live Supervision</option>
-                  <option value="Phone / Telehealth">Phone / Telehealth</option>
-                </optgroup>
-                <optgroup label="Indirect">
-                  <option value="Case Consultation">Case Consultation</option>
-                  <option value="Report Writing">Report Writing</option>
-                  <option value="Administrative Tasks">Administrative Tasks</option>
-                  <option value="Training / Didactic">Training / Didactic</option>
-                </optgroup>
-              </select>
-            </div>
-          </div>
+          {(()=>{
+            const lbl=(text)=><div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:6}}>{text}</div>;
+            const sel={width:"100%",border:`1px solid ${t.border}`,borderRadius:10,padding:"9px 12px",fontSize:13,fontFamily:"inherit",color:t.text,background:t.surface,outline:"none",boxSizing:"border-box",cursor:"pointer"};
+            const inp={width:"100%",border:`1px solid ${t.border}`,borderRadius:10,padding:"9px 12px",fontSize:13,fontFamily:"inherit",color:t.text,background:t.bg,outline:"none",boxSizing:"border-box"};
+            return <>
+              {/* Row 1: Date, Type, Duration */}
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:14}}>
+                <div>{lbl("Date of session")}<input type="date" value={form.date} onChange={e=>setForm(p=>({...p,date:e.target.value}))} style={inp}/></div>
+                <div>{lbl("Session type")}<select value={form.sessionType} onChange={e=>setForm(p=>({...p,sessionType:e.target.value}))} style={sel}>
+                  <option value="Individual">Individual</option><option value="Group">Group</option><option value="Triadic">Triadic</option>
+                </select></div>
+                <div>{lbl("Duration")}<select value={form.duration} onChange={e=>setForm(p=>({...p,duration:e.target.value}))} style={sel}>
+                  <option value="30">30 min</option><option value="45">45 min</option><option value="60">1 hour</option><option value="90">90 min</option>
+                </select></div>
+              </div>
+              {/* Row 2: Supervisee */}
+              {!intern&&<div style={{marginBottom:14}}>{lbl("Supervisee name")}<input value={form.supervisee} onChange={e=>setForm(p=>({...p,supervisee:e.target.value}))} placeholder="Supervisee name" style={inp}/></div>}
+              {/* Topics */}
+              <div style={{marginBottom:14}}>
+                {lbl("Topics covered")}
+                <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                  {TOPICS.map(topic=>{
+                    const on=form.topics.includes(topic);
+                    return <button key={topic} type="button" onClick={()=>toggleTopic(topic)}
+                      style={{background:on?t.accent:t.surfaceAlt,color:on?"#C8E8E0":t.muted,border:`1px solid ${on?t.accent:t.border}`,borderRadius:8,padding:"5px 12px",fontSize:12,cursor:"pointer",fontFamily:"inherit",transition:"all 0.12s"}}>
+                      {on?"✓ ":""}{topic}
+                    </button>;
+                  })}
+                </div>
+              </div>
+              {/* Custom notes */}
+              <div style={{marginBottom:14}}>
+                {lbl("Additional notes (optional)")}
+                <textarea value={form.customNotes} onChange={e=>setForm(p=>({...p,customNotes:e.target.value}))} placeholder="Anything not covered above — 2-3 lines max" rows={3}
+                  style={{...inp,resize:"vertical",lineHeight:1.6}}/>
+              </div>
+              {/* Progress */}
+              <div style={{marginBottom:18}}>
+                {lbl("Supervisee progress (optional)")}
+                <div style={{display:"flex",gap:8}}>
+                  {["On Track","Needs Support","Concern"].map(opt=>{
+                    const on=form.progress===opt;
+                    return <button key={opt} type="button" onClick={()=>setForm(p=>({...p,progress:on?"":opt}))}
+                      style={{flex:1,background:on?t.accent:t.surfaceAlt,color:on?"#C8E8E0":t.muted,border:`1px solid ${on?t.accent:t.border}`,borderRadius:10,padding:"8px 0",fontSize:13,cursor:"pointer",fontFamily:"inherit",fontWeight:on?600:400,transition:"all 0.12s"}}>
+                      {opt}
+                    </button>;
+                  })}
+                </div>
+              </div>
+            </>;
+          })()}
 
-          <div style={{marginBottom:14}}>
-            <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:6}}>What happened in supervision? <span style={{color:t.faint}}>(rough notes, your own words)</span></div>
-            <textarea value={form.summary} onChange={e=>setForm(p=>({...p,summary:e.target.value}))} placeholder={`e.g. Discussed ${internName}'s trauma client, safety planning came up. Reviewed MI skills. ${internName} struggling a bit with countertransference. Talked through a dual relationship concern.`}
-              style={{width:"100%",minHeight:100,border:`1px solid ${t.border}`,borderRadius:10,padding:"12px 14px",fontSize:14,fontFamily:"'DM Sans',system-ui,sans-serif",color:t.text,background:t.bg,resize:"vertical",boxSizing:"border-box",outline:"none",lineHeight:1.6}}/>
-          </div>
-
-          <div style={{marginBottom:20}}>
-            <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:6}}>Key points <span style={{color:t.faint}}>(optional — one per line)</span></div>
-            <textarea value={form.bullets} onChange={e=>setForm(p=>({...p,bullets:e.target.value}))} placeholder={"Reviewed safety plan for C-0055\nAddressed documentation lag\nAssigned: read chapter on DBT Stage 1"}
-              style={{width:"100%",minHeight:80,border:`1px solid ${t.border}`,borderRadius:10,padding:"12px 14px",fontSize:14,fontFamily:"'DM Sans',system-ui,sans-serif",color:t.text,background:t.bg,resize:"vertical",boxSizing:"border-box",outline:"none",lineHeight:1.7}}/>
-          </div>
-
-          {error && <div style={{background:S.redLight,border:`1px solid #E8C5C5`,borderRadius:8,padding:"10px 14px",fontSize:13,color:S.red,marginBottom:14}}>{error}</div>}
-
-          <div style={{background:t.isGradient?(t.gradientSubtle||t.accentLight):t.accentLight,border:`1px solid ${t.isGradient?"transparent":t.accentMid}`,borderRadius:10,padding:"11px 14px",fontSize:13,color:t.accentText,marginBottom:20}}>
-            The AI will write a professional supervision note from your rough notes. You'll be able to edit it before saving.
-          </div>
+          {error && <div style={{background:S.redLight,border:"1px solid #E8C5C5",borderRadius:8,padding:"10px 14px",fontSize:13,color:S.red,marginBottom:14}}>{error}</div>}
 
           <div style={{display:"flex",justifyContent:"flex-end",gap:10}}>
             <Btn T={t} variant="secondary" onClick={onClose}>Cancel</Btn>
@@ -1553,25 +1546,21 @@ Use professional clinical language appropriate for licensure documentation. Be s
 
         {step==="result" && <>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
-            <div style={{fontSize:13,color:t.muted,fontFamily:"'DM Mono',monospace"}}>Generated note — review and edit as needed</div>
+            <div style={{fontSize:13,color:t.muted,fontFamily:"'DM Mono',monospace"}}>Generated note — edit below before saving</div>
             <div style={{display:"flex",gap:8}}>
-              <Btn T={t} variant="secondary" small onClick={()=>{setStep("input");setEditing(false);}}>← Edit inputs</Btn>
+              <Btn T={t} variant="secondary" small onClick={()=>setStep("input")}>← Edit inputs</Btn>
               <Btn T={t} variant="secondary" small onClick={generate}>↻ Regenerate</Btn>
-              {!editing && <Btn T={t} variant="soft" small onClick={()=>setEditing(true)}>Edit note</Btn>}
             </div>
           </div>
 
-          {editing
-            ? <textarea id="ai-note-edit" defaultValue={result}
-                style={{width:"100%",minHeight:280,border:`1px solid ${t.accentMid}`,borderRadius:12,padding:"16px 18px",fontSize:14,fontFamily:"'DM Sans',system-ui,sans-serif",color:t.text,background:t.bg,resize:"vertical",boxSizing:"border-box",outline:"none",lineHeight:1.8}}/>
-            : <div style={{background:t.surfaceAlt,borderRadius:12,padding:"18px 20px",fontSize:14,color:t.text,lineHeight:1.8,whiteSpace:"pre-wrap",minHeight:180,border:`1px solid ${t.border}`}}>{result}</div>
-          }
+          <textarea id="ai-note-edit" defaultValue={result}
+            style={{width:"100%",minHeight:140,border:`1px solid ${t.accentMid}`,borderRadius:12,padding:"16px 18px",fontSize:14,fontFamily:"inherit",color:t.text,background:t.bg,resize:"vertical",boxSizing:"border-box",outline:"none",lineHeight:1.8}}/>
 
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:16,paddingTop:14,borderTop:`1px solid ${t.borderLight}`}}>
-            <div style={{fontSize:12,color:t.muted}}>Will be saved as {form.sessionType} session · {form.date} · {form.duration} min</div>
+            <div style={{fontSize:12,color:t.muted}}>{form.sessionType} · {form.date} · {form.duration} min{form.progress?` · ${form.progress}`:""}</div>
             <div style={{display:"flex",gap:10}}>
               <Btn T={t} variant="secondary" onClick={onClose}>Cancel</Btn>
-              <Btn T={t} onClick={save}>Save to session log</Btn>
+              <Btn T={t} onClick={()=>{setEditing(true);save();}}>Save to session log</Btn>
             </div>
           </div>
         </>}
