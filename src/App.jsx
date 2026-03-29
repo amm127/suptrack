@@ -11797,7 +11797,7 @@ useEffect(() => {
           <Avatar initials={supervisorInitials} size={36} T={t} photo={supervisorPhoto}/>
           <div style={{textAlign:"center"}}>
             <div style={{fontSize:13,color:t.sidebarText||t.text,fontWeight:500}}>{supervisorName?(supervisorName.includes("@")?supervisorName.split("@")[0]:supervisorName.split(" ")[0]):"Supervisor"}</div>
-            <div style={{fontSize:11,color:t.sidebarMuted||t.muted,fontFamily:"'DM Mono',monospace"}}>{trialActive?`Trial · ${Math.ceil((trialEndsAt-new Date())/(1000*60*60*24))}d left`:supervisorPlan==="starter"?"Starter":supervisorPlan==="growth"?"Growth":"Practice"}</div>
+            <div style={{fontSize:11,color:t.sidebarMuted||t.muted,fontFamily:"'DM Mono',monospace"}}>{supervisorProfile?.lifetime_free?"Practice ✦":trialActive&&!supervisorProfile?.stripe_customer_id?`Trial · ${Math.ceil((trialEndsAt-new Date())/(1000*60*60*24))}d left`:supervisorPlan==="starter"?"Starter":supervisorPlan==="growth"?"Growth":"Practice"}</div>
           </div>
         </div>
         {isAdmin&&<button onClick={()=>setPage("admin")}
