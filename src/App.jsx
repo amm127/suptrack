@@ -7626,6 +7626,46 @@ function SupervisionLabPage({T}) {
   const [elKeyInput, setElKeyInput] = useState("");
   const [elKeySaved, setElKeySaved] = useState(false);
 
+  // Load saved ElevenLabs key on mount
+  React.useEffect(()=>{
+    const loadKey=async()=>{
+      // Try Supabase first
+      try{
+        const authKey=Object.keys(localStorage).find(k=>k.startsWith("sb-")&&k.endsWith("-auth-token"));
+        if(authKey){
+          const d=JSON.parse(localStorage.getItem(authKey));
+          if(d?.user?.id){
+            const {data}=await supabase.from("supervisors").select("elevenlabs_api_key").eq("user_id",d.user.id).single();
+            if(data?.elevenlabs_api_key){setElKey(data.elevenlabs_api_key);setUseElevenLabs(true);setElKeySaved(true);return;}
+          }
+        }
+      }catch{}
+      // Fall back to localStorage
+      const saved=localStorage.getItem("elevenlabs_key");
+      if(saved){setElKey(saved);setUseElevenLabs(true);setElKeySaved(true);}
+    };
+    loadKey();
+  },[]);
+
+  const saveElKey=(key)=>{
+    setElKey(key);setUseElevenLabs(true);setElKeySaved(true);
+    localStorage.setItem("elevenlabs_key",key);
+    // Save to Supabase
+    try{
+      const authKey=Object.keys(localStorage).find(k=>k.startsWith("sb-")&&k.endsWith("-auth-token"));
+      if(authKey){const d=JSON.parse(localStorage.getItem(authKey));if(d?.user?.id)supabase.from("supervisors").update({elevenlabs_api_key:key}).eq("user_id",d.user.id);}
+    }catch{}
+  };
+
+  const clearElKey=()=>{
+    setElKey("");setElKeyInput("");setUseElevenLabs(false);setElKeySaved(false);
+    localStorage.removeItem("elevenlabs_key");
+    try{
+      const authKey=Object.keys(localStorage).find(k=>k.startsWith("sb-")&&k.endsWith("-auth-token"));
+      if(authKey){const d=JSON.parse(localStorage.getItem(authKey));if(d?.user?.id)supabase.from("supervisors").update({elevenlabs_api_key:null}).eq("user_id",d.user.id);}
+    }catch{}
+  };
+
   const [filterLang, setFilterLang] = useState("all");
   // Pre-load browser voices async (Chrome loads them lazily)
   const [browserVoices, setBrowserVoices] = useState([]);
@@ -7684,7 +7724,11 @@ function SupervisionLabPage({T}) {
       || langVoices[0]
       || voices[0];
     if(preferred) utt.voice=preferred;
-    utt.rate=0.88; utt.pitch=1.0; utt.volume=1.0;
+    // Gender-based pitch/rate for more natural browser voices
+    const isFemale=["sarah","aria","elena","sofia_es"].includes(selectedVoice?.id);
+    const isSpanish=selectedVoice?.lang==="es";
+    utt.rate=isFemale?0.9:0.95; utt.pitch=isFemale?1.1:0.8; utt.volume=1.0;
+    if(isSpanish) utt.lang="es-ES";
     utt.onstart=()=>setSpeaking(true);
     utt.onend=()=>{setSpeaking(false);if(onEnd)onEnd();};
     utt.onerror=()=>{setSpeaking(false);if(onEnd)onEnd();};
@@ -7703,7 +7747,7 @@ function SupervisionLabPage({T}) {
 
   const speak = (text, onEnd) => {
     const lang = scenario?.language==="es"?"es-ES":"en-US";
-    const elVoiceMap = {sarah:"EXAVITQu4vr4xnSDxMaL",james:"TxGEqnHWrfWFTfGW9XjX",aria:"9BWtsMINqrJLrRacOk9x",marcus:"oWAxZDx7w5VEj9dCyTzz",elena:"FGY2WhTYpPnrIDTdsKH5",daniel:"onwK4e9ZLuTAKqWW03F9",sofia_es:"EXAVITQu4vr4xnSDxMaL",pablo_es:"TxGEqnHWrfWFTfGW9XjX"};
+    const elVoiceMap = {sarah:"21m00Tcm4TlvDq8ikWAM",james:"TxGEqnHWrfWFTfGW9XjX",aria:"pNInz6obpgDQGcFmaJgB",marcus:"VR6AewLTigWG4xSOukaG",elena:"EXAVITQu4vr4xnSDxMaL",daniel:"onwK4e9ZLuTAKqWW03F9",sofia_es:"XB0fDUnXU5powFXDhCwa",pablo_es:"pqHfZKP75CvOlQylNhV4"};
     if(useElevenLabs&&elKey) speakElevenLabs(text, elVoiceMap[selectedVoice.id]||elVoiceMap.sarah, lang, onEnd);
     else speakBrowser(text, lang, onEnd);
   };
@@ -7735,7 +7779,7 @@ function SupervisionLabPage({T}) {
   // Auto-start listening after AI finishes speaking
   const speakAndListen = (text) => {
     const lang = scenario?.language==="es"?"es-ES":"en-US";
-    const elVoiceMap = {sarah:"EXAVITQu4vr4xnSDxMaL",james:"TxGEqnHWrfWFTfGW9XjX",aria:"9BWtsMINqrJLrRacOk9x",marcus:"oWAxZDx7w5VEj9dCyTzz",elena:"FGY2WhTYpPnrIDTdsKH5",daniel:"onwK4e9ZLuTAKqWW03F9",sofia_es:"EXAVITQu4vr4xnSDxMaL",pablo_es:"TxGEqnHWrfWFTfGW9XjX"};
+    const elVoiceMap = {sarah:"21m00Tcm4TlvDq8ikWAM",james:"TxGEqnHWrfWFTfGW9XjX",aria:"pNInz6obpgDQGcFmaJgB",marcus:"VR6AewLTigWG4xSOukaG",elena:"EXAVITQu4vr4xnSDxMaL",daniel:"onwK4e9ZLuTAKqWW03F9",sofia_es:"XB0fDUnXU5powFXDhCwa",pablo_es:"pqHfZKP75CvOlQylNhV4"};
     const afterSpeak = () => {
       // Short pause then auto-open mic
       setTimeout(startListening, 400);
@@ -7868,13 +7912,13 @@ Be direct, clinical, encouraging. Under 400 words.`;
               <input
                 value={elKeyInput}
                 onChange={e=>setElKeyInput(e.target.value)}
-                onKeyDown={e=>{if(e.key==="Enter"&&elKeyInput.trim()){setElKey(elKeyInput.trim());setUseElevenLabs(true);setElKeySaved(true);}}}
+                onKeyDown={e=>{if(e.key==="Enter"&&elKeyInput.trim()){saveElKey(elKeyInput.trim());}}}
                 placeholder="Paste your ElevenLabs API key here..."
                 type="password"
                 style={{flex:1,border:`1px solid ${t.accentMid}`,borderRadius:8,padding:"8px 12px",fontSize:13,fontFamily:"'DM Mono',monospace",color:t.text,background:t.surface,outline:"none"}}
               />
               <button
-                onClick={()=>{if(elKeyInput.trim()){setElKey(elKeyInput.trim());setUseElevenLabs(true);setElKeySaved(true);}}}
+                onClick={()=>{if(elKeyInput.trim()){saveElKey(elKeyInput.trim());}}}
                 style={{background:t.accent,color:"#fff",border:"none",borderRadius:8,padding:"8px 16px",cursor:"pointer",fontSize:13,fontWeight:500,fontFamily:"inherit",whiteSpace:"nowrap"}}>
                 Save key
               </button>
@@ -7891,7 +7935,7 @@ Be direct, clinical, encouraging. Under 400 words.`;
               <input type="checkbox" checked={useElevenLabs} onChange={e=>setUseElevenLabs(e.target.checked)} style={{width:13,height:13}}/>
               Enabled
             </label>
-            <button onClick={()=>{setElKey("");setElKeyInput("");setUseElevenLabs(false);setElKeySaved(false);}}
+            <button onClick={clearElKey}
               style={{background:"none",border:"none",cursor:"pointer",fontSize:11,color:S.red,fontFamily:"'DM Mono',monospace",padding:0}}>
               Remove
             </button>
@@ -7913,7 +7957,7 @@ Be direct, clinical, encouraging. Under 400 words.`;
           </button>
         ))}
       </div>
-      <button onClick={()=>speak(selectedVoice.lang==="es"?"Hola, soy tu supervisado simulado. ¿Cómo suena mi voz?":"Hi, I'm your simulated supervisee — listening carefully to how you respond.")}
+      <button onClick={()=>speak(selectedVoice.lang==="es"?"Hola, estoy teniendo dificultades con mi cliente esta semana. ¿Podemos hablar de eso?":"Hi, I'm having a hard time with my client this week. Can we talk about it?")}
         style={{background:"none",border:`1px solid ${t.border}`,borderRadius:8,padding:"6px 14px",fontSize:12,cursor:"pointer",color:t.muted,fontFamily:"'DM Mono',monospace"}}>
         🔊 Preview {selectedVoice.name}'s voice
       </button>
@@ -12854,7 +12898,7 @@ useEffect(() => {
 
     // Build a clean row with only known Supabase columns
     const row = {};
-    const VALID_COLS = ["name","email","phone","credential","photo","plan","trial_ends_at","stripe_customer_id","billing_cycle","seat_count","lifetime_free","profile_data","bio","license_goal","boards","license_expiration_date","ce_hours_required","ce_hours_completed"];
+    const VALID_COLS = ["name","email","phone","credential","photo","plan","trial_ends_at","stripe_customer_id","billing_cycle","seat_count","lifetime_free","profile_data","bio","license_goal","boards","license_expiration_date","ce_hours_required","ce_hours_completed","elevenlabs_api_key"];
     for(const key of VALID_COLS){
       if(key in updates) row[key] = updates[key];
     }
