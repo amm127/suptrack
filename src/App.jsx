@@ -10268,7 +10268,7 @@ function AdminInboxPage({tickets, setTickets, T}) {
 }
 
 // ── Admin Panel (Founder-only) ──────────────────────────────────────────────
-function AdminPanelPage({T,session,tickets,setTickets}) {
+function AdminPanelPage({T,session,tickets,setTickets,setPreviewMode,setPage,setToast}) {
   const t=T||THEMES.sage;
   const gold="#C4A040";
   const goldLight="#FAF2E0";
@@ -13515,7 +13515,7 @@ useEffect(() => {
       {page==="support"&&<SupportPage T={t} supervisorName={supervisorName} supervisorEmail={session?.user?.email||""} tickets={tickets} setTickets={setTickets} session={session}/>}
       {page==="reminders"&&<RemindersPanel T={t} interns={interns} groups={groups} onNavigate={(dest,ctx)=>{setPage(dest);if(ctx)setSelectedGroupId(ctx);}} onSelectIntern={i=>{setSelectedInternId_sv(i.id);setPage("intern-profile");}}/>}
       {page==="messages"&&<MessagesPage T={t} session={session}/>}
-      {page==="admin"&&isAdmin&&<AdminPanelPage T={t} session={session} tickets={tickets} setTickets={setTickets}/>}
+      {page==="admin"&&isAdmin&&<AdminPanelPage T={t} session={session} tickets={tickets} setTickets={setTickets} setPreviewMode={setPreviewMode} setPage={setPage} setToast={setToast}/>}
       {page==="admin"&&!isAdmin&&(()=>{setTimeout(()=>setPage("dashboard"),0);return null;})()}
       {page==="profile"&&<PublicProfilePage T={t} supervisorPhoto={supervisorPhoto} setSupervisorPhoto={setSupervisorPhoto} supervisorName={supervisorName} setSupervisorName={setSupervisorName} supervisorInitials={supervisorInitials} supervisorProfile={supervisorProfile} onSaveProfile={saveSupervisorProfile} session={session}/>}
       {page==="settings"&&<SettingsPage T={t} theme={theme} setTheme={setTheme} setCustomTheme={setCustomTheme} font={fontKey} setFont={setFontKey} darkMode={darkMode} setDarkMode={setDarkMode} highContrast={highContrast} setHighContrast={setHighContrast} supervisorName={supervisorName} setSupervisorName={setSupervisorName} onSaveProfile={saveSupervisorProfile} notifPrefs={notifPrefs} setNotifPrefs={setNotifPrefs} session={session} supervisorProfile={supervisorProfile} setToast={setToast}/>}
