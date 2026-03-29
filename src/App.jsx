@@ -11265,8 +11265,14 @@ useEffect(() => {
           name: name,
           email: email,
           plan: "starter",
+          subscription_status: "trial",
+          trial_started_at: new Date().toISOString(),
           trial_ends_at: new Date(Date.now()+14*24*60*60*1000).toISOString(),
         }).select().single();
+        // Send welcome email
+        if(newRow && email){
+          sendEmail(email,"WELCOME",{name:name.split(" ")[0]||"there",trialEndDate:new Date(Date.now()+14*24*60*60*1000).toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"})});
+        }
         if(insErr)console.error("Supervisor insert error:",insErr);
         if(newRow) setSupervisorProfile(newRow);
         setSupervisorName(name);
@@ -11808,6 +11814,16 @@ useEffect(() => {
 
     {/* Main content */}
     <div id="suptrack-content" className="st-main" style={{flex:1,padding:"38px 44px",maxWidth:980,overflowY:"auto"}}>
+      {/* Trial banner */}
+      {trialActive&&!supervisorProfile?.stripe_customer_id&&!supervisorProfile?.lifetime_free&&(()=>{
+        const daysLeft=Math.ceil((trialEndsAt-new Date())/(1000*60*60*24));
+        const bannerColor=daysLeft<=3?"#A0453E":daysLeft<=7?"#C4A040":"#1E4040";
+        const bannerBg=daysLeft<=3?"#FAE8E8":daysLeft<=7?"#FAF2E0":"#E8F0EE";
+        return <div style={{background:bannerBg,border:`1px solid ${bannerColor}30`,borderRadius:10,padding:"10px 18px",marginBottom:20,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+          <span style={{fontSize:13,color:bannerColor,fontWeight:500}}>{daysLeft} day{daysLeft!==1?"s":""} left in your free trial</span>
+          <button onClick={()=>setPage("billing")} style={{background:bannerColor,color:"#fff",border:"none",borderRadius:8,padding:"6px 16px",cursor:"pointer",fontSize:12,fontWeight:600,fontFamily:"inherit"}}>Upgrade now</button>
+        </div>;
+      })()}
       {page==="dashboard"&&<Dashboard T={t} interns={interns} groups={groups} lists={lists} colleagues={colleagues} supervisorName={supervisorName} ceData={ceData} todos={todos} setTodos={setTodos} session={session} supervisorProfile={supervisorProfile}
         onAddIntern={()=>{if(activeInternCount>=internLimit){setUpgradePrompt("intern");return;}setAddInternOpen(true);}}
         onQuickAction={setQuickActionOpen}

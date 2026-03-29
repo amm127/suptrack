@@ -105,7 +105,59 @@ const TEMPLATES = {
       ${btn('Open SupTrack', APP_URL)}
     `),
   }),
+  WELCOME: ({ name, trialEndDate }) => ({
+    subject: "You're in. Let's make supervision feel different. ✦",
+    html: welcomeEmail(name || 'there', trialEndDate || ''),
+  }),
 };
+
+function welcomeEmail(name, trialEndDate) {
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width"/></head>
+  <body style="margin:0;padding:0;background:#FAF5EE;font-family:Georgia,'Times New Roman',serif">
+    <div style="max-width:560px;margin:0 auto;padding:40px 20px">
+      <div style="text-align:center;margin-bottom:32px">
+        <span style="font-size:28px;font-weight:700;color:#1E4040;letter-spacing:-1px">✦ SupTrack</span>
+      </div>
+      <div style="background:#FFFEFB;border:1px solid #E8DDD0;border-radius:16px;padding:36px 32px">
+        <div style="text-align:center;font-size:20px;color:#C4A040;margin-bottom:24px">✦</div>
+        <p style="font-size:18px;color:#1E4040;margin:0 0 20px;line-height:1.6">Hey ${name},</p>
+        <p style="font-size:16px;color:#3A5A4A;line-height:1.8;margin:0 0 16px">Welcome to SupTrack — we're really glad you're here.</p>
+        <p style="font-size:15px;color:#4A6A5A;line-height:1.8;margin:0 0 16px">We built this because we know what supervision actually feels like. The documentation. The scheduling. The wondering if you're tracking everything right. The weight of holding space for someone else's clinical growth while managing your own practice.</p>
+        <p style="font-size:15px;color:#4A6A5A;line-height:1.8;margin:0 0 24px">You shouldn't have to do all of that in spreadsheets and sticky notes.</p>
+        <p style="font-size:15px;color:#4A6A5A;line-height:1.8;margin:0 0 24px">SupTrack is built by a supervisor, for supervisors. Every feature exists because someone like you needed it. And we're just getting started.</p>
+
+        <div style="margin-bottom:24px">
+          <p style="font-size:15px;color:#1E4040;font-weight:600;margin:0 0 6px">Here's what you can do right now:</p>
+          <div style="background:#F5F0E8;border-radius:10px;padding:18px 20px;margin-top:12px">
+            <div style="margin-bottom:14px"><span style="color:#C4A040;font-weight:700">✦</span> <strong style="color:#1E4040">Add your first supervisee</strong><br/><span style="font-size:14px;color:#6A8A7A">Start tracking hours, sessions, and notes in one place.</span></div>
+            <div style="margin-bottom:14px"><span style="color:#C4A040;font-weight:700">✦</span> <strong style="color:#1E4040">Complete your profile</strong><br/><span style="font-size:14px;color:#6A8A7A">Show up in our directory so the right interns can find you.</span></div>
+            <div><span style="color:#C4A040;font-weight:700">✦</span> <strong style="color:#1E4040">Set up your agreements</strong><br/><span style="font-size:14px;color:#6A8A7A">Generate professional supervision agreements in minutes.</span></div>
+          </div>
+        </div>
+
+        <p style="font-size:15px;color:#4A6A5A;line-height:1.8;margin:0 0 24px">Your 14-day free trial is fully unlocked${trialEndDate?' until <strong>'+trialEndDate+'</strong>':''} — no credit card, no pressure, no catch. Just the tools you need to supervise with confidence.</p>
+        <p style="font-size:15px;color:#4A6A5A;line-height:1.8;margin:0 0 28px">If you ever have a question, a suggestion, or just want to tell us what you need — reply to this email. It comes straight to us.</p>
+
+        <p style="font-size:15px;color:#4A6A5A;line-height:1.8;margin:0 0 8px">Here's to supervision that finally feels as meaningful as the work itself.</p>
+        <p style="font-size:15px;color:#1E4040;margin:0 0 4px">With warmth,</p>
+        <p style="font-size:16px;color:#1E4040;font-weight:700;margin:0 0 4px">Alyson</p>
+        <p style="font-size:13px;color:#8A9A8A;margin:0 0 28px">Founder, SupTrack</p>
+
+        <div style="text-align:center">
+          <a href="${APP_URL}" style="display:inline-block;background:#1E4040;color:#C8E8E0;text-decoration:none;padding:14px 36px;border-radius:10px;font-size:16px;font-weight:700;font-family:Georgia,serif">Get Started →</a>
+        </div>
+
+        <div style="text-align:center;margin-top:24px;font-size:14px;color:#C4A040">✦</div>
+        <p style="font-size:13px;color:#8A9A8A;text-align:center;margin:16px 0 0;font-style:italic;line-height:1.6">P.S. — Your supervisees are lucky to have someone who cares enough to do this right. Don't forget that.</p>
+      </div>
+      <div style="text-align:center;padding:24px 0;font-size:11px;color:#B0A8A0">
+        <a href="${APP_URL}" style="color:#8A9A8A;text-decoration:none">suptrack.com</a> ·
+        <a href="${APP_URL}?page=settings" style="color:#8A9A8A;text-decoration:none">Manage notifications</a> ·
+        <a href="${APP_URL}?page=settings" style="color:#8A9A8A;text-decoration:none">Unsubscribe</a>
+      </div>
+    </div>
+  </body></html>`;
+}
 
 function wrap(content) {
   return `<!DOCTYPE html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width"/></head>
@@ -161,7 +213,7 @@ export default async function handler(req, res) {
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from: FROM_EMAIL, to, subject, html }),
+      body: JSON.stringify({ from: type === 'WELCOME' ? 'Alyson at SupTrack <hello@suptrack.com>' : FROM_EMAIL, to, subject, html }),
     });
 
     const result = await response.json();
