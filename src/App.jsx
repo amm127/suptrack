@@ -2940,7 +2940,7 @@ function InternProfile({intern,groups,lists,setLists,colleagues,setColleagues,on
 
     {tab==="evaluations"&&<EvaluationTab intern={intern} onUpdateIntern={onUpdateIntern} T={t}/>}
 
-    {tab==="documents"&&<DocumentsTab key={intern.id} intern={intern} onUpdateIntern={onUpdateIntern} T={t}/>}
+    {tab==="documents"&&<DocumentsTab key={intern.id} intern={intern} onUpdateIntern={onUpdateIntern} T={t} session={authSession}/>}
 
     {tab==="payments"&&!intern.proBono&&<PaymentsTab key={intern.id} intern={intern} onUpdateIntern={onUpdateIntern} T={t}/>}
 
@@ -3470,20 +3470,34 @@ function CasesTab({intern,onUpdateIntern,T}) {
   </div>;
 }
 
-function DocumentsTab({intern,onUpdateIntern,T}) {
+function DocumentsTab({intern,onUpdateIntern,T,session}) {
   const t=T||THEMES.sage;
   const [docs,setDocs]=useState(intern.documents||[]);
   const [viewing,setViewing]=useState(null);
-  const [signing,setSigning]=useState(null); // doc index to sign
+  const [signing,setSigning]=useState(null);
   const [dragging,setDragging]=useState(false);
   const [sigCanvas,setSigCanvas]=useState(null);
   const [isSigning,setIsSigning]=useState(false);
   const [sigColor,setSigColor]=useState("#1A1A2E");
+  const [uploading,setUploading]=useState(false);
   const canvasRef = React.useRef(null);
   const drawingRef = React.useRef(false);
 
-  // Keep docs in sync with intern
-  React.useEffect(()=>{ setDocs(intern.documents||[]); },[intern.id]);
+  // Keep docs in sync with intern and load signed URLs for storage docs
+  React.useEffect(()=>{
+    const loadUrls = async () => {
+      const docList = intern.documents||[];
+      const withUrls = await Promise.all(docList.map(async(doc)=>{
+        if(doc.storagePath && !doc.dataUrl){
+          const {data} = await supabase.storage.from("intern-documents").createSignedUrl(doc.storagePath, 3600);
+          return {...doc, dataUrl: data?.signedUrl||null};
+        }
+        return doc;
+      }));
+      setDocs(withUrls);
+    };
+    loadUrls();
+  },[intern.id]);
 
   const save=(updated)=>{
     setDocs(updated);
@@ -3500,14 +3514,33 @@ function DocumentsTab({intern,onUpdateIntern,T}) {
     return "Document";
   };
 
-  const processFile=(file)=>{
+  const processFile=async(file)=>{
     if(!file) return;
-    const reader=new FileReader();
-    reader.onload=(ev)=>{
-      const newDoc={name:file.name,date:TODAY(),type:guessType(file.name),uploadedBy:"supervisor",dataUrl:ev.target.result,mimeType:file.type,size:file.size};
-      save([...docs,newDoc]);
-    };
-    reader.readAsDataURL(file);
+    setUploading(true);
+    const userId = session?.user?.id || "unknown";
+    const safeName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g,"_")}`;
+    const storagePath = `${userId}/${intern.id}/${safeName}`;
+
+    // Upload to Supabase Storage
+    const {error:uploadErr} = await supabase.storage.from("intern-documents").upload(storagePath, file);
+    if(uploadErr){
+      console.error("Storage upload error:", uploadErr.message);
+      // Fallback to base64 if storage fails (bucket may not exist yet)
+      const reader=new FileReader();
+      reader.onload=(ev)=>{
+        const newDoc={name:file.name,date:TODAY(),type:guessType(file.name),uploadedBy:"supervisor",dataUrl:ev.target.result,mimeType:file.type,size:file.size};
+        save([...docs,newDoc]);
+        setUploading(false);
+      };
+      reader.readAsDataURL(file);
+      return;
+    }
+
+    // Get a signed URL for preview
+    const {data:urlData} = await supabase.storage.from("intern-documents").createSignedUrl(storagePath, 3600);
+    const newDoc={name:file.name,date:TODAY(),type:guessType(file.name),uploadedBy:"supervisor",storagePath,dataUrl:urlData?.signedUrl||null,mimeType:file.type,size:file.size};
+    save([...docs,newDoc]);
+    setUploading(false);
   };
 
   const handleInput=(e)=>{ Array.from(e.target.files||[]).forEach(processFile); e.target.value=""; };
@@ -3517,7 +3550,14 @@ function DocumentsTab({intern,onUpdateIntern,T}) {
     Array.from(e.dataTransfer.files||[]).forEach(processFile);
   };
 
-  const deleteDoc=(i)=>{ const updated=[...docs];updated.splice(i,1);save(updated); };
+  const deleteDoc=async(i)=>{
+    const doc=docs[i];
+    // Remove from storage if it has a path
+    if(doc.storagePath){
+      await supabase.storage.from("intern-documents").remove([doc.storagePath]);
+    }
+    const updated=[...docs];updated.splice(i,1);save(updated);
+  };
 
   const formatSize=(bytes)=>{
     if(!bytes) return "";
@@ -3554,11 +3594,23 @@ function DocumentsTab({intern,onUpdateIntern,T}) {
     const ctx=canvas.getContext("2d");
     ctx.clearRect(0,0,canvas.width,canvas.height);
   };
-  const applySignature=(canvas,docIdx)=>{
+  const applySignature=async(canvas,docIdx)=>{
     if(!canvas) return;
     const sigDataUrl=canvas.toDataURL("image/png");
     const doc=docs[docIdx];
-    const signedDoc={...doc,signed:true,signedDate:TODAY(),signedBy:"Alyson K.",signatureDataUrl:sigDataUrl};
+    let sigStoragePath = null;
+
+    // Try uploading signature to storage
+    if(session?.user){
+      try{
+        const blob=await(await fetch(sigDataUrl)).blob();
+        const sigPath=`${session.user.id}/${intern.id}/sig_${Date.now()}.png`;
+        const {error}=await supabase.storage.from("intern-documents").upload(sigPath, blob, {contentType:"image/png"});
+        if(!error) sigStoragePath=sigPath;
+      }catch(e){console.error("Signature upload error:",e);}
+    }
+
+    const signedDoc={...doc,signed:true,signedDate:TODAY(),signedBy:"Supervisor",signatureDataUrl:sigDataUrl,signatureStoragePath:sigStoragePath};
     const updated=[...docs];updated[docIdx]=signedDoc;
     save(updated);
     setSigning(null);
@@ -3659,8 +3711,8 @@ function DocumentsTab({intern,onUpdateIntern,T}) {
       style={{border:`2px dashed ${dragging?t.accent:t.border}`,borderRadius:12,padding:"24px",textAlign:"center",marginBottom:18,background:dragging?t.accentLight:t.surfaceAlt,transition:"all 0.2s",cursor:"pointer"}}
       onClick={()=>document.getElementById(`doc-upload-${intern.id}`).click()}>
       <div style={{fontSize:28,marginBottom:8}}>📁</div>
-      <div style={{fontSize:14,color:dragging?t.accentText:t.muted,fontWeight:500,marginBottom:4}}>{dragging?"Drop to upload":"Drag files here or click to browse"}</div>
-      <div style={{fontSize:12,color:t.faint}}>PDF, Word, images, or any file type · Multiple files at once</div>
+      <div style={{fontSize:14,color:dragging?t.accentText:t.muted,fontWeight:500,marginBottom:4}}>{uploading?"Uploading...":dragging?"Drop to upload":"Drag files here or click to browse"}</div>
+      <div style={{fontSize:12,color:t.faint}}>{uploading?"Saving to secure storage":"PDF, Word, images, or any file type · Multiple files at once"}</div>
       <input id={`doc-upload-${intern.id}`} type="file" multiple accept="*/*" onChange={handleInput} style={{display:"none"}}/>
     </div>
 
@@ -10929,7 +10981,7 @@ useEffect(() => {
       }
       // Sync all changed intern fields to Supabase
       if(old){
-        const docMeta=(updated.documents||[]).map(({dataUrl,...rest})=>rest);
+        const docMeta=(updated.documents||[]).map(({dataUrl,signatureDataUrl,...rest})=>rest);
         const internRow={
           name:updated.name||"",
           preferred_name:updated.preferredName||"",
