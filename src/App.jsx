@@ -720,7 +720,7 @@ const buildReport = (intern,groups,opts) => {
 };
 
 // ── Shared UI ──────────────────────────────────────────────────────────────
-const Avatar = ({initials,size=40,color,textColor,T,photo,editable,onPhotoChange,userId}) => {
+function Avatar({initials,size=40,color,textColor,T,photo,editable,onPhotoChange,userId}) {
   const t=T||THEMES.sage;
   const handleFile=async(e)=>{
     const file=e.target.files?.[0]; if(!file) return;
@@ -761,11 +761,9 @@ const Avatar = ({initials,size=40,color,textColor,T,photo,editable,onPhotoChange
       <input type="file" accept="image/*" onChange={handleFile} style={{display:"none"}}/>
     </label>}
   </div>;
-};
+}
 
-const Badge = ({children,color,bg}) => (
-  <span style={{background:bg,color,borderRadius:4,padding:"2px 9px",fontSize:11,fontFamily:"'DM Mono',monospace",letterSpacing:"0.03em",fontWeight:500,whiteSpace:"nowrap"}}>{children}</span>
-);
+function Badge({children,color,bg}) { return <span style={{background:bg,color,borderRadius:4,padding:"2px 9px",fontSize:11,fontFamily:"'DM Mono',monospace",letterSpacing:"0.03em",fontWeight:500,whiteSpace:"nowrap"}}>{children}</span>; }
 function SessionNote({session:s,byCol,t,onEdit}){
   const [editing,setEditing]=useState(false);
   const [draft,setDraft]=useState(s.notes);
@@ -789,7 +787,7 @@ function SessionNote({session:s,byCol,t,onEdit}){
   </div>;
 }
 
-const Btn = ({children,onClick,variant="primary",small,disabled,style={},T}) => {
+function Btn({children,onClick,variant="primary",small,disabled,style={},T}) {
   const t=T||THEMES.sage;
   const s={
     primary:{background:t.accent,color:t.gold?"#C8E8E0":"#fff",border:"none"},
@@ -801,15 +799,15 @@ const Btn = ({children,onClick,variant="primary",small,disabled,style={},T}) => 
     style={{...s,borderRadius:10,padding:small?"5px 12px":"10px 18px",fontSize:small?12:13,cursor:disabled?"default":"pointer",fontFamily:"'DM Mono',monospace",opacity:disabled?0.5:1,transition:"background 0.15s",...style}}>
     {children}
   </button>;
-};
+}
 
-const PBar = ({value,total,T}) => {
+function PBar({value,total,T}) {
   const t=T||THEMES.sage; const pct=Math.min(100,Math.round(value/total*100));
   const barBg = t.isGradient ? t.gradient : t.accent;
   return <div style={{width:"100%"}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}><span style={{fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace"}}>{value.toLocaleString()} / {total.toLocaleString()} hrs</span><span style={{fontSize:12,color:t.accent,fontFamily:"'DM Mono',monospace",fontWeight:600}}>{pct}%</span></div><div style={{height:7,background:t.borderLight,borderRadius:999,overflow:"hidden"}}><div style={{height:"100%",width:`${pct}%`,background:barBg,backgroundSize:"200% 200%",animation:t.isGradient?"gradientShift 5s ease infinite":undefined,borderRadius:999,transition:"width 0.7s cubic-bezier(.4,0,.2,1)"}}/></div></div>;
-};
+}
 
-const StatCard = ({label,value,sub,color,onClick,T}) => {
+function StatCard({label,value,sub,color,onClick,T}) {
   const t=T||THEMES.sage;
   return <div onClick={onClick} style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:14,padding:"20px 22px",boxShadow:"0 2px 12px rgba(30,64,64,0.06)",cursor:onClick?"pointer":"default",transition:"box-shadow 0.15s"}}
     onMouseEnter={e=>{if(onClick)e.currentTarget.style.boxShadow="0 6px 20px rgba(30,64,64,0.1)";}}
@@ -818,32 +816,32 @@ const StatCard = ({label,value,sub,color,onClick,T}) => {
     <div style={{fontSize:28,fontFamily:"'Fraunces',Georgia,serif",fontWeight:700,color:color||t.text,lineHeight:1}}>{value}</div>
     {sub&&<div style={{fontSize:12,color:t.muted,marginTop:5}}>{sub}</div>}
   </div>;
-};
+}
 
-const RoleBadge = ({role}) => { const s=rlSty(role); return <Badge color={s.color} bg={s.bg}>{s.label}</Badge>; };
-const TypeBadge = ({type}) => { const s=itSty(type); return <Badge color={s.color} bg={s.bg}>{s.label}</Badge>; };
-const PayBadge  = ({intern,T}) => {
+function RoleBadge({role}) { const s=rlSty(role); return <Badge color={s.color} bg={s.bg}>{s.label}</Badge>; }
+function TypeBadge({type}) { const s=itSty(type); return <Badge color={s.color} bg={s.bg}>{s.label}</Badge>; }
+function PayBadge({intern,T}) {
   const t=T||THEMES.sage;
   if(intern.proBono) return <Badge color={S.purple} bg={S.purpleLight}>Pro bono</Badge>;
   if(intern.paymentStatus==="overdue") return <Badge color={t.accentText} bg={t.accentLight}>⚠ Overdue</Badge>;
   return <Badge color={t.accentText} bg={t.accentLight}>✓ Current</Badge>;
-};
+}
 
-const FlagDots = ({intern}) => {
+function FlagDots({intern}) {
   const af=activeFlags(intern); if(!af.length) return null;
   return <div style={{display:"flex",gap:3,alignItems:"center"}}>
     {af.slice(0,4).map(f=>{ const cat=FLAG_CATS.find(c=>c.id===f.category)||FLAG_CATS[5]; return <div key={f.id} title={`${cat.label}: ${f.note}`} style={{width:8,height:8,borderRadius:"50%",background:cat.color,flexShrink:0}}/> })}
     {af.length>4&&<span style={{fontSize:10,color:"#7A7060",fontFamily:"'DM Mono',monospace"}}>+{af.length-4}</span>}
   </div>;
-};
+}
 
-const SharedAvatars = ({sharedWith,size=22,colleagues=[]}) => {
+function SharedAvatars({sharedWith,size=22,colleagues=[]}) {
   if(!sharedWith?.length) return null;
   return <div style={{display:"flex",alignItems:"center",gap:2}}>
     {sharedWith.map((s,i)=>{ const c=colleagues.find(x=>x.id===s.colleagueId); if(!c) return null; return <div key={c.id} title={`${c.name}: ${pmSum(s.perms)}`} style={{width:size,height:size,borderRadius:"50%",background:c.color,display:"flex",alignItems:"center",justifyContent:"center",fontSize:size*0.38,color:"#fff",border:"2px solid white",marginLeft:i>0?-6:0,zIndex:10-i,flexShrink:0}}>{c.initials}</div>; })}
     <span style={{fontSize:11,color:"#9A9185",fontFamily:"'DM Mono',monospace",marginLeft:4}}>shared</span>
   </div>;
-};
+}
 
 // ── Flag Modal ─────────────────────────────────────────────────────────────
 function FlagModal({intern,onSave,onClose,T}) {
@@ -1190,7 +1188,7 @@ function ExportModal({intern,groups,onClose,T}) {
 }
 
 // ── Intern Card ────────────────────────────────────────────────────────────
-const InternCard = ({intern,lists,groups,colleagues,onClick,onGroupClick,T}) => {
+function InternCard({intern,lists,groups,colleagues,onClick,onGroupClick,T}) {
   const t=T||THEMES.sage; const rs=retSt(intern); const af=activeFlags(intern);
   const memberLists  = lists.filter(l=>(intern.listIds||[]).includes(l.id));
   const memberGroups = groups.filter(g=>(intern.groupIds||[]).includes(g.id));
