@@ -754,7 +754,7 @@ const Avatar = ({initials,size=40,color,textColor,T,photo,editable,onPhotoChange
   return <div style={{position:"relative",width:size,height:size,flexShrink:0}}>
     {photo
       ? <img src={photo} alt={initials} style={{width:size,height:size,borderRadius:"50%",objectFit:"cover",display:"block"}}/>
-      : <div style={{width:size,height:size,borderRadius:"50%",background:color||t.accentMid,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"system-ui, sans-serif",fontSize:size*0.33,color:textColor||t.accentText}}>{initials}</div>}
+      : <div style={{width:size,height:size,minWidth:size,minHeight:size,borderRadius:"50%",background:color||t.accentMid,color:textColor||t.accentText,display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden",flexShrink:0,fontFamily:"Arial,Helvetica,sans-serif",fontWeight:700,fontSize:Math.floor(size*0.36),lineHeight:1,userSelect:"none"}}>{initials}</div>}
     {editable&&<label style={{position:"absolute",inset:0,borderRadius:"50%",background:"rgba(0,0,0,0.42)",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",opacity:0,transition:"opacity 0.15s"}}
       onMouseEnter={e=>e.currentTarget.style.opacity=1} onMouseLeave={e=>e.currentTarget.style.opacity=0}>
       <span style={{fontSize:Math.max(10,size*0.28),color:"#fff"}}>📷</span>
