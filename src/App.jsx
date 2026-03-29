@@ -107,8 +107,8 @@ const MOCK_INTERNS = [
 
 // API keys are now server-side only — no VITE_ prefix needed
 // ── Date helpers — no hardcoded dates in runtime logic ─────────────────────
-const TODAY = () => new Date().toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});
-const TODAY_MONTH = () => new Date().toLocaleDateString("en-US",{month:"long",year:"numeric"});
+function TODAY() { return new Date().toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}); }
+function TODAY_MONTH() { return new Date().toLocaleDateString("en-US",{month:"long",year:"numeric"}); }
 
 
 // ── Themes ─────────────────────────────────────────────────────────────────
@@ -284,7 +284,7 @@ const INITIAL_LISTS  = [
 ];
 const INITIAL_GROUPS = [];
 
-const mkHours = (periods) => periods; // helper for clarity
+function mkHours(periods) { return periods; } // helper for clarity
 
 const INITIAL_INTERNS = [];
 const _UNUSED_DEMO_INTERNS = [
@@ -616,12 +616,12 @@ const DEFAULT_SECTIONS = [
 ];
 
 // ── Helpers ────────────────────────────────────────────────────────────────
-const dn    = (i) => i.preferredName || i.name.split(" ")[0]; // display name — preferred or first name
+function dn(i) { return i.preferredName || i.name.split(" ")[0]; } // display name — preferred or first name
 
 // ── iCal / Google Calendar helpers ────────────────────────────────────────
 // ── AI API helper (routes through server to protect API key) ──────────────
 // ── Email notification helper ─────────────────────────────────────────────
-const sendEmail = async (to, type, data, notifPrefs) => {
+async function sendEmail(to, type, data, notifPrefs) {
   // Check notification preferences — skip if this type is disabled
   if(notifPrefs && notifPrefs[type] === false) return;
   try {
@@ -632,13 +632,13 @@ const sendEmail = async (to, type, data, notifPrefs) => {
   } catch (e) { console.error("[SupTrack] Email send error:", e); }
 };
 
-const icsDateFmt = (d) => {
+function icsDateFmt(d) {
   const dt = d instanceof Date ? d : new Date(d);
   if (isNaN(dt)) return "19700101T000000";
   return dt.toISOString().replace(/[-:]/g,"").replace(/\.\d{3}/,"");
 };
 
-const parseSessionDate = (dateStr, timeStr) => {
+function parseSessionDate(dateStr, timeStr) {
   // Handle formats like "Mar 25, 2026" with optional "2:00 PM"
   let d;
   if (timeStr) {
@@ -653,7 +653,7 @@ const parseSessionDate = (dateStr, timeStr) => {
   return isNaN(d) ? new Date() : d;
 };
 
-const buildIcsEvent = (summary, start, durationMin, description) => {
+function buildIcsEvent(summary, start, durationMin, description) {
   const end = new Date(start.getTime() + (durationMin || 60) * 60000);
   const uid = `suptrack-${Date.now()}-${Math.random().toString(36).slice(2,8)}@suptrack.com`;
   return [
@@ -667,7 +667,7 @@ const buildIcsEvent = (summary, start, durationMin, description) => {
   ].join("\r\n");
 };
 
-const downloadIcs = (filename, events) => {
+function downloadIcs(filename, events) {
   const cal = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
@@ -683,7 +683,7 @@ const downloadIcs = (filename, events) => {
   URL.revokeObjectURL(url);
 };
 
-const googleCalUrl = (summary, start, durationMin, description) => {
+function googleCalUrl(summary, start, durationMin, description) {
   const end = new Date(start.getTime() + (durationMin || 60) * 60000);
   const fmt = (d) => d.toISOString().replace(/[-:]/g,"").replace(/\.\d{3}/,"");
   const params = new URLSearchParams({
@@ -695,20 +695,20 @@ const googleCalUrl = (summary, start, durationMin, description) => {
   return `https://calendar.google.com/calendar/render?${params.toString()}`;
 };
 
-const parseDurationMin = (dur) => {
+function parseDurationMin(dur) {
   if (!dur) return 60;
   const m = String(dur).match(/(\d+)/);
   return m ? parseInt(m[1]) : 60;
 };
 
 // docTC returns [bg, color] for a document type — uses fixed accessible colors with shape+label as primary differentiator
-const docTC = (type) => ({
+function docTC(type) { return ({
   Contract:   ["#E8F0FB","#2A4E8A"],   // Blue — agreements/legal
   License:    ["#E8F5EE","#2E7A4E"],   // Green — credentials
   Insurance:  ["#FAF2E0","#7A5C1A"],   // Warm gold — coverage
   Plan:       ["#F0ECE4","#5A5450"],   // Neutral — plans
   Evaluation: ["#F2EDFB","#6B3FA0"],   // Purple — assessments
-}[type] || ["#F0ECE4","#5A5450"]);
+}[type] || ["#F0ECE4","#5A5450"]); }
 // ── Discipline & credential reference data ─────────────────────────────────
 const DISCIPLINES = [
   { id:"counseling",    label:"Counseling",                  color:S.teal,    bg:S.tealLight   },
@@ -757,20 +757,20 @@ const HOUR_CATEGORIES_BY_DISCIPLINE = {
   other:         [{id:"individual",label:"Individual Supervision",type:"direct"},{id:"group",label:"Group Supervision",type:"direct"}],
 };
 
-const discStyle = (discipline) => DISCIPLINES.find(d=>d.id===discipline) || DISCIPLINES.find(d=>d.id==="other");
-const itSty = (t) => {
+function discStyle(discipline) { return DISCIPLINES.find(d=>d.id===discipline) || DISCIPLINES.find(d=>d.id==="other"); }
+function itSty(t) {
   const d = discStyle(t);
   return { label: d.label, color: d.color, bg: d.bg };
 };
-const rlSty = (r) => r==="primary" ? { label:"Primary Intern", color:S.amber, bg:S.amberLight } : r==="student" ? { label:"Student Intern", color:S.blue, bg:S.blueLight } : { label:"Secondary Intern", color:S.coral, bg:S.coralLight };
-const pmSum = (p) => { const on=PERM_DEFS.filter(d=>p[d.id]); return !on.length?"No access":on.length===PERM_DEFS.length?"Full access":on.slice(0,2).map(d=>d.label).join(", ")+(on.length>2?` +${on.length-2}`:""); };
-const retSt = (i) => { if(i.status!=="inactive"&&i.status!=="completed"||!i.retentionYear) return null; const y=new Date().getFullYear()-i.retentionYear,l=7-y; if(l<=0) return {label:"Deletion overdue",color:S.red,bg:S.redLight}; if(l<=1) return {label:"Delete in <1 yr",color:S.amber,bg:S.amberLight}; return {label:`${l} yrs retention`,color:"#7A7060",bg:"#F0ECE4"}; };
-const activeFlags = (i) => i.flags?.filter(f=>!f.resolved)||[];
+function rlSty(r) { return r==="primary" ? { label:"Primary Intern", color:S.amber, bg:S.amberLight } : r==="student" ? { label:"Student Intern", color:S.blue, bg:S.blueLight } : { label:"Secondary Intern", color:S.coral, bg:S.coralLight }; }
+function pmSum(p) { const on=PERM_DEFS.filter(d=>p[d.id]); return !on.length?"No access":on.length===PERM_DEFS.length?"Full access":on.slice(0,2).map(d=>d.label).join(", ")+(on.length>2?` +${on.length-2}`:""); };
+function retSt(i) { if(i.status!=="inactive"&&i.status!=="completed"||!i.retentionYear) return null; const y=new Date().getFullYear()-i.retentionYear,l=7-y; if(l<=0) return {label:"Deletion overdue",color:S.red,bg:S.redLight}; if(l<=1) return {label:"Delete in <1 yr",color:S.amber,bg:S.amberLight}; return {label:`${l} yrs retention`,color:"#7A7060",bg:"#F0ECE4"}; };
+function activeFlags(i) { return i.flags?.filter(f=>!f.resolved)||[]; }
 
-const downloadCSV = (rows,filename) => { const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(",")).join("\n"); const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"})); a.download=filename; a.click(); };
-const downloadTXT = (text,filename) => { const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([text],{type:"text/plain"})); a.download=filename; a.click(); };
+function downloadCSV(rows,filename) { const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(",")).join("\n"); const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"})); a.download=filename; a.click(); };
+function downloadTXT(text,filename) { const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([text],{type:"text/plain"})); a.download=filename; a.click(); };
 
-const buildReport = (intern,groups,opts) => {
+function buildReport(intern,groups,opts) {
   const L=[]; const sep="─".repeat(56);
   L.push("═".repeat(56)); L.push("SUPTRACK — SUPERVISEE REPORT"); L.push("═".repeat(56));
   L.push(`Generated:  March 21, 2026`); L.push(`Supervisor: Alyson K.`); L.push("");
@@ -1727,9 +1727,9 @@ const INTERN_CATEGORIES = [
 const DEFAULT_CATEGORIES = INTERN_CATEGORIES;
 const CATEGORY_PRESETS   = INTERN_CATEGORIES;
 
-const sumHours = (log) => log.reduce((s,e)=>s+e.hours,0);
+function sumHours(log) { return log.reduce((s,e)=>s+e.hours,0); }
 const directHours   = (log) => log.filter(e=>e.type==="direct").reduce((s,e)=>s+e.hours,0);
-const indirectHours = (log) => log.filter(e=>e.type==="indirect").reduce((s,e)=>s+e.hours,0);
+function indirectHours(log) { return log.filter(e=>e.type==="indirect").reduce((s,e)=>s+e.hours,0); }
 
 // ── HoursBreakdown (supervisor view — supervision hours only) ─────────────
 function HoursBreakdown({intern,onUpdateIntern,T}) {
@@ -5369,7 +5369,7 @@ function GroupsPage({groups,interns,colleagues,setColleagues,setGroups,onSelectI
 }
 
 // ── Alert engine ───────────────────────────────────────────────────────────
-const generateAlerts = (interns, ceData, supervisorProfile) => {
+function generateAlerts(interns, ceData, supervisorProfile) {
   const alerts = [];
   const today = new Date();
   const daysBetween = (d1,d2) => Math.ceil((d1-d2)/(1000*60*60*24));
@@ -5456,7 +5456,7 @@ const generateAlerts = (interns, ceData, supervisorProfile) => {
   });
   return alerts;
 };
-const alertStyle = (severity, t) => {
+function alertStyle(severity, t) {
   // Severity communicated through border weight, background opacity, and icon — not color alone
   // All styles pull from the active theme for full consistency
   const base = {
@@ -5466,7 +5466,7 @@ const alertStyle = (severity, t) => {
   };
   return base[severity] || base.info;
 };
-const alertIcon = (type) => ({ payment:"💳", document:"📄", hours:"🕐", evaluation:"📋", ce:"🎓", birthday:"🎂" }[type]||"●");
+function alertIcon(type) { return ({ payment:"💳", document:"📄", hours:"🕐", evaluation:"📋", ce:"🎓", birthday:"🎂" }[type]||"●"); }
 
 // ── CE & License Renewal Tracker ───────────────────────────────────────────
 const INITIAL_CE = {
