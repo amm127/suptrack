@@ -11,21 +11,18 @@ const TODAY_MONTH = () => new Date().toLocaleDateString("en-US",{month:"long",ye
 // ── Themes ─────────────────────────────────────────────────────────────────
 const THEMES = {
   // ── SupTrack 🌈 muted rainbow — dusty periwinkle, peach, gold, mauve, sage ─
-  suptrack: { name:"SupTrack",     swatch:"#4ABFBF",
-    bg:"#F5FAF9", surface:"#FFFFFF", surfaceAlt:"#EFF6F4", border:"#D4E4E0", borderLight:"#E4EEEB",
-    text:"#1B2D4F", muted:"#5A7B6E", faint:"#B0C8C0",
-    accent:"#3A9E9E", accentLight:"#E8F5F2", accentMid:"#A8D8D0", accentText:"#1B5E5E",
-    gradient:"linear-gradient(135deg,#3A9E9E,#5AB88A,#4ABFBF)",
-    gradientSubtle:"linear-gradient(135deg,#EFF8F5,#F0FAF4,#E8F8F8)",
-    gradientMid:"linear-gradient(135deg,#A8D8CC,#88C8A0,#90D8D8)",
-    isGradient:true,
-    sidebarBg:"linear-gradient(180deg,#D0E4CE 0%,#B4D8CC 50%,#9CCCC8 100%)", sidebarText:"#1B2D4F", sidebarMuted:"#4A6A5A", sidebarBorder:"#A8C8B8",
-    sidebarAccent:"#1B5E5E", sidebarAccentBg:"rgba(27,94,94,0.1)",
-    shades:["#E8F5F2","#A8D8D0","#4ABFBF","#3A9E9E","#2A7A6A","#1B4F4F"],
-    dark:{ bg:"#0C1820", surface:"#142028", surfaceAlt:"#1C2830", border:"#2C3E48", borderLight:"#243438", text:"#E8F0EC", muted:"#88A8A0", faint:"#2A3A34", accent:"#4ABFBF", accentLight:"#142028", accentMid:"#2C3E48", accentText:"#88D8D0",
-      gradient:"linear-gradient(135deg,#3A9E9E,#5AB88A,#4ABFBF)",
-      sidebarBg:"linear-gradient(180deg,#162420 0%,#1A2C28 100%)", sidebarText:"#C0D8CC", sidebarMuted:"#688878", sidebarBorder:"#2A3C34",
-      sidebarAccent:"#4ABFBF", sidebarAccentBg:"rgba(74,191,191,0.12)" }},
+  suptrack: { name:"SupTrack",     swatch:"#1E4040",
+    bg:"#EEF2F0", surface:"#FAFDFB", surfaceAlt:"#E8F0EE", border:"#C8D8D4", borderLight:"#D8E4E0",
+    text:"#102828", muted:"#608080", faint:"#A0B8B4",
+    accent:"#1E4040", accentLight:"#E0EAE8", accentMid:"#C8D8D4", accentText:"#1E4040",
+    gold:"#C4A040",
+    isGradient:false,
+    sidebarBg:"#1E4040", sidebarText:"#C8E8E0", sidebarMuted:"#7A9898", sidebarBorder:"#2A5050",
+    sidebarAccent:"#C4A040", sidebarAccentBg:"rgba(196,160,64,0.12)",
+    shades:["#E0EAE8","#C8D8D4","#7A9898","#1E4040","#102828","#0A1818"],
+    dark:{ bg:"#0A1414", surface:"#102020", surfaceAlt:"#182828", border:"#2A3C3C", borderLight:"#1E3030", text:"#D8E8E4", muted:"#7A9898", faint:"#2A3C3C", accent:"#C8E8E0", accentLight:"#102020", accentMid:"#2A3C3C", accentText:"#C8E8E0",
+      sidebarBg:"#0A1414", sidebarText:"#A0C0B8", sidebarMuted:"#5A7A74", sidebarBorder:"#1E3030",
+      sidebarAccent:"#C4A040", sidebarAccentBg:"rgba(196,160,64,0.1)" }},
 
 
   sunset:   { name:"Sunset",      swatch:"#C4607A",
@@ -744,15 +741,14 @@ function SessionNote({session:s,byCol,t,onEdit}){
 
 const Btn = ({children,onClick,variant="primary",small,disabled,style={},T}) => {
   const t=T||THEMES.sage;
-  const gradBg = t.isGradient ? t.gradient : t.accent;
   const s={
-    primary:{background:t.isGradient?t.gradient:t.accent,backgroundSize:t.isGradient?"200% 200%":undefined,animation:t.isGradient?"gradientShift 5s ease infinite":undefined,color:"#fff",border:"none"},
+    primary:{background:t.accent,color:t.gold?"#C8E8E0":"#fff",border:"none"},
     secondary:{background:"none",color:t.muted,border:`1px solid ${t.border}`},
     soft:{background:t.accentLight,color:t.accentText,border:`1px solid ${t.accentMid}`},
     danger:{background:S.red,color:"#fff",border:"none"},
   }[variant]||{};
   return <button onClick={onClick} disabled={disabled}
-    style={{...s,borderRadius:8,padding:small?"5px 12px":"10px 18px",fontSize:small?12:13,cursor:disabled?"default":"pointer",fontFamily:"'DM Mono',monospace",opacity:disabled?0.5:1,...style}}>
+    style={{...s,borderRadius:10,padding:small?"5px 12px":"10px 18px",fontSize:small?12:13,cursor:disabled?"default":"pointer",fontFamily:"'DM Mono',monospace",opacity:disabled?0.5:1,transition:"background 0.15s",...style}}>
     {children}
   </button>;
 };
@@ -765,11 +761,11 @@ const PBar = ({value,total,T}) => {
 
 const StatCard = ({label,value,sub,color,onClick,T}) => {
   const t=T||THEMES.sage;
-  return <div onClick={onClick} style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:14,padding:"20px 22px",boxShadow:"0 1px 4px rgba(0,0,0,0.04)",cursor:onClick?"pointer":"default",transition:"box-shadow 0.15s"}}
-    onMouseEnter={e=>{if(onClick)e.currentTarget.style.boxShadow="0 6px 20px rgba(0,0,0,0.08)";}}
-    onMouseLeave={e=>{if(onClick)e.currentTarget.style.boxShadow="0 1px 4px rgba(0,0,0,0.04)";}}>
+  return <div onClick={onClick} style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:14,padding:"20px 22px",boxShadow:"0 2px 12px rgba(30,64,64,0.06)",cursor:onClick?"pointer":"default",transition:"box-shadow 0.15s"}}
+    onMouseEnter={e=>{if(onClick)e.currentTarget.style.boxShadow="0 6px 20px rgba(30,64,64,0.1)";}}
+    onMouseLeave={e=>{if(onClick)e.currentTarget.style.boxShadow="0 2px 12px rgba(30,64,64,0.06)";}}>
     <div style={{fontSize:11,color:t.muted,marginBottom:8,fontFamily:"'DM Mono',monospace",letterSpacing:"0.05em",textTransform:"uppercase"}}>{label}{onClick&&<span style={{marginLeft:6,color:t.faint}}>→</span>}</div>
-    <div style={{fontSize:28,fontFamily:"inherit",color:color||t.text,lineHeight:1}}>{value}</div>
+    <div style={{fontSize:28,fontFamily:"'Fraunces',Georgia,serif",fontWeight:700,color:color||t.text,lineHeight:1}}>{value}</div>
     {sub&&<div style={{fontSize:12,color:t.muted,marginTop:5}}>{sub}</div>}
   </div>;
 };
@@ -11097,10 +11093,11 @@ useEffect(() => {
 
   return <div style={{display:"flex",minHeight:"100vh",background:t.bg,fontFamily:f.body}}>
     <link href={f.url} rel="stylesheet"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/fraunces@5/index.css"/>
     <style>{`
     *, *::before, *::after { box-sizing: border-box; }
     body, button, input, select, textarea { font-family: ${f.body} !important; }
-    h1, h2, h3 { font-family: ${f.display} !important; }
+    h1, h2, h3 { font-family: 'Fraunces', ${f.display} !important; }
     ${t.isRainbow ? `
       @keyframes rainbowShift { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
       .rainbow-active { background: linear-gradient(90deg,#9B6FD4,#C88AC8,#F4A0C0,#4DBDBD,#9B6FD4) !important; background-size: 300% 300% !important; animation: rainbowShift 4s ease infinite !important; -webkit-background-clip: text !important; -webkit-text-fill-color: transparent !important; background-clip: text !important; }
@@ -11136,8 +11133,10 @@ useEffect(() => {
     <div className={`st-sidebar${mobileNav?" st-sidebar-open":""}`} style={{width:228,background:t.sidebarBg||t.surface,borderRight:`1px solid ${t.sidebarBorder||t.border}`,display:"flex",flexDirection:"column",padding:"26px 0",position:"sticky",top:0,height:"100vh",flexShrink:0}}>
       <div style={{padding:"0 20px 18px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
         <div onClick={()=>{setPage("dashboard");setSelectedInternId_sv(null);setInternFilter(null);setConsultIntern(null);}}
-          style={{cursor:"pointer",display:"flex",alignItems:"center",gap:0,flexDirection:"column"}}>
-          <img src="/logo.png" alt="SupTrack" style={{width:"160px",minWidth:"160px",maxWidth:"160px",display:"block",margin:"0 auto"}}/>
+          style={{cursor:"pointer",display:"flex",alignItems:"center",gap:8}}>
+          <span style={{color:t.sidebarAccent||t.gold||t.accent,fontSize:10,opacity:0.4}}>✦</span>
+          <span style={{fontFamily:"'Fraunces','DM Serif Display',Georgia,serif",fontSize:26,fontWeight:700,color:t.sidebarText||"#F0DECA",letterSpacing:-1,lineHeight:1}}>SupTrack</span>
+          <span style={{color:t.sidebarAccent||t.gold||t.accent,fontSize:7,opacity:0.3}}>✦</span>
         </div>
         <button onClick={()=>setEditingNav(e=>!e)} title="Customize sidebar"
           style={{background:editingNav?(t.sidebarAccentBg||t.accentLight):"none",border:`1px solid ${editingNav?(t.sidebarAccent||t.accentMid):(t.sidebarBorder||t.border)}`,borderRadius:6,padding:"4px 7px",cursor:"pointer",fontSize:12,color:editingNav?(t.sidebarAccent||t.accentText):(t.sidebarMuted||t.faint),lineHeight:1,flexShrink:0}}
@@ -11191,9 +11190,9 @@ useEffect(() => {
             const rainbowColors=["#9B6FD4","#B880CC","#F4A0C0","#4DBDBD","#7AD4D4","#C88AC8","#F9C4DA","#4DBDBD","#9B6FD4","#B880CC","#F4A0C0","#4DBDBD","#7AD4D4","#C88AC8"];
             const rc = t.isRainbow ? rainbowColors[idx % rainbowColors.length] : null;
             const sAcc = t.sidebarAccent||t.accent;
-            const activeBg     = t.isRainbow ? `${rc}18` : t.sidebarAccentBg ? (active?t.sidebarAccentBg:"none") : t.isGradient ? (t.gradientSubtle||t.accentLight) : isAI ? t.accentMid : t.accentLight;
+            const activeBg     = t.isRainbow ? `${rc}18` : t.sidebarBg ? (active?"rgba(255,255,255,0.08)":"none") : t.isGradient ? (t.gradientSubtle||t.accentLight) : isAI ? t.accentMid : t.accentLight;
             const activeBorder = rc || sAcc;
-            const hoverBg = t.sidebarBg ? "rgba(0,0,0,0.05)" : t.surfaceAlt;
+            const hoverBg = t.sidebarBg ? "rgba(255,255,255,0.04)" : t.surfaceAlt;
             return <button key={item.id}
               onMouseEnter={()=>setNavHover(item.id)}
               onMouseLeave={()=>setNavHover(null)}
