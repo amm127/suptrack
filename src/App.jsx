@@ -9140,11 +9140,11 @@ function AgreementsPage({interns, supervisorName, T, session}) {
   const [sentList, setSentList] = useState([]);
   // Structured agreement form
   const [agForm, setAgForm] = useState({
-    supervisorName: supervisorName||"", supervisorCredential:"", supervisorLicense:"",
+    supervisorName: supervisorName||"", supervisorCredential:"", supervisorLicense:"", supervisorState:"",
     superviseeName:"", superviseeCredential:"", licensureGoal:"", licensingBoard:"",
     effectiveDate:TODAY(), periodFrom:"", periodTo:"",
     fee:"", sessionFrequency:"Weekly", supervisionType:"Individual and group",
-    emergencyContact:"",
+    modality:"Telehealth and in-person", requiredHours:"", emergencyContact:"",
     supervisorSig:null, supervisorSignedDate:"", internSig:null, internSignedDate:"",
   });
   const [agPreview, setAgPreview] = useState(false);
@@ -9169,6 +9169,7 @@ function AgreementsPage({interns, supervisorName, T, session}) {
         licensureGoal: intern.licenseGoal||"",
         licensingBoard: intern.credentialBody||"",
         periodFrom: intern.startDate||"",
+        requiredHours: intern.hoursTotal?String(intern.hoursTotal):"",
         fee: intern.proBono?"Pro bono (no fee)":(intern.billingRate?`$${intern.billingRate}/${intern.billingSchedule||"month"}`:""),
         supervisionType: intern.supervisorRole==="primary"?"Individual and group":"Individual",
       }));
@@ -9312,33 +9313,37 @@ Replace all bracketed placeholders with appropriate values based on the supervis
         <div style={{fontSize:12,color:t.muted,marginBottom:16}}>All fields appear in the agreement document. Edit any field before previewing.</div>
 
         {(()=>{
-          const lbl=(text)=><div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:4}}>{text}</div>;
+          const lbl=(text)=><div style={{fontSize:11,color:"#608080",fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:1.5,marginBottom:4}}>{text}</div>;
           const inp=(key,ph)=><input value={agForm[key]} onChange={e=>agSet(key,e.target.value)} placeholder={ph}
-            style={{width:"100%",border:`1px solid ${t.border}`,borderRadius:8,padding:"9px 12px",fontSize:13,fontFamily:"inherit",color:t.text,background:t.bg,outline:"none",boxSizing:"border-box"}}/>;
+            style={{width:"100%",border:"1px solid #C8D8D4",borderRadius:10,padding:"10px 14px",fontSize:14,fontFamily:"inherit",color:"#102828",background:"#FAFDFB",outline:"none",boxSizing:"border-box",transition:"border-color 0.2s"}}
+            onFocus={e=>{e.target.style.borderColor="#1E4040";}} onBlur={e=>{e.target.style.borderColor="#C8D8D4";}}/>;
           return <>
-            <div style={{fontSize:13,color:t.text,fontWeight:500,marginBottom:10,paddingBottom:6,borderBottom:`1px solid ${t.borderLight}`}}>Supervisor</div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:16}}>
+            <div style={{fontSize:14,color:"#1E4040",fontWeight:600,marginBottom:10,paddingBottom:6,borderBottom:"1px solid #D8E4E0",fontFamily:"'Fraunces',Georgia,serif"}}>Supervisor</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:18}}>
               <div>{lbl("Full name")}{inp("supervisorName","e.g. Alyson Mullen")}</div>
-              <div>{lbl("Credential")}{inp("supervisorCredential","e.g. LPC-S, LCSW-S")}</div>
+              <div>{lbl("Credential / License type")}{inp("supervisorCredential","e.g. LPC-S, LCSW-S")}</div>
               <div>{lbl("License number")}{inp("supervisorLicense","e.g. NV-LPC-12345")}</div>
+              <div>{lbl("State / Jurisdiction")}{inp("supervisorState","e.g. NV, TX, CA")}</div>
             </div>
 
-            <div style={{fontSize:13,color:t.text,fontWeight:500,marginBottom:10,paddingBottom:6,borderBottom:`1px solid ${t.borderLight}`}}>Supervisee</div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:16}}>
+            <div style={{fontSize:14,color:"#1E4040",fontWeight:600,marginBottom:10,paddingBottom:6,borderBottom:"1px solid #D8E4E0",fontFamily:"'Fraunces',Georgia,serif"}}>Supervisee</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:18}}>
               <div>{lbl("Full name")}{inp("superviseeName","e.g. Jordan Ellis")}</div>
               <div>{lbl("Current credential")}{inp("superviseeCredential","e.g. CPC, LMSW")}</div>
               <div>{lbl("Licensure goal")}{inp("licensureGoal","e.g. LPC, LCSW")}</div>
             </div>
 
-            <div style={{fontSize:13,color:t.text,fontWeight:500,marginBottom:10,paddingBottom:6,borderBottom:`1px solid ${t.borderLight}`}}>Agreement terms</div>
+            <div style={{fontSize:14,color:"#1E4040",fontWeight:600,marginBottom:10,paddingBottom:6,borderBottom:"1px solid #D8E4E0",fontFamily:"'Fraunces',Georgia,serif"}}>Agreement terms</div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
               <div>{lbl("Effective date")}{inp("effectiveDate","e.g. March 27, 2026")}</div>
-              <div>{lbl("Licensing board")}{inp("licensingBoard","e.g. CACREP, NASW, State Board")}</div>
+              <div>{lbl("Licensing board / Credentialing body")}{inp("licensingBoard","e.g. State Board, CACREP")}</div>
               <div>{lbl("Period from")}{inp("periodFrom","e.g. Aug 2023")}</div>
               <div>{lbl("Period to")}{inp("periodTo","e.g. Aug 2026 or Ongoing")}</div>
               <div>{lbl("Supervision fee")}{inp("fee","e.g. $150/month or Pro bono")}</div>
+              <div>{lbl("Required hours")}{inp("requiredHours","e.g. 3000")}</div>
               <div>{lbl("Session frequency")}{inp("sessionFrequency","e.g. Weekly, Biweekly")}</div>
-              <div>{lbl("Supervision type")}{inp("supervisionType","e.g. Individual and group")}</div>
+              <div>{lbl("Supervision format")}{inp("supervisionType","e.g. Individual and group")}</div>
+              <div>{lbl("Modality")}{inp("modality","e.g. Telehealth, In-person, Both")}</div>
               <div>{lbl("Emergency contact")}{inp("emergencyContact","e.g. (775) 555-0182")}</div>
             </div>
           </>;
@@ -9370,6 +9375,7 @@ Replace all bracketed placeholders with appropriate values based on the supervis
                   effective_date:agForm.effectiveDate, period_from:agForm.periodFrom, period_to:agForm.periodTo,
                   fee:agForm.fee, emergency_contact:agForm.emergencyContact,
                   status:"awaiting", sent_date:new Date().toISOString(),
+                  form_data:agForm,
                 }).then(({error})=>{if(error)console.error("Agreement save error:",error);});
               }
               setAgSent(true);
@@ -9384,10 +9390,10 @@ Replace all bracketed placeholders with appropriate values based on the supervis
 This Clinical Supervision Agreement ("Agreement") is entered into on ${agForm.effectiveDate||"_______________"} by and between:
 
 Supervisor: ${agForm.supervisorName||"_______________"}, ${agForm.supervisorCredential||"_______________"}
-License #: ${agForm.supervisorLicense||"_______________"}
+License #: ${agForm.supervisorLicense||"_______________"}${agForm.supervisorState?` (${agForm.supervisorState})`:""}
 
 Supervisee: ${agForm.superviseeName||"_______________"}, ${agForm.superviseeCredential||"_______________"}
-Licensure goal: ${agForm.licensureGoal||"_______________"}
+Licensure goal: ${agForm.licensureGoal||"_______________"}${agForm.requiredHours?` (${agForm.requiredHours} hours required)`:""}
 Licensing board: ${agForm.licensingBoard||"_______________"}
 
 1. PURPOSE
@@ -9397,7 +9403,7 @@ This Agreement establishes the terms and conditions of the clinical supervision 
 This Agreement shall be effective from ${agForm.periodFrom||"_______________"} through ${agForm.periodTo||"_______________"}, unless terminated earlier by either party with 30 days written notice.
 
 3. SUPERVISION SESSIONS
-The Supervisor agrees to provide ${agForm.sessionFrequency||"_______________".toLowerCase()} clinical supervision sessions. Supervision format: ${agForm.supervisionType||"_______________"}. The Supervisor will maintain documentation of all supervision hours provided in accordance with ${agForm.licensingBoard||"licensing board"} requirements.
+The Supervisor agrees to provide ${agForm.sessionFrequency||"_______________"} clinical supervision sessions. Supervision format: ${agForm.supervisionType||"_______________"}. Modality: ${agForm.modality||"as agreed upon by both parties"}. The Supervisor will maintain documentation of all supervision hours provided in accordance with ${agForm.licensingBoard||"licensing board"} requirements.${agForm.requiredHours?`\n\nThe Supervisee requires approximately ${agForm.requiredHours} total supervised hours for licensure.`:""}
 
 4. FEES
 Supervision fee: ${agForm.fee||"_______________"}
