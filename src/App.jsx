@@ -13223,6 +13223,14 @@ useEffect(() => {
     prevStatusRef.current = curr;
   },[supervisorProfile?.subscription_status]);
 
+  // Preview / Demo Mode — must be before feature gating
+  const [previewMode, setPreviewMode] = useState(null);
+  React.useEffect(() => {
+    const path = window.location.pathname;
+    const match = path.match(/^\/demo\/(starter|growth|practice)$/);
+    if (match) setPreviewMode(match[1]);
+  }, []);
+
   // Feature gating
   const PLAN_FEATURES = {
     starter: { maxInterns:10, aiFeatures:false, boardExport:false, colleagueSharing:false, paymentReminders:false, unlimitedDocs:false, taxExport:false, customCategories:false, multiSupervisor:false, maxDocsPerIntern:5 },
@@ -13381,13 +13389,7 @@ useEffect(() => {
 
   const isAdmin = supervisorProfile?.lifetime_free === true;
 
-  // ── Preview / Demo Mode ──
-  const [previewMode, setPreviewMode] = useState(null); // null | 'starter' | 'growth' | 'practice'
-  React.useEffect(() => {
-    const path = window.location.pathname;
-    const match = path.match(/^\/demo\/(starter|growth|practice)$/);
-    if (match) setPreviewMode(match[1]);
-  }, []);
+  // previewMode state moved above feature gating (see line before PLAN_FEATURES)
 
   const [errorCount24h,setErrorCount24h]=useState(0);
   React.useEffect(()=>{
