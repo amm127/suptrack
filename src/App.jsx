@@ -902,50 +902,94 @@ function ShareLinkModal({intern,onClose,T}) {
 }
 
 // ── Share Modal (colleagues) ───────────────────────────────────────────────
-function ShareModal({title,sharedWith,onSave,onClose,colleagues,setColleagues,T}) {
+function ShareModal({title,sharedWith,onSave,onClose,colleagues,setColleagues,T,internId,session}) {
   const t=T||THEMES.sage;
   const [shares,setShares]=useState(()=>sharedWith.map(s=>({...s,perms:{...s.perms}})));
   const [adding,setAdding]=useState(false);
-  const [sel,setSel]=useState("");
-  const [newName,setNewName]=useState("");
-  const [newEmail,setNewEmail]=useState("");
-  const [addMode,setAddMode]=useState("existing");
-
-  const existing=(colleagues||[]).filter(c=>!shares.find(s=>s.colleagueId===c.id));
+  const [shareEmail,setShareEmail]=useState("");
+  const [lookupMsg,setLookupMsg]=useState("");
+  const [lookupLoading,setLookupLoading]=useState(false);
   const permGroups=[...new Set(PERM_DEFS.map(p=>p.group))];
 
-  const addExisting=()=>{
-    if(!sel) return;
-    setShares(p=>[...p,{colleagueId:sel,perms:{...DEFAULT_PERMS}}]);
-    setSel("");
-    setAdding(false);
-  };
+  // Load existing shares from Supabase on mount
+  React.useEffect(()=>{
+    if(!internId||!session?.user) return;
+    supabase.from("supervisor_intern_access").select("*").eq("intern_id",internId).eq("granted_by",session.user.id).then(({data})=>{
+      if(data&&data.length>0){
+        // Merge DB shares into local state
+        const dbShares=data.map(r=>({
+          colleagueId:r.supervisor_id, supaId:r.id, email:r.supervisor_email||"",
+          name:r.supervisor_name||"", perms:r.permissions||{...DEFAULT_PERMS},
+        }));
+        setShares(prev=>{
+          const merged=[...prev];
+          dbShares.forEach(db=>{
+            if(!merged.find(s=>s.colleagueId===db.colleagueId)) merged.push(db);
+          });
+          return merged;
+        });
+      }
+    });
+  },[internId,session]);
 
-  const addNew=()=>{
-    if(!newName.trim()) return;
-    const id=`c_${Date.now()}`;
-    const colors=["#7A3FA0","#1A6A7A","#7A4A20","#2D5A3D","#1A3A8C"];
-    const colorLights=["#F0E8FA","#E3F3F6","#F5EDE0","#EEF4EE","#EFF6FF"];
-    const idx=(colleagues||[]).length % colors.length;
-    const newColleague={id,name:newName.trim(),initials:newName.trim().split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase(),email:newEmail.trim()||"",color:colors[idx],colorLight:colorLights[idx]};
-    setColleagues&&setColleagues(p=>[...p,newColleague]);
-    setShares(p=>[...p,{colleagueId:id,perms:{...DEFAULT_PERMS}}]);
-    setNewName("");setNewEmail("");setAdding(false);
+  const lookupAndAdd = async () => {
+    if(!shareEmail.trim()) return;
+    setLookupLoading(true); setLookupMsg("");
+    // Look up supervisor by email
+    const {data:sup} = await supabase.from("supervisors").select("user_id,name,email").eq("email",shareEmail.trim()).single();
+    if(sup){
+      // Found — add to shares
+      if(sup.user_id===session?.user?.id){ setLookupMsg("That's your own account."); setLookupLoading(false); return; }
+      if(shares.find(s=>s.colleagueId===sup.user_id)){ setLookupMsg("Already shared with this person."); setLookupLoading(false); return; }
+      const initials=(sup.name||sup.email).split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
+      setShares(p=>[...p,{colleagueId:sup.user_id,name:sup.name||sup.email,email:sup.email,initials,perms:{...DEFAULT_PERMS}}]);
+      // Also add to colleagues list
+      if(setColleagues&&!(colleagues||[]).find(c=>c.id===sup.user_id)){
+        const colors=["#1E4040","#2D5A3D","#1A3A8C","#7A3FA0","#1A6A7A"];
+        const colorLights=["#E0EAE8","#EEF4EE","#EFF6FF","#F0E8FA","#E3F3F6"];
+        const idx=(colleagues||[]).length%colors.length;
+        setColleagues(p=>[...p,{id:sup.user_id,name:sup.name||sup.email,initials,email:sup.email,color:colors[idx],colorLight:colorLights[idx]}]);
+      }
+      setShareEmail(""); setAdding(false); setLookupMsg("");
+    } else {
+      setLookupMsg("No SupTrack account found for that email. They'll need to create an account first.");
+    }
+    setLookupLoading(false);
   };
 
   const togglePerm=(colleagueId,permId)=>{
     setShares(p=>p.map(s=>s.colleagueId!==colleagueId?s:{...s,perms:{...s.perms,[permId]:!s.perms[permId]}}));
   };
 
-  const removeShare=(colleagueId)=>{
+  const removeShare=async(colleagueId)=>{
+    // Remove from Supabase
+    const share=shares.find(s=>s.colleagueId===colleagueId);
+    if(share?.supaId) await supabase.from("supervisor_intern_access").delete().eq("id",share.supaId);
+    else if(internId) await supabase.from("supervisor_intern_access").delete().eq("intern_id",internId).eq("supervisor_id",colleagueId);
     setShares(p=>p.filter(s=>s.colleagueId!==colleagueId));
+  };
+
+  const saveAll = async () => {
+    // Upsert all shares to supervisor_intern_access
+    if(internId&&session?.user){
+      for(const share of shares){
+        await supabase.from("supervisor_intern_access").upsert({
+          supervisor_id: share.colleagueId,
+          intern_id: internId,
+          granted_by: session.user.id,
+          permissions: share.perms,
+          supervisor_name: share.name||"",
+          supervisor_email: share.email||"",
+        },{onConflict:"supervisor_id,intern_id"});
+      }
+    }
+    onSave(shares);
   };
 
   return (
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.35)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000}} onClick={onClose}>
       <div style={{background:t.surface,borderRadius:18,padding:"26px 28px",width:"min(540px,95vw)",maxHeight:"85vh",overflowY:"auto",boxShadow:"0 24px 64px rgba(0,0,0,0.16)"}} onClick={e=>e.stopPropagation()}>
 
-        {/* Header */}
         <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:18}}>
           <div>
             <div style={{fontSize:20,color:t.text,fontWeight:500,marginBottom:2}}>Share access</div>
@@ -954,27 +998,25 @@ function ShareModal({title,sharedWith,onSave,onClose,colleagues,setColleagues,T}
           <button onClick={onClose} style={{background:"none",border:"none",cursor:"pointer",fontSize:20,color:t.faint,padding:4,lineHeight:1}}>✕</button>
         </div>
 
-        {/* Current shares */}
         {shares.length===0&&!adding&&(
           <div style={{background:t.surfaceAlt,borderRadius:10,padding:18,textAlign:"center",fontSize:13,color:t.muted,marginBottom:14}}>
-            Not shared with anyone yet. Add a colleague below.
+            Not shared with anyone yet. Add a supervisor by their email below.
           </div>
         )}
 
         {shares.map(share=>{
-          const col=(colleagues||[]).find(c=>c.id===share.colleagueId);
-          if(!col) return null;
+          const col=(colleagues||[]).find(c=>c.id===share.colleagueId)||{name:share.name||"Unknown",initials:(share.name||"?").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase(),email:share.email||""};
           return (
-            <div key={col.id} style={{background:t.surfaceAlt,borderRadius:12,padding:"14px 16px",marginBottom:12}}>
+            <div key={share.colleagueId} style={{background:t.surfaceAlt,borderRadius:12,padding:"14px 16px",marginBottom:12}}>
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
                 <div style={{display:"flex",alignItems:"center",gap:10}}>
-                  <Avatar initials={col.initials} size={34} color={col.color} textColor="#fff"/>
+                  <Avatar initials={col.initials} size={34} color={col.color||"#1E4040"} textColor="#fff"/>
                   <div>
                     <div style={{fontSize:14,color:t.text,fontWeight:500}}>{col.name}</div>
-                    <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace"}}>{col.email}</div>
+                    <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace"}}>{col.email||share.email}</div>
                   </div>
                 </div>
-                <button onClick={()=>removeShare(col.id)}
+                <button onClick={()=>removeShare(share.colleagueId)}
                   style={{background:"none",border:`1px solid ${S.red}30`,borderRadius:6,padding:"3px 10px",cursor:"pointer",fontSize:12,color:S.red,fontFamily:"'DM Mono',monospace"}}>
                   Remove
                 </button>
@@ -984,9 +1026,9 @@ function ShareModal({title,sharedWith,onSave,onClose,colleagues,setColleagues,T}
                   <div style={{fontSize:10,color:t.faint,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:5}}>{g}</div>
                   <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
                     {PERM_DEFS.filter(p=>p.group===g).map(perm=>{
-                      const on=share.perms[perm.id];
+                      const on=share.perms?.[perm.id];
                       return (
-                        <button key={perm.id} onClick={()=>togglePerm(col.id,perm.id)}
+                        <button key={perm.id} onClick={()=>togglePerm(share.colleagueId,perm.id)}
                           style={{background:on?t.accentLight:t.surface,color:on?t.accentText:t.muted,border:`1px solid ${on?t.accentMid:t.border}`,borderRadius:6,padding:"4px 10px",fontSize:12,cursor:"pointer",fontFamily:"'DM Mono',monospace",transition:"all 0.1s"}}>
                           {on?"✓ ":""}{perm.label}
                         </button>
@@ -999,79 +1041,32 @@ function ShareModal({title,sharedWith,onSave,onClose,colleagues,setColleagues,T}
           );
         })}
 
-        {/* Add form */}
+        {/* Add by email */}
         {adding ? (
           <div style={{background:t.surfaceAlt,border:`1px solid ${t.accentMid}`,borderRadius:12,padding:"16px 18px",marginBottom:14}}>
-            {/* Toggle existing vs new */}
-            <div style={{display:"flex",gap:0,border:`1px solid ${t.border}`,borderRadius:8,overflow:"hidden",marginBottom:14,width:"fit-content"}}>
-              {[["existing","Existing colleague"],["new","Add new person"]].map(([id,label],i)=>(
-                <button key={id} onClick={()=>setAddMode(id)}
-                  style={{background:addMode===id?t.accentLight:"none",color:addMode===id?t.accentText:t.muted,border:"none",borderRight:i===0?`1px solid ${t.border}`:"none",padding:"6px 14px",cursor:"pointer",fontSize:12,fontFamily:"'DM Mono',monospace"}}>
-                  {label}
-                </button>
-              ))}
+            <div style={{fontSize:13,color:t.text,fontWeight:500,marginBottom:10}}>Share with another supervisor</div>
+            <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:8}}>
+              <input value={shareEmail} onChange={e=>{setShareEmail(e.target.value);setLookupMsg("");}} placeholder="Colleague's SupTrack email"
+                onKeyDown={e=>{if(e.key==="Enter")lookupAndAdd();}}
+                style={{flex:1,border:`1px solid ${t.border}`,borderRadius:8,padding:"9px 12px",fontSize:13,fontFamily:"inherit",color:t.text,background:t.bg,outline:"none",boxSizing:"border-box"}}/>
+              <Btn T={t} small onClick={lookupAndAdd} disabled={lookupLoading}>{lookupLoading?"Looking up...":"Add"}</Btn>
+              <Btn T={t} variant="secondary" small onClick={()=>{setAdding(false);setShareEmail("");setLookupMsg("");}}>Cancel</Btn>
             </div>
-
-            {addMode==="existing" ? (
-              existing.length>0 ? (
-                <div style={{display:"flex",gap:8,alignItems:"center"}}>
-                  <select value={sel} onChange={e=>setSel(e.target.value)}
-                    style={{flex:1,border:`1px solid ${t.border}`,borderRadius:8,padding:"8px 12px",fontSize:13,fontFamily:"inherit",color:t.text,background:t.surface,outline:"none"}}>
-                    <option value="">Select colleague...</option>
-                    {existing.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
-                  <button onClick={addExisting}
-                    style={{background:t.accent,color:"#fff",border:"none",borderRadius:8,padding:"8px 16px",cursor:"pointer",fontSize:13,fontWeight:500,fontFamily:"inherit",whiteSpace:"nowrap"}}>
-                    Add
-                  </button>
-                  <button onClick={()=>{setAdding(false);setSel("");}}
-                    style={{background:"none",border:`1px solid ${t.border}`,borderRadius:8,padding:"8px 12px",cursor:"pointer",fontSize:13,color:t.muted,fontFamily:"inherit"}}>
-                    Cancel
-                  </button>
-                </div>
-              ) : (
-                <div style={{fontSize:13,color:t.faint,padding:"8px 0"}}>All colleagues already added. Switch to "Add new person" to add someone else.</div>
-              )
-            ) : (
-              <div>
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
-                  <div>
-                    <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:4}}>Name *</div>
-                    <input value={newName} onChange={e=>setNewName(e.target.value)} placeholder="Full name"
-                      style={{width:"100%",border:`1px solid ${t.border}`,borderRadius:8,padding:"7px 10px",fontSize:13,fontFamily:"inherit",color:t.text,background:t.bg,outline:"none",boxSizing:"border-box"}}/>
-                  </div>
-                  <div>
-                    <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:4}}>Email</div>
-                    <input value={newEmail} onChange={e=>setNewEmail(e.target.value)} placeholder="email@example.com" type="email"
-                      style={{width:"100%",border:`1px solid ${t.border}`,borderRadius:8,padding:"7px 10px",fontSize:13,fontFamily:"inherit",color:t.text,background:t.bg,outline:"none",boxSizing:"border-box"}}/>
-                  </div>
-                </div>
-                <div style={{display:"flex",gap:8}}>
-                  <button onClick={addNew}
-                    style={{background:t.accent,color:"#fff",border:"none",borderRadius:8,padding:"8px 16px",cursor:"pointer",fontSize:13,fontWeight:500,fontFamily:"inherit"}}>
-                    Add
-                  </button>
-                  <button onClick={()=>{setAdding(false);setNewName("");setNewEmail("");}}
-                    style={{background:"none",border:`1px solid ${t.border}`,borderRadius:8,padding:"8px 12px",cursor:"pointer",fontSize:13,color:t.muted,fontFamily:"inherit"}}>
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            )}
+            {lookupMsg&&<div style={{fontSize:12,color:lookupMsg.includes("found")?S.amber:t.muted,lineHeight:1.5}}>{lookupMsg}</div>}
+            <div style={{fontSize:11,color:t.faint,marginTop:6}}>They must have a SupTrack account. Enter the email they signed up with.</div>
           </div>
         ) : (
-          <button onClick={()=>{setAdding(true);setAddMode("existing");}}
+          <button onClick={()=>setAdding(true)}
             style={{background:"none",border:`1px dashed ${t.border}`,borderRadius:10,padding:"10px 18px",fontSize:13,color:t.muted,cursor:"pointer",width:"100%",fontFamily:"'DM Mono',monospace",marginBottom:14,transition:"all 0.1s"}}
             onMouseEnter={e=>{e.currentTarget.style.borderColor=t.accentMid;e.currentTarget.style.color=t.accentText;}}
             onMouseLeave={e=>{e.currentTarget.style.borderColor=t.border;e.currentTarget.style.color=t.muted;}}>
-            + Add colleague
+            + Share with another supervisor
           </button>
         )}
 
-        {/* Footer */}
         <div style={{display:"flex",justifyContent:"flex-end",gap:10,paddingTop:12,borderTop:`1px solid ${t.border}`}}>
           <Btn T={t} variant="secondary" onClick={onClose}>Cancel</Btn>
-          <Btn T={t} onClick={()=>onSave(shares)}>Save</Btn>
+          <Btn T={t} onClick={saveAll}>Save</Btn>
         </div>
       </div>
     </div>
@@ -2623,7 +2618,7 @@ function InternProfile({intern,groups,lists,setLists,colleagues,setColleagues,on
         </div>
       </div>
     </div>}
-    {shareOpen&&<ShareModal T={t} title={dn(intern)} sharedWith={intern.sharedWith||[]} colleagues={colleagues} setColleagues={setColleagues} onSave={s=>{onUpdateIntern({...intern,sharedWith:s});setShareOpen(false);}} onClose={()=>setShareOpen(false)}/>}
+    {shareOpen&&<ShareModal T={t} title={dn(intern)} sharedWith={intern.sharedWith||[]} colleagues={colleagues} setColleagues={setColleagues} internId={intern.id} session={authSession} onSave={s=>{onUpdateIntern({...intern,sharedWith:s});setShareOpen(false);}} onClose={()=>setShareOpen(false)}/>}
     {linkOpen&&<ShareLinkModal T={t} intern={intern} onClose={()=>setLinkOpen(false)}/>}
     {exportOpen&&<ExportModal T={t} intern={intern} groups={groups} onClose={()=>setExportOpen(false)}/>}
     {flagOpen&&<FlagModal T={t} intern={intern} onSave={flags=>{onUpdateIntern({...intern,flags});setFlagOpen(false);}} onClose={()=>setFlagOpen(false)}/>}
@@ -10664,16 +10659,30 @@ useEffect(() => {
   const [interns,setInterns]=useState([]);
   React.useEffect(()=>{
     if(!session?.user)return;
-    Promise.all([
-      supabase.from("interns").select("*").eq("supervisor_id",session.user.id),
-      supabase.from("sessions").select("*").eq("supervisor_id",session.user.id),
-      supabase.from("hour_logs").select("*").eq("supervisor_id",session.user.id),
-    ]).then(([internRes,sessRes,hlRes])=>{
+    (async()=>{
+      // Load own interns + check for shared access
+      const [ownRes,sessRes,hlRes,accessRes] = await Promise.all([
+        supabase.from("interns").select("*").eq("supervisor_id",session.user.id),
+        supabase.from("sessions").select("*").eq("supervisor_id",session.user.id),
+        supabase.from("hour_logs").select("*").eq("supervisor_id",session.user.id),
+        supabase.from("supervisor_intern_access").select("intern_id,permissions").eq("supervisor_id",session.user.id),
+      ]);
+      // Fetch shared interns if any access records exist
+      const sharedPerms = {};
+      (accessRes.data||[]).forEach(r=>{ if(r.intern_id) sharedPerms[r.intern_id]=r.permissions; });
+      const sharedIds = Object.keys(sharedPerms);
+      let sharedInterns = [];
+      if(sharedIds.length>0){
+        const {data:shared} = await supabase.from("interns").select("*").in("id",sharedIds);
+        sharedInterns = (shared||[]).map(r=>({...r,_sharedAccess:true,_permissions:sharedPerms[r.id]||{}}));
+      }
+      const allInterns = [...(ownRes.data||[]),...sharedInterns];
+      // Map to app format
       const sessMap={};(sessRes.data||[]).forEach(s=>{if(!sessMap[s.intern_id])sessMap[s.intern_id]=[];sessMap[s.intern_id].push({date:s.date,type:s.session_type||"",duration:`${s.duration_minutes||60} min`,notes:s.notes||"",category:s.tag||"",author:"",_sid:s.id});});
       const hlRaw={};(hlRes.data||[]).forEach(h=>{const key=h.intern_id+"__"+h.category;if(!hlRaw[key])hlRaw[key]={intern_id:h.intern_id,category:h.category,type:h.type,hours:0,label:h.label};hlRaw[key].hours+=Number(h.hours)||0;});
       const hlMap={};Object.values(hlRaw).forEach(h=>{if(!hlMap[h.intern_id])hlMap[h.intern_id]=[];hlMap[h.intern_id].push({category:h.category,type:h.type,hours:Math.round(h.hours*10)/10,label:h.label});});
-      if(internRes.data)setInterns(internRes.data.map(r=>({...r,preferredName:r.preferred_name||"",internType:r.intern_type||r.discipline||"",credentialBody:r.credential_body||"",licenseGoal:r.license_goal||"",supervisorRole:r.supervisor_role||"",startDate:r.start_date||"",proBono:r.pro_bono||false,groupIds:r.group_ids||[],listIds:r.list_ids||[],hoursCompleted:r.hours_completed||0,hoursTotal:r.hours_total||0,individualHours:r.individual_hours||0,groupHours:r.group_hours||0,billingRate:r.billing_rate||0,billingSchedule:r.billing_schedule||"monthly",initials:(r.name||"").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase(),sessions:sessMap[r.id]||[],cases:r.cases||[],documents:r.documents||[],evaluations:r.evaluations||[],hourLog:hlMap[r.id]||[],internHourLog:r.intern_hour_log||[],customHourCategories:r.custom_hour_categories||[],payments:r.payments||[],paymentStatus:r.payment_status||"current",sharedWith:r.shared_with||[],flags:r.flags||[],photo:r.photo||null})));
-    });
+      setInterns(allInterns.map(r=>({...r,preferredName:r.preferred_name||"",internType:r.intern_type||r.discipline||"",credentialBody:r.credential_body||"",licenseGoal:r.license_goal||"",supervisorRole:r.supervisor_role||"",startDate:r.start_date||"",proBono:r.pro_bono||false,groupIds:r.group_ids||[],listIds:r.list_ids||[],hoursCompleted:r.hours_completed||0,hoursTotal:r.hours_total||0,individualHours:r.individual_hours||0,groupHours:r.group_hours||0,billingRate:r.billing_rate||0,billingSchedule:r.billing_schedule||"monthly",initials:(r.name||"").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase(),sessions:sessMap[r.id]||[],cases:r.cases||[],documents:r.documents||[],evaluations:r.evaluations||[],hourLog:hlMap[r.id]||[],internHourLog:r.intern_hour_log||[],customHourCategories:r.custom_hour_categories||[],payments:r.payments||[],paymentStatus:r.payment_status||"current",sharedWith:r.shared_with||[],flags:r.flags||[],photo:r.photo||null,_sharedAccess:r._sharedAccess||false,_permissions:r._permissions||null})));
+    })();
   },[session]);
   const [groups,setGroups]=useState([]);
   const groupsLoadedRef=React.useRef(false);
