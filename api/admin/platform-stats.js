@@ -48,7 +48,7 @@ export default async function handler(req, res) {
     const newMonth = sups.filter(s => s.created_at >= monthAgo).length;
     const activeTrial = sups.filter(s => !s.stripe_customer_id && !s.lifetime_free && s.trial_ends_at && new Date(s.trial_ends_at) > now).length;
     const expiring7d = sups.filter(s => !s.stripe_customer_id && !s.lifetime_free && s.trial_ends_at && new Date(s.trial_ends_at) > now && s.trial_ends_at <= sevenDaysOut).length;
-    const paidUsers = sups.filter(s => s.stripe_customer_id || s.lifetime_free).length;
+    const paidUsers = sups.filter(s => s.stripe_customer_id && !s.lifetime_free).length;
     const churnedMonth = sups.filter(s => s.subscription_status === 'canceled' || s.subscription_status === 'cancelled').length;
 
     // Weekly signups for chart (last 12 weeks)

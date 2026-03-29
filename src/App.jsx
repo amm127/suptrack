@@ -3215,43 +3215,36 @@ function PlatformOverview({T,session,onNavigate,interns,groups,sp}) {
   const [drillData,setDrillData]=useState([]);
   const [drillLoading,setDrillLoading]=useState(false);
 
-  // Load stats
+  // Load stats from same server-side API as admin panel
   React.useEffect(()=>{
     if(!session?.user)return;
+    const getAuthHeader=()=>{
+      const key=Object.keys(localStorage).find(k=>k.startsWith("sb-")&&k.endsWith("-auth-token"));
+      if(!key)return{};
+      try{const d=JSON.parse(localStorage.getItem(key));return d?.access_token?{Authorization:`Bearer ${d.access_token}`}:{};}catch{return{};}
+    };
     const load=async()=>{
-      const now=new Date();
-      const todayStart=new Date(now.getFullYear(),now.getMonth(),now.getDate()).toISOString();
-      const weekAgo=new Date(now-7*24*60*60*1000).toISOString();
-      const monthAgo=new Date(now-30*24*60*60*1000).toISOString();
-      const dayAgo=new Date(now-24*60*60*1000).toISOString();
-      const sevenDaysOut=new Date(now.getTime()+7*24*60*60*1000).toISOString();
-      const [r1,r2,r3,r4,r5,r6]=await Promise.all([
-        supabase.from("supervisors").select("created_at,plan,subscription_status,trial_ends_at,stripe_customer_id,lifetime_free",{count:"exact",head:false}),
-        supabase.from("interns").select("*",{count:"exact",head:true}),
-        supabase.from("sessions").select("*",{count:"exact",head:true}),
-        supabase.from("support_tickets").select("*",{count:"exact",head:true}).eq("status","open"),
-        supabase.from("error_logs").select("*",{count:"exact",head:true}).gte("created_at",dayAgo),
-        supabase.from("supervisors").select("created_at,name,email,plan").order("created_at",{ascending:false}).limit(10),
+      const headers=getAuthHeader();
+      const [statsRes,feedRes]=await Promise.all([
+        fetch("/api/admin/platform-stats",{headers}).then(r=>r.ok?r.json():null).catch(()=>null),
+        fetch("/api/admin/activity-feed",{headers}).then(r=>r.ok?r.json():null).catch(()=>null),
       ]);
-      const sups=r1.data||[];
-      const newToday=sups.filter(s=>s.created_at>=todayStart).length;
-      const newWeek=sups.filter(s=>s.created_at>=weekAgo).length;
-      const newMonth=sups.filter(s=>s.created_at>=monthAgo).length;
-      const activeTrial=sups.filter(s=>!s.stripe_customer_id&&!s.lifetime_free&&s.trial_ends_at&&new Date(s.trial_ends_at)>now).length;
-      const expiring7d=sups.filter(s=>!s.stripe_customer_id&&!s.lifetime_free&&s.trial_ends_at&&new Date(s.trial_ends_at)>now&&new Date(s.trial_ends_at)<=new Date(sevenDaysOut)).length;
-      const paidUsers=sups.filter(s=>s.stripe_customer_id||s.lifetime_free).length;
-      setStats({
-        supervisors:r1.count||sups.length,
-        newToday,newWeek,newMonth,
-        totalInterns:r2.count||0,
-        totalSessions:r3.count||0,
-        activeTrial,expiring7d,paidUsers,
-        openTickets:r4.count||0,
-        recentErrors:r5.count||0,
-      });
-      // Build activity feed from recent signups
-      const recentSups=(r6.data||[]).map(s=>({type:"signup",desc:`${s.name||s.email} signed up`,time:s.created_at}));
-      setActivity(recentSups.slice(0,10));
+      if(statsRes){
+        setStats({
+          supervisors:statsRes.supervisors,
+          newToday:statsRes.newToday,
+          newWeek:statsRes.newWeek,
+          newMonth:statsRes.newMonth,
+          totalInterns:statsRes.totalInterns,
+          totalSessions:statsRes.totalSessions,
+          activeTrial:statsRes.activeTrial,
+          expiring7d:statsRes.expiring7d,
+          paidUsers:statsRes.paidUsers,
+          openTickets:statsRes.openTickets,
+          recentErrors:statsRes.recentErrors,
+        });
+      }
+      if(feedRes?.events) setActivity(feedRes.events.slice(0,10));
     };
     load();
     // Real-time subscription
