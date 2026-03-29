@@ -6149,7 +6149,7 @@ function PublicProfilePage({supervisorPhoto,setSupervisorPhoto,supervisorName:su
     {/* Header */}
     <div style={{textAlign:"center",marginBottom:8}}>
       <h1 style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:36,fontWeight:700,color:"#1E4040",margin:"0 0 4px",letterSpacing:-1}}>{profile.name||supName||"Your Profile"}</h1>
-      <p style={{color:"#608080",fontSize:13,margin:0,fontFamily:"'DM Mono',monospace",letterSpacing:0.5}}>suptrack.com/supervisor/{slug}</p>
+      <p style={{color:"#A0B0A8",fontSize:11,margin:"4px 0 0",fontFamily:"'DM Mono',monospace",letterSpacing:0.3}}>suptrack.com/supervisor/{slug}</p>
     </div>
     <div style={{display:"flex",justifyContent:"flex-end",marginBottom:20}}>
       <Btn T={t} style={{flexShrink:0}} onClick={()=>{
@@ -6226,7 +6226,7 @@ function PublicProfilePage({supervisorPhoto,setSupervisorPhoto,supervisorName:su
           {!editing&&profile.licenseGoal&&<div style={{marginTop:8}}>{fieldLabel("License goal")}{fieldValue(profile.licenseGoal)}</div>}
 
           {/* License expiration & CE hours */}
-          {editing&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14,marginTop:14,paddingTop:14,borderTop:`1px solid ${t.border}`}}>
+          {editing&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginTop:14,paddingTop:14,borderTop:`1px solid ${t.border}`}}>
             <div>
               {fieldLabel("License Expiration Date")}
               <input type="date" value={sp?.license_expiration_date||""} onChange={e=>{if(onSaveProfile)onSaveProfile({license_expiration_date:e.target.value||null});}}
@@ -6240,13 +6240,13 @@ function PublicProfilePage({supervisorPhoto,setSupervisorPhoto,supervisorName:su
               <div style={{fontSize:11,color:t.faint,marginTop:4}}>Check your state board for requirements</div>
             </div>
             <div>
-              {fieldLabel("CE Hours Completed")}
+              {fieldLabel("CE Hours Completed This Cycle")}
               <input type="number" value={sp?.ce_hours_completed||""} onChange={e=>{if(onSaveProfile)onSaveProfile({ce_hours_completed:parseInt(e.target.value)||0});}} placeholder="0"
                 style={{width:"100%",border:`1px solid ${t.border}`,borderRadius:8,padding:"8px 12px",fontSize:13,fontFamily:"inherit",color:t.text,background:t.bg,outline:"none",boxSizing:"border-box"}}/>
               <div style={{fontSize:11,color:t.faint,marginTop:4}}>Since your last license renewal</div>
             </div>
           </div>}
-          {!editing&&(sp?.license_expiration_date||sp?.ce_hours_required)&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14,marginTop:14,paddingTop:14,borderTop:`1px solid ${t.border}`}}>
+          {!editing&&(sp?.license_expiration_date||sp?.ce_hours_required)&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginTop:14,paddingTop:14,borderTop:`1px solid ${t.border}`}}>
             {sp?.license_expiration_date&&<div>{fieldLabel("License Expiration")}{fieldValue(new Date(sp.license_expiration_date+"T00:00:00").toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"}))}</div>}
             {sp?.ce_hours_required>0&&<div>{fieldLabel("CE Hours Required")}{fieldValue(sp.ce_hours_required)}</div>}
             {sp?.ce_hours_completed>=0&&sp?.ce_hours_required>0&&<div>{fieldLabel("CE Hours Completed")}{fieldValue(`${sp.ce_hours_completed||0} / ${sp.ce_hours_required}`)}</div>}
@@ -6411,11 +6411,11 @@ function CalendarPage({T}) {
         📅 Export all (.ics)
       </button>}
     </div>
-    {!connected?<div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:14,padding:"40px",textAlign:"center",boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
+    {!connected?<div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:14,padding:"40px",boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
       <div style={{fontSize:36,marginBottom:12}}>📅</div>
-      <div style={{fontFamily:"inherit",fontSize:20,color:t.text,marginBottom:8}}>Connect your calendar</div>
-      <div style={{fontSize:14,color:t.muted,marginBottom:24,maxWidth:400,margin:"0 auto 24px"}}>When you schedule supervision sessions in your calendar, SupTrack pulls them in automatically. One click logs the session and opens the AI note writer.</div>
-      <div style={{display:"flex",gap:12,justifyContent:"center"}}>
+      <div style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:20,fontWeight:600,color:t.text,marginBottom:8}}>Connect your calendar</div>
+      <div style={{fontSize:14,color:t.muted,marginBottom:24,maxWidth:500}}>When you schedule supervision sessions in your calendar, SupTrack pulls them in automatically. One click logs the session and opens the AI note writer.</div>
+      <div style={{display:"flex",gap:12}}>
         {[["Google Calendar","#4285F4"],["Outlook","#0078D4"],["Apple Calendar","#1A1A1A"]].map(([name,color])=>(
           <button key={name} onClick={()=>setConnected(true)} style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:12,padding:"12px 20px",cursor:"pointer",display:"flex",alignItems:"center",gap:8,fontSize:13,color:t.text,boxShadow:"0 1px 4px rgba(0,0,0,0.06)"}}>
             <div style={{width:12,height:12,borderRadius:"50%",background:color}}/>{name}
