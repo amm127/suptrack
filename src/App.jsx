@@ -3051,9 +3051,9 @@ function AlertsSection({visible,interns,t,onNavigate,onSelectIntern,todos,setTod
   </div>;
 }
 
-function Dashboard({interns,groups,lists,colleagues,onSelectIntern,onNavigate,onOpenOnboarding,onAddIntern,onQuickAction,supervisorName,quickActionOrder,quickActionHidden,allQuickActions,onQuickActionReorder,onQuickActionToggle,T,ceData,todos,setTodos,session}) {
+function Dashboard({interns,groups,lists,colleagues,onSelectIntern,onNavigate,onOpenOnboarding,onAddIntern,onQuickAction,supervisorName,quickActionOrder,quickActionHidden,allQuickActions,onQuickActionReorder,onQuickActionToggle,T,ceData,todos,setTodos,session,supervisorProfile:sp}) {
   const t=T||THEMES.sage;
-  const alerts = useMemo(()=>generateAlerts(interns,ceData),[interns,ceData]);
+  const alerts = useMemo(()=>generateAlerts(interns,ceData,sp),[interns,ceData,sp]);
   const [activeList,setActiveList]=useState("all");
   const [showInactive,setShowInactive]=useState(false);
   const [visibleStats,setVisibleStats]=useState(DEFAULT_STATS);
@@ -4959,61 +4959,91 @@ function GroupsPage({groups,interns,colleagues,setColleagues,setGroups,onSelectI
 }
 
 // ── Alert engine ───────────────────────────────────────────────────────────
-const generateAlerts = (interns, ceData) => {
+const generateAlerts = (interns, ceData, supervisorProfile) => {
   const alerts = [];
   const today = new Date();
-  interns.filter(i=>i.status==="active").forEach(intern=>{
-    // Payment overdue — from actual payment data
-    if (!intern.proBono && intern.payments?.some(p=>p.status==="overdue"))
-      alerts.push({ id:`pay-${intern.id}`, type:"payment", severity:"high", internId:intern.id, internName:dn(intern), message:`Payment overdue — ${dn(intern)} has an outstanding balance`, action:"payments" });
-    // Insurance expiring — check actual document expiry dates
-    const insuranceDoc = (intern.documents||[]).find(d=>d.type==="Insurance"&&d.expiryDate);
-    if (insuranceDoc) {
-      const expDate = new Date(insuranceDoc.expiryDate);
-      const daysUntil = Math.ceil((expDate-today)/(1000*60*60*24));
-      if (daysUntil > 0 && daysUntil <= 30)
-        alerts.push({ id:`doc-${intern.id}`, type:"document", severity:"medium", internId:intern.id, internName:dn(intern), message:`Insurance certificate expiring in ${daysUntil} days — ${dn(intern)}`, action:"intern-profile" });
-    }
-    // Hours near completion — from actual hours data
-    const pct = intern.hoursTotal > 0 ? intern.hoursCompleted/intern.hoursTotal : 0;
-    if (pct >= 0.9 && pct < 1)
-      alerts.push({ id:`hrs-${intern.id}`, type:"hours", severity:"info", internId:intern.id, internName:dn(intern), message:`${dn(intern)} is at ${Math.round(pct*100)}% of required hours — licensure is close`, action:"intern-profile" });
-    // Missing evaluation — only after substantial supervision history (20+ sessions)
-    if (!(intern.documents||[]).some(d=>d.type==="Evaluation") && (intern.sessions||[]).length >= 20)
-      alerts.push({ id:`eval-${intern.id}`, type:"evaluation", severity:"medium", internId:intern.id, internName:dn(intern), message:`No evaluation on file for ${dn(intern)} — consider scheduling a mid-term evaluation`, action:"intern-profile" });
-    // Intern uploaded a document — notify supervisor
-    const internUploads = (intern.documents||[]).filter(d=>d.uploadedBy==="intern");
-    if (internUploads.length > 0) {
-      const latest = internUploads[0];
-      alerts.push({ id:`intern-doc-${intern.id}`, type:"document", severity:"info", internId:intern.id, internName:dn(intern), message:`${dn(intern)} uploaded a document${latest.name?" — "+latest.name:""}`, action:"intern-profile" });
-    }
-    // Birthday — computed from actual DOB
-    if (intern.dob) {
-      const dobDate = new Date(intern.dob + "T00:00:00");
-      const bm = dobDate.getMonth()+1, bd = dobDate.getDate();
-      const isBirthday = bm===today.getMonth()+1 && bd===today.getDate();
-      const isUpcoming = (()=>{const next=new Date(today.getFullYear(),bm-1,bd);if(next<today)next.setFullYear(today.getFullYear()+1);const diff=(next-today)/(1000*60*60*24);return diff>0&&diff<=7;})();
-      if (isBirthday)
-        alerts.push({ id:`bday-${intern.id}`, type:"birthday", severity:"info", internId:intern.id, internName:dn(intern), message:`Today is ${dn(intern)}'s birthday!`, action:"intern-profile" });
-      else if (isUpcoming) {
-        const next=new Date(today.getFullYear(),bm-1,bd);if(next<today)next.setFullYear(today.getFullYear()+1);
-        const days=Math.ceil((next-today)/(1000*60*60*24));
-        alerts.push({ id:`bday-${intern.id}`, type:"birthday", severity:"info", internId:intern.id, internName:dn(intern), message:`${dn(intern)}'s birthday is in ${days} day${days!==1?"s":""}`, action:"intern-profile" });
-      }
-    }
-  });
-  // CE renewal alert — only if license type AND expiry are actually filled in
-  if (ceData?.myLicense?.expires && ceData.myLicense.type && ceData.myLicense.renewalHoursRequired > 0) {
-    const expDate = new Date(ceData.myLicense.expires);
-    if (!isNaN(expDate)) {
-      const daysUntil = Math.ceil((expDate-today)/(1000*60*60*24));
-      const hoursLeft = (ceData.myLicense.renewalHoursRequired||0) - (ceData.myLicense.renewalHoursCompleted||0);
-      if (daysUntil > 0 && daysUntil <= 180 && hoursLeft > 0) {
-        const months = Math.round(daysUntil/30);
-        alerts.push({ id:"ce-own", type:"ce", severity:daysUntil<=60?"high":"info", internId:null, internName:null, message:`Your ${ceData.myLicense.type} renewal is due in ${months} month${months!==1?"s":""} — ${hoursLeft} CE hours remaining`, action:"ce" });
-      }
+  const daysBetween = (d1,d2) => Math.ceil((d1-d2)/(1000*60*60*24));
+
+  // ── LICENSE RENEWAL (from supervisorProfile or ceData) ──
+  const licExpStr = supervisorProfile?.license_expiration_date || ceData?.myLicense?.expires;
+  const licType = supervisorProfile?.credential || ceData?.myLicense?.type;
+  if(licExpStr && licType){
+    const expDate = new Date(licExpStr);
+    if(!isNaN(expDate)){
+      const days = daysBetween(expDate, today);
+      const ceLeft = (supervisorProfile?.ce_hours_required||ceData?.myLicense?.renewalHoursRequired||0) - (supervisorProfile?.ce_hours_completed||ceData?.myLicense?.renewalHoursCompleted||0);
+      if(days > 0 && days <= 7)
+        alerts.push({id:"lic-7d",type:"ce",severity:"high",internId:null,internName:null,message:`Your ${licType} license expires in ${days} days!`,action:"ce"});
+      else if(days > 7 && days <= 30)
+        alerts.push({id:"lic-30d",type:"ce",severity:"high",internId:null,internName:null,message:`Your ${licType} license renews in ${days} days — ${ceLeft>0?ceLeft+" CE hours remaining":"renew now"}`,action:"ce"});
+      else if(days > 30 && days <= 90)
+        alerts.push({id:"lic-90d",type:"ce",severity:"medium",internId:null,internName:null,message:`Your ${licType} license renews in ${days} days${ceLeft>0?" — "+ceLeft+" CE hours remaining":""}`,action:"ce"});
     }
   }
+
+  // ── PER-INTERN ALERTS ──
+  interns.filter(i=>i.status==="active").forEach(intern=>{
+    const name = dn(intern);
+
+    // PAYMENT OVERDUE (30+ days)
+    if(!intern.proBono){
+      const overdue = (intern.payments||[]).find(p=>p.status==="overdue");
+      if(overdue){
+        const paidDate = overdue.date ? new Date(overdue.date) : null;
+        const daysOverdue = paidDate && !isNaN(paidDate) ? daysBetween(today, paidDate) : 0;
+        if(daysOverdue >= 30)
+          alerts.push({id:`pay-old-${intern.id}`,type:"payment",severity:"high",internId:intern.id,internName:name,message:`${name}'s payment is ${daysOverdue} days overdue`,action:"payments"});
+        else
+          alerts.push({id:`pay-${intern.id}`,type:"payment",severity:"medium",internId:intern.id,internName:name,message:`Payment overdue — ${name} has an outstanding balance`,action:"payments"});
+      }
+    }
+
+    // HOURS MILESTONES (25%, 50%, 75%, 100%)
+    if(intern.hoursTotal > 0){
+      const pct = intern.hoursCompleted / intern.hoursTotal;
+      if(pct >= 1)
+        alerts.push({id:`hrs-100-${intern.id}`,type:"hours",severity:"info",internId:intern.id,internName:name,message:`${name} has completed 100% of their required hours!`,action:"intern-profile"});
+      else if(pct >= 0.75)
+        alerts.push({id:`hrs-75-${intern.id}`,type:"hours",severity:"info",internId:intern.id,internName:name,message:`${name} has reached 75% of their required hours`,action:"intern-profile"});
+      else if(pct >= 0.5)
+        alerts.push({id:`hrs-50-${intern.id}`,type:"hours",severity:"info",internId:intern.id,internName:name,message:`${name} has reached 50% of their required hours`,action:"intern-profile"});
+      else if(pct >= 0.25)
+        alerts.push({id:`hrs-25-${intern.id}`,type:"hours",severity:"info",internId:intern.id,internName:name,message:`${name} has reached 25% of their required hours`,action:"intern-profile"});
+    }
+
+    // SUPERVISION AGREEMENT — no signed agreement after 30 days
+    if(intern.startDate){
+      const startDate = new Date(intern.startDate);
+      if(!isNaN(startDate)){
+        const daysActive = daysBetween(today, startDate);
+        const hasAgreement = (intern.documents||[]).some(d=>d.type==="Agreement"||d.type==="Contract"||d.signed);
+        if(daysActive >= 30 && !hasAgreement)
+          alerts.push({id:`agree-${intern.id}`,type:"document",severity:"medium",internId:intern.id,internName:name,message:`${name} has no active supervision agreement — active for ${daysActive} days`,action:"agreements"});
+      }
+    }
+
+    // BIRTHDAY — 3 days before or today
+    if(intern.dob){
+      const dobDate = new Date(intern.dob+"T00:00:00");
+      if(!isNaN(dobDate)){
+        const bm=dobDate.getMonth(), bd=dobDate.getDate();
+        const next = new Date(today.getFullYear(),bm,bd);
+        if(next < today) next.setFullYear(today.getFullYear()+1);
+        const days = daysBetween(next, today);
+        if(days === 0)
+          alerts.push({id:`bday-today-${intern.id}`,type:"birthday",severity:"info",internId:intern.id,internName:name,message:`Today is ${name}'s birthday!`,action:"intern-profile"});
+        else if(days > 0 && days <= 3)
+          alerts.push({id:`bday-${days}d-${intern.id}`,type:"birthday",severity:"info",internId:intern.id,internName:name,message:`${name}'s birthday is in ${days} day${days!==1?"s":""}`,action:"intern-profile"});
+      }
+    }
+
+    // INTERN DOCUMENT UPLOAD
+    const internUploads = (intern.documents||[]).filter(d=>d.uploadedBy==="intern");
+    if(internUploads.length > 0){
+      const latest = internUploads[0];
+      alerts.push({id:`intern-doc-${intern.id}`,type:"document",severity:"info",internId:intern.id,internName:name,message:`${name} uploaded a document${latest.name?" — "+latest.name:""}`,action:"intern-profile"});
+    }
+  });
   return alerts;
 };
 const alertStyle = (severity, t) => {
@@ -11424,7 +11454,7 @@ useEffect(() => {
 
     {/* Main content */}
     <div id="suptrack-content" className="st-main" style={{flex:1,padding:"38px 44px",maxWidth:980,overflowY:"auto"}}>
-      {page==="dashboard"&&<Dashboard T={t} interns={interns} groups={groups} lists={lists} colleagues={colleagues} supervisorName={supervisorName} ceData={ceData} todos={todos} setTodos={setTodos} session={session}
+      {page==="dashboard"&&<Dashboard T={t} interns={interns} groups={groups} lists={lists} colleagues={colleagues} supervisorName={supervisorName} ceData={ceData} todos={todos} setTodos={setTodos} session={session} supervisorProfile={supervisorProfile}
         onAddIntern={()=>{if(activeInternCount>=internLimit){setUpgradePrompt("intern");return;}setAddInternOpen(true);}}
         onQuickAction={setQuickActionOpen}
         onSelectIntern={i=>{setSelectedInternId_sv(i.id);setPage("intern-profile");}}
