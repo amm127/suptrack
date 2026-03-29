@@ -97,6 +97,14 @@ if (typeof window !== 'undefined') {
   });
 }
 
+// ── Demo / Plan Preview Mock Data ─────────────────────────────────────────
+const MOCK_SUPERVISOR = {name:"Dr. Sarah Mitchell",credential:"LCSW",license_number:"LCSW-45892",license_state:"California",agency:"Westside Counseling Group",bio:"Licensed clinical social worker specializing in trauma-informed care and supervision of pre-licensed clinicians.",photo:null,plan:"starter",subscription_status:"active",lifetime_free:false,accepting_interns:true,individual_fee:150,group_fee:75,supervision_format:"hybrid",profile_data:{credential:"LCSW",phone:"(555) 234-5678",licenseNumber:"LCSW-45892",licenseState:"California"}};
+const MOCK_INTERNS = [
+  {id:"m1",name:"Marcus Johnson",preferredName:"",initials:"MJ",credential:"AMFT",credentialBody:"BBS",licenseGoal:"LMFT",university:"UCLA",discipline:"student",supervisorRole:"primary",status:"active",hoursCompleted:1240,hoursTotal:3000,individualHours:800,groupHours:440,startDate:"2025-09-01",proBono:false,billingRate:150,billingSchedule:"monthly",payments:[{month:"Mar 2026",amount:150,status:"paid",date:"Mar 1, 2026"}],paymentStatus:"current",sessions:[{date:"2026-03-25",type:"Individual",duration:"60 min",notes:"Discussed case conceptualization for trauma client. Reviewed treatment planning and progress notes."},{date:"2026-03-18",type:"Individual",duration:"60 min",notes:"Explored countertransference reactions and self-care strategies."}],hourLog:[{category:"direct_client",hours:680,type:"direct"},{category:"individual_supervision",hours:400,type:"direct"},{category:"group_supervision",hours:160,type:"direct"}],documents:[],cases:[],evaluations:[],flags:[],groupIds:[],listIds:[],sharedWith:[],photo:null,portal_enabled:false},
+  {id:"m2",name:"Priya Patel",preferredName:"",initials:"PP",credential:"ACSW",credentialBody:"BBS",licenseGoal:"LCSW",university:"USC",discipline:"student",supervisorRole:"primary",status:"active",hoursCompleted:890,hoursTotal:3000,individualHours:520,groupHours:370,startDate:"2025-11-15",proBono:false,billingRate:150,billingSchedule:"monthly",payments:[{month:"Mar 2026",amount:150,status:"overdue",date:"Mar 1, 2026"}],paymentStatus:"overdue",sessions:[{date:"2026-03-24",type:"Group",duration:"90 min",notes:"Group supervision session covering ethical boundaries and documentation best practices."}],hourLog:[{category:"direct_client",hours:450,type:"direct"},{category:"individual_supervision",hours:280,type:"direct"},{category:"group_supervision",hours:160,type:"direct"}],documents:[],cases:[],evaluations:[],flags:[],groupIds:[],listIds:[],sharedWith:[],photo:null,portal_enabled:false},
+  {id:"m3",name:"Taylor Rodriguez",preferredName:"",initials:"TR",credential:"APCC",credentialBody:"BBS",licenseGoal:"LPCC",university:"Stanford",discipline:"student",supervisorRole:"secondary",status:"active",hoursCompleted:2750,hoursTotal:3000,individualHours:1600,groupHours:1150,startDate:"2024-06-01",proBono:false,billingRate:150,billingSchedule:"monthly",payments:[{month:"Mar 2026",amount:150,status:"paid",date:"Mar 1, 2026"}],paymentStatus:"current",sessions:[{date:"2026-03-26",type:"Individual",duration:"60 min",notes:"Final stages preparation — reviewed all documentation for licensure application."}],hourLog:[{category:"direct_client",hours:1500,type:"direct"},{category:"individual_supervision",hours:800,type:"direct"},{category:"group_supervision",hours:450,type:"direct"}],documents:[],cases:[],evaluations:[],flags:[],groupIds:[],listIds:[],sharedWith:[],photo:null,portal_enabled:false},
+];
+
 // API keys are now server-side only — no VITE_ prefix needed
 // ── Date helpers — no hardcoded dates in runtime logic ─────────────────────
 const TODAY = () => new Date().toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});
@@ -10859,6 +10867,7 @@ function AdminPanelPage({T,session,tickets,setTickets}) {
     {id:"users",label:"Users"},
     {id:"billing",label:"Billing"},
     {id:"content",label:"Content"},
+    {id:"previews",label:"Plan Previews"},
     {id:"invites",label:"Invite Codes"},
     {id:"tickets",label:"Tickets"},
     {id:"stats",label:"Stats"},
@@ -11630,6 +11639,42 @@ function AdminPanelPage({T,session,tickets,setTickets}) {
         <div style={{fontSize:14,color:t.muted,marginBottom:16}}>Load Stripe billing data to see revenue and subscribers</div>
         <button onClick={loadStripeOverview} style={{background:gold,color:"#fff",border:"none",borderRadius:10,padding:"10px 24px",cursor:"pointer",fontSize:14,fontWeight:600,fontFamily:"inherit"}}>Load Billing Data</button>
       </div>}
+    </div>}
+
+    {/* ─── PLAN PREVIEWS TAB ─── */}
+    {tab==="previews"&&<div>
+      <p style={{fontSize:14,color:t.muted,marginBottom:24,lineHeight:1.6}}>Preview each plan tier with demo data, or share a public demo link with potential customers.</p>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:16}}>
+        {[
+          {id:"starter",name:"Starter",price:"$24.99/mo",features:["Up to 10 supervisees","Basic session logging","Hour tracking","Document storage","Manual payments","Groups and lists","Intern portal"],locked:["AI Session Notes","Consult AI","Board export","Discrepancy detection","Payment reminders","Colleague sharing"]},
+          {id:"growth",name:"Growth",price:"$39.99/mo",features:["Up to 20 supervisees","Everything in Starter","AI Session Notes","Consult AI","Board export","Discrepancy detection","Payment reminders","Colleague sharing"],locked:["Unlimited interns","Annual tax export","Custom categories","Multi-supervisor"]},
+          {id:"practice",name:"Practice",price:"$69.99/mo",features:["Unlimited supervisees","Everything in Growth","Annual tax export","Custom categories","Multi-supervisor support","Dedicated support"],locked:[]},
+        ].map(plan=>(
+          <div key={plan.id} style={{background:"#fff",border:`1px solid ${plan.id==="growth"?gold:goldBorder}`,borderRadius:16,padding:"28px 24px",boxShadow:plan.id==="growth"?`0 4px 20px ${gold}20`:"0 2px 8px rgba(0,0,0,0.05)"}}>
+            {plan.id==="growth"&&<div style={{fontSize:10,color:gold,fontFamily:"'DM Mono',monospace",letterSpacing:"0.12em",textTransform:"uppercase",fontWeight:600,marginBottom:8}}>MOST POPULAR</div>}
+            <div style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:22,color:"#1E4040",fontWeight:600,marginBottom:4}}>{plan.name}</div>
+            <div style={{fontSize:18,color:"#1E4040",fontWeight:700,marginBottom:16}}>{plan.price}</div>
+            <div style={{marginBottom:20}}>
+              {plan.features.map(f=><div key={f} style={{fontSize:13,color:"#2E7A4E",marginBottom:6,display:"flex",alignItems:"center",gap:8}}>
+                <span style={{fontSize:11}}>✓</span>{f}
+              </div>)}
+              {plan.locked.map(f=><div key={f} style={{fontSize:13,color:t.faint,marginBottom:6,display:"flex",alignItems:"center",gap:8}}>
+                <span style={{fontSize:11}}>🔒</span>{f}
+              </div>)}
+            </div>
+            <div style={{display:"flex",flexDirection:"column",gap:8}}>
+              <button onClick={()=>{setPreviewMode(plan.id);setPage("dashboard");}}
+                style={{background:"#1E4040",color:"#C8E8E0",border:"none",borderRadius:10,padding:"10px 18px",cursor:"pointer",fontSize:13,fontWeight:600,fontFamily:"'Fraunces',Georgia,serif",width:"100%"}}>
+                Preview as {plan.name}
+              </button>
+              <button onClick={()=>{navigator.clipboard?.writeText(`${window.location.origin}/demo/${plan.id}`);setToast&&setToast({type:"success",message:"Demo link copied!"});}}
+                style={{background:goldLight,color:gold,border:`1px solid ${goldBorder}`,borderRadius:10,padding:"10px 18px",cursor:"pointer",fontSize:12,fontFamily:"'DM Mono',monospace",fontWeight:500,width:"100%"}}>
+                Copy Share Link
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>}
 
     {/* ─── ANNOUNCEMENTS TAB ─── */}
@@ -13196,12 +13241,14 @@ useEffect(() => {
     practice:{ maxInterns:999,aiFeatures:true,  boardExport:true,  colleagueSharing:true,  paymentReminders:true,  unlimitedDocs:true,  taxExport:true,  customCategories:true,  multiSupervisor:true,  maxDocsPerIntern:999 },
     trial:   { maxInterns:20, aiFeatures:true,  boardExport:true,  colleagueSharing:true,  paymentReminders:true,  unlimitedDocs:true,  taxExport:false, customCategories:false, multiSupervisor:false, maxDocsPerIntern:999 },
   };
-  const planFeatures = supervisorProfile?.lifetime_free ? PLAN_FEATURES.practice
+  const planFeatures = previewMode ? PLAN_FEATURES[previewMode] || PLAN_FEATURES.starter
+    : supervisorProfile?.lifetime_free ? PLAN_FEATURES.practice
     : (trialActive && !supervisorProfile?.stripe_customer_id) ? PLAN_FEATURES.trial
     : PLAN_FEATURES[supervisorPlan] || PLAN_FEATURES.starter;
-  const effectivePlan = supervisorProfile?.lifetime_free ? "practice" : (trialActive && !supervisorProfile?.stripe_customer_id) ? "growth" : supervisorPlan;
+  const effectivePlan = previewMode || (supervisorProfile?.lifetime_free ? "practice" : (trialActive && !supervisorProfile?.stripe_customer_id) ? "growth" : supervisorPlan);
   const internLimit = planFeatures.maxInterns;
-  const activeInternCount = interns.filter(i=>i.status==="active").length;
+  const previewInterns = previewMode ? MOCK_INTERNS : interns;
+  const activeInternCount = previewInterns.filter(i=>i.status==="active").length;
   const [upgradePrompt, setUpgradePrompt] = useState(null);
 
   const addSessionCharge=React.useCallback((internId, charge)=>{
@@ -13344,6 +13391,15 @@ useEffect(() => {
   React.useEffect(()=>{try{localStorage.setItem("suptrack_billing",JSON.stringify(billing));}catch{}},[billing]);
 
   const isAdmin = supervisorProfile?.lifetime_free === true;
+
+  // ── Preview / Demo Mode ──
+  const [previewMode, setPreviewMode] = useState(null); // null | 'starter' | 'growth' | 'practice'
+  React.useEffect(() => {
+    const path = window.location.pathname;
+    const match = path.match(/^\/demo\/(starter|growth|practice)$/);
+    if (match) setPreviewMode(match[1]);
+  }, []);
+
   const [errorCount24h,setErrorCount24h]=useState(0);
   React.useEffect(()=>{
     if(!isAdmin||!session?.user)return;
@@ -13425,7 +13481,72 @@ useEffect(() => {
   const handleNavDragEnd = () => setNavDrag(null);
 
   // ── Early returns (ALL hooks must be above this line) ──────────────────────
-  if (!session) return <Auth />;
+  if (!session && !previewMode) return <Auth />;
+  if (!session && previewMode) {
+    // Public demo mode — show app with mock data, no login required
+    const demoT = t; const demoF = f;
+    const mockSup = {...MOCK_SUPERVISOR, plan: previewMode};
+    const mockName = mockSup.name.split(" ")[0];
+    const mockInitials = mockSup.name.split(" ").map(w=>w[0]).join("").slice(0,2);
+    return <div style={{display:"flex",minHeight:"100vh",background:demoT.bg,fontFamily:demoF.body}}>
+      <link href={demoF.url} rel="stylesheet"/>
+      <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/fraunces@5/index.css"/>
+      {/* Demo banner */}
+      <div style={{position:"fixed",top:0,left:0,right:0,zIndex:10001,background:"#1E4040",color:"#C8E8E0",padding:"10px 24px",display:"flex",alignItems:"center",justifyContent:"center",gap:16,fontSize:13,fontWeight:500,fontFamily:"'DM Mono',monospace"}}>
+        <span style={{color:"#C4A040"}}>✦</span>
+        DEMO MODE — Viewing the <strong style={{textTransform:"capitalize"}}>{previewMode}</strong> plan with sample data
+        <a href="/" style={{background:"#C4A040",color:"#1E4040",borderRadius:8,padding:"5px 14px",textDecoration:"none",fontSize:12,fontFamily:"'DM Mono',monospace",fontWeight:600,marginLeft:8}}>Start Free Trial →</a>
+      </div>
+      {/* Sidebar */}
+      <div style={{width:220,background:demoT.surface||"#F5F0E8",borderRight:`1px solid ${demoT.border}`,paddingTop:50,display:"flex",flexDirection:"column",position:"sticky",top:0,height:"100vh",flexShrink:0}}>
+        <div style={{padding:"20px 24px 16px"}}><div style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:20,color:demoT.accent,letterSpacing:"-0.02em"}}>SupTrack</div><div style={{fontSize:10,color:demoT.muted,fontFamily:"'DM Mono',monospace",marginTop:2,letterSpacing:"0.06em"}}>DEMO</div></div>
+        {["Dashboard","Supervisees","Groups","Sessions"].map(n=><div key={n} style={{padding:"11px 24px",fontSize:14,color:n==="Dashboard"?demoT.accent:demoT.text,borderLeft:n==="Dashboard"?`3px solid ${demoT.accent}`:"3px solid transparent",fontWeight:n==="Dashboard"?500:400}}>{n}</div>)}
+        <div style={{marginTop:"auto",padding:"14px 24px",borderTop:`1px solid ${demoT.border}`}}>
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            <Avatar initials={mockInitials} size={30} T={demoT}/>
+            <div><div style={{fontSize:13,color:demoT.text,fontWeight:500}}>{mockName}</div><div style={{fontSize:11,color:demoT.muted,fontFamily:"'DM Mono',monospace",textTransform:"capitalize"}}>{previewMode}</div></div>
+          </div>
+        </div>
+      </div>
+      {/* Main content */}
+      <div style={{flex:1,padding:"58px 44px 38px",maxWidth:980,overflowY:"auto"}}>
+        <h1 style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:28,fontWeight:400,color:demoT.text,margin:"0 0 4px"}}>Good morning, {mockName}</h1>
+        <p style={{color:demoT.muted,fontSize:14,margin:"0 0 28px"}}>Demo dashboard · {previewMode} plan</p>
+        {/* Stats */}
+        <div style={{display:"flex",gap:12,marginBottom:28}}>
+          {[{l:"Active",v:MOCK_INTERNS.length},{l:"Hours",v:"4,880"},{l:"Groups",v:"2"},{l:`${MOCK_INTERNS.length} / ${previewMode==="practice"?"∞":previewMode==="growth"?"20":"10"}`,v:"Interns"}].map(s=><div key={s.l} style={{flex:1,background:demoT.surface,border:`1px solid ${demoT.border}`,borderRadius:14,padding:"18px 16px"}}>
+            <div style={{fontSize:28,fontWeight:700,color:demoT.accent,fontFamily:"'Fraunces',Georgia,serif"}}>{s.v}</div>
+            <div style={{fontSize:12,color:demoT.muted,fontFamily:"'DM Mono',monospace",marginTop:4}}>{s.l}</div>
+          </div>)}
+        </div>
+        {/* Mock intern cards */}
+        <div style={{fontSize:18,color:demoT.text,marginBottom:14}}>Supervisees</div>
+        {MOCK_INTERNS.map(i=><div key={i.id} style={{background:demoT.surface,border:`1px solid ${demoT.border}`,borderRadius:14,padding:"18px 20px",marginBottom:10,display:"flex",alignItems:"center",gap:16}}>
+          <Avatar initials={i.initials} size={40} T={demoT}/>
+          <div style={{flex:1}}>
+            <div style={{fontSize:15,fontWeight:500,color:demoT.text}}>{i.name}</div>
+            <div style={{fontSize:12,color:demoT.muted,fontFamily:"'DM Mono',monospace"}}>{i.credential} · {i.hoursCompleted.toLocaleString()} / {i.hoursTotal.toLocaleString()} hours</div>
+          </div>
+          <div style={{width:120,height:8,background:demoT.borderLight||"#E0E0D8",borderRadius:4,overflow:"hidden"}}>
+            <div style={{width:`${Math.min(100,Math.round(i.hoursCompleted/i.hoursTotal*100))}%`,height:"100%",background:demoT.accent,borderRadius:4}}/>
+          </div>
+          <div style={{fontSize:12,fontFamily:"'DM Mono',monospace",color:demoT.muted}}>{Math.round(i.hoursCompleted/i.hoursTotal*100)}%</div>
+        </div>)}
+        {/* Locked features */}
+        {previewMode!=="practice"&&<div style={{marginTop:28}}>
+          <div style={{fontSize:14,color:demoT.muted,marginBottom:12}}>Locked on this plan:</div>
+          {(previewMode==="starter"?["AI Session Notes","Consult AI","Board Export","Colleague Sharing"]:["Unlimited Interns","Tax Export","Custom Categories"]).map(f=><div key={f} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 16px",background:"#F5F5F0",border:"1px solid #E8E8E0",borderRadius:10,marginBottom:6,fontSize:13,color:"#888"}}>
+            <span>🔒</span>{f}<a href="/" style={{marginLeft:"auto",fontSize:12,color:demoT.accent,textDecoration:"none",fontWeight:500}}>Upgrade →</a>
+          </div>)}
+        </div>}
+        {/* CTA */}
+        <div style={{textAlign:"center",marginTop:40,padding:"32px 0"}}>
+          <a href="/" style={{display:"inline-block",background:"#1E4040",color:"#C8E8E0",textDecoration:"none",padding:"14px 36px",borderRadius:12,fontSize:16,fontWeight:700,fontFamily:"'Fraunces',Georgia,serif"}}>Start Your Free Trial →</a>
+          <div style={{fontSize:13,color:demoT.muted,marginTop:10}}>14 days free · No credit card required</div>
+        </div>
+      </div>
+    </div>;
+  }
 
   // Intern portal — if logged-in user is an intern, show intern dashboard
   if (internUser) return <InternDashboard
@@ -13449,6 +13570,15 @@ useEffect(() => {
       {toast.message}
     </div>}
     <AutosaveIndicator status={autosaveStatus} isOffline={isOffline}/>
+
+    {/* Preview / Demo mode banner */}
+    {previewMode&&<div style={{position:"fixed",top:0,left:0,right:0,zIndex:10001,background:session?"#C4A040":"#1E4040",color:session?"#1E4040":"#C8E8E0",padding:"10px 24px",display:"flex",alignItems:"center",justifyContent:"center",gap:16,fontSize:13,fontWeight:500,fontFamily:"'DM Mono',monospace"}}>
+      <span style={{color:session?"#1E4040":"#C4A040"}}>✦</span>
+      {session?"PREVIEW MODE":"DEMO MODE"} — Viewing as <strong style={{textTransform:"capitalize"}}>{previewMode}</strong> user with sample data
+      {session
+        ?<button onClick={()=>{setPreviewMode(null);window.history.replaceState({},"","/");}} style={{background:"#1E4040",color:"#C8E8E0",border:"none",borderRadius:8,padding:"5px 14px",cursor:"pointer",fontSize:12,fontFamily:"'DM Mono',monospace",fontWeight:600,marginLeft:8}}>Exit Preview ×</button>
+        :<a href="/" style={{background:"#C4A040",color:"#1E4040",borderRadius:8,padding:"5px 14px",textDecoration:"none",fontSize:12,fontFamily:"'DM Mono',monospace",fontWeight:600,marginLeft:8}}>Start Free Trial →</a>}
+    </div>}
 
     {/* Idle warning modal */}
     {idleWarning&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:10000}}>
