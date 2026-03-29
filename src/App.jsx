@@ -1,6 +1,62 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../lib/supabase'
 import Auth from './Auth'
+
+// ── Autosave hook ─────────────────────────────────────────────────────────
+function useAutosave(data, saveFn, delay = 2000) {
+  const [status, setStatus] = useState("idle");
+  const dataRef = useRef(data);
+  const saveFnRef = useRef(saveFn);
+  const mountedRef = useRef(false);
+  const retryRef = useRef(null);
+  saveFnRef.current = saveFn;
+
+  useEffect(() => {
+    // Skip the initial mount — don't autosave data that was just loaded
+    if (!mountedRef.current) { mountedRef.current = true; dataRef.current = data; return; }
+    if (!data || JSON.stringify(data) === JSON.stringify(dataRef.current)) return;
+    dataRef.current = data;
+    setStatus("unsaved");
+    if (retryRef.current) clearTimeout(retryRef.current);
+    const timer = setTimeout(async () => {
+      setStatus("saving");
+      try {
+        await saveFnRef.current(data);
+        setStatus("saved");
+        setTimeout(() => setStatus(s => s === "saved" ? "idle" : s), 3000);
+      } catch {
+        setStatus("error");
+        retryRef.current = setTimeout(async () => {
+          try { await saveFnRef.current(dataRef.current); setStatus("saved"); setTimeout(() => setStatus(s => s === "saved" ? "idle" : s), 3000); }
+          catch { setStatus("error"); }
+        }, 5000);
+      }
+    }, delay);
+    return () => clearTimeout(timer);
+  }, [JSON.stringify(data), delay]);
+
+  return status;
+}
+
+// ── Autosave status indicator component ───────────────────────────────────
+function AutosaveIndicator({ status, isOffline }) {
+  if (isOffline) return <div style={{position:"fixed",bottom:20,right:20,zIndex:9998,background:"#FAF2E0",color:"#B87D2A",border:"1px solid #E8DFC0",borderRadius:10,padding:"8px 16px",fontSize:12,fontFamily:"'DM Mono',monospace",fontWeight:500,boxShadow:"0 2px 12px rgba(0,0,0,0.08)",display:"flex",alignItems:"center",gap:8}}>
+    <span style={{width:7,height:7,borderRadius:"50%",background:"#B87D2A"}}/>Offline — will sync when reconnected
+  </div>;
+  if (status === "idle") return null;
+  const cfg = {
+    unsaved: { bg:"#F5F5F0", color:"#888", border:"#E0E0D8", dot:"#AAA", text:"Unsaved" },
+    saving:  { bg:"#E8F0EE", color:"#608080", border:"#C8D8D4", dot:null, text:"Saving..." },
+    saved:   { bg:"#E8F5EE", color:"#2E7A4E", border:"#A8D8BC", dot:"#2E7A4E", text:"Saved \u2726" },
+    error:   { bg:"#FAF2E0", color:"#B87D2A", border:"#E8DFC0", dot:"#B87D2A", text:"Save failed" },
+  }[status];
+  if (!cfg) return null;
+  return <div style={{position:"fixed",bottom:20,right:20,zIndex:9998,background:cfg.bg,color:cfg.color,border:`1px solid ${cfg.border}`,borderRadius:10,padding:"8px 16px",fontSize:12,fontFamily:"'DM Mono',monospace",fontWeight:500,boxShadow:"0 2px 12px rgba(0,0,0,0.08)",display:"flex",alignItems:"center",gap:8,transition:"opacity 0.3s",opacity:status==="saved"?0.85:1}}>
+    {status==="saving"?<span style={{width:14,height:14,border:"2px solid #C8D8D4",borderTop:"2px solid #608080",borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>:cfg.dot&&<span style={{width:7,height:7,borderRadius:"50%",background:cfg.dot}}/>}
+    {cfg.text}
+  </div>;
+}
+
 // API keys are now server-side only — no VITE_ prefix needed
 // ── Date helpers — no hardcoded dates in runtime logic ─────────────────────
 const TODAY = () => new Date().toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});
@@ -12736,6 +12792,60 @@ useEffect(() => {
   const [toast, setToast] = useState(null);
   React.useEffect(()=>{if(toast)setTimeout(()=>setToast(null),3000);},[toast]);
   const [founderConfetti, setFounderConfetti] = useState(false);
+
+  // ── Autosave & offline detection ──
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  const [autosaveData, setAutosaveData] = useState(null);
+  const autosaveFn = useCallback(async (payload) => {
+    if (!session?.user) return;
+    const { type, data } = payload;
+    if (type === "profile") {
+      const row = {};
+      const COLS = ["name","email","phone","credential","photo","plan","profile_data","bio","license_goal","boards"];
+      for (const key of COLS) { if (key in data) row[key] = data[key]; }
+      if (Object.keys(row).length > 0) await supabase.from("supervisors").update(row).eq("user_id", session.user.id);
+    } else if (type === "intern" && data?.id) {
+      const internRow = {name:data.name||"",preferred_name:data.preferredName||"",pronouns:data.pronouns||"",discipline:data.discipline||"",supervisor_role:data.supervisorRole||"primary",credential:data.credential||"",credential_body:data.credentialBody||"",license_goal:data.licenseGoal||"",university:data.university||"",status:data.status||"active",pro_bono:data.proBono||false,hours_completed:data.hoursCompleted||0,hours_total:data.hoursTotal||0,individual_hours:data.individualHours||0,group_hours:data.groupHours||0,billing_rate:data.billingRate||0,billing_schedule:data.billingSchedule||"monthly",payments:data.payments||[],payment_status:data.paymentStatus||"current",documents:(data.documents||[]).map(({dataUrl,signatureDataUrl,...rest})=>rest),cases:data.cases||[],evaluations:data.evaluations||[],flags:data.flags||[],group_ids:data.groupIds||[],list_ids:data.listIds||[],shared_with:data.sharedWith||[],photo:data.photo||null};
+      await supabase.from("interns").update(internRow).eq("id", data.id);
+    } else if (type === "settings" && data) {
+      if (data.notifPrefs) localStorage.setItem("suptrack_notif_prefs", JSON.stringify(data.notifPrefs));
+    }
+  }, [session]);
+  const autosaveStatus = useAutosave(autosaveData, autosaveFn, 2000);
+
+  // Offline detection
+  React.useEffect(() => {
+    const goOffline = () => setIsOffline(true);
+    const goOnline = () => {
+      setIsOffline(false);
+      setToast({type:"success",message:"Back online — syncing..."});
+      // Flush any pending localStorage saves
+      try {
+        const pending = localStorage.getItem("suptrack_offline_queue");
+        if (pending) {
+          const queue = JSON.parse(pending);
+          queue.forEach(item => autosaveFn(item).catch(() => {}));
+          localStorage.removeItem("suptrack_offline_queue");
+        }
+      } catch {}
+    };
+    window.addEventListener("offline", goOffline);
+    window.addEventListener("online", goOnline);
+    return () => { window.removeEventListener("offline", goOffline); window.removeEventListener("online", goOnline); };
+  }, [autosaveFn]);
+
+  // Unsaved changes warning
+  React.useEffect(() => {
+    const handler = (e) => {
+      if (autosaveStatus === "unsaved" || autosaveStatus === "saving") {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [autosaveStatus]);
+
   const [supervisorName, setSupervisorName] = useState("");
   const [supervisorProfile, setSupervisorProfile] = useState(null);
   const [internUser, setInternUser] = useState(null); // non-null if logged-in user is an intern
@@ -12824,6 +12934,8 @@ useEffect(() => {
   },[session]);
   const saveSupervisorProfile=React.useCallback(async(updates)=>{
     if(!session?.user)return;
+    // Trigger autosave indicator
+    setAutosaveData({type:"profile",data:updates,_ts:Date.now()});
 
     // Keep local state in sync
     if(updates.name) setSupervisorName(updates.name);
@@ -12949,6 +13061,8 @@ useEffect(() => {
   },[]);
 
   const updateIntern=React.useCallback((updated)=>{
+    // Queue for autosave indicator + offline backup
+    setAutosaveData({type:"intern",data:updated,_ts:Date.now()});
     setInterns(p=>{
       const old=p.find(i=>i.id===updated.id);
       // Sync new sessions to Supabase + auto-create payment records
@@ -13177,6 +13291,7 @@ useEffect(() => {
     {toast&&<div style={{position:"fixed",top:20,right:20,zIndex:9999,background:toast.type==="error"?"#FAE8E8":"#E8F5EE",color:toast.type==="error"?"#A0453E":"#2E7A4E",border:`1px solid ${toast.type==="error"?"#E8C5C5":"#A8D8BC"}`,borderRadius:12,padding:"12px 20px",fontSize:14,fontWeight:500,boxShadow:"0 4px 16px rgba(0,0,0,0.1)",animation:"st-fadeUp 0.3s ease",fontFamily:"'DM Sans',system-ui"}}>
       {toast.message}
     </div>}
+    <AutosaveIndicator status={autosaveStatus} isOffline={isOffline}/>
     <link href={f.url} rel="stylesheet"/>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/fraunces@5/index.css"/>
     <style>{`
