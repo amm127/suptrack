@@ -10486,62 +10486,60 @@ function AdminPanelPage({T,session,tickets,setTickets}) {
   // Weekly signups for chart
   const [weeklySignups,setWeeklySignups]=useState([]);
 
-  // Load all data on mount
+  // Activity feed
+  const [activityFeed,setActivityFeed]=useState([]);
+
+  const getAuthHeader=()=>{
+    const key=Object.keys(localStorage).find(k=>k.startsWith("sb-")&&k.endsWith("-auth-token"));
+    if(!key)return{};
+    try{const d=JSON.parse(localStorage.getItem(key));return d?.access_token?{Authorization:`Bearer ${d.access_token}`}:{};}catch{return{};}
+  };
+
+  const logAdminAction=async(actionType,targetUserId,targetEmail,details,action,params)=>{
+    try{await fetch("/api/admin/audit-action",{method:"POST",headers:{"Content-Type":"application/json",...getAuthHeader()},body:JSON.stringify({action_type:actionType,target_user_id:targetUserId,target_email:targetEmail,details,action,params})});}catch(e){console.error("Audit log error:",e);}
+  };
+
+  // Load all data on mount via server-side APIs
   React.useEffect(()=>{
     if(!session?.user)return;
     const load=async()=>{
       setLoading(true);
-      const now=new Date();
-      const weekAgo=new Date(now-7*24*60*60*1000);
+      const headers=getAuthHeader();
 
-      // Supervisors
-      const {data:sups}=await supabase.from("supervisors").select("*").order("created_at",{ascending:false});
-      const supList=sups||[];
-      setSupervisors(supList);
+      // Fetch platform stats + supervisors + activity in parallel from server-side APIs
+      const [statsRes,supsRes,feedRes,tixRes,invRes,annsRes]=await Promise.all([
+        fetch("/api/admin/platform-stats",{headers}).then(r=>r.ok?r.json():null).catch(()=>null),
+        fetch("/api/admin/all-supervisors",{headers}).then(r=>r.ok?r.json():null).catch(()=>null),
+        fetch("/api/admin/activity-feed",{headers}).then(r=>r.ok?r.json():null).catch(()=>null),
+        supabase.from("support_tickets").select("*").order("created_at",{ascending:false}),
+        supabase.from("invites").select("*").order("created_at",{ascending:false}),
+        supabase.from("announcements").select("*").order("created_at",{ascending:false}),
+      ]);
 
-      // Interns count
-      const {count:internCount}=await supabase.from("interns").select("*",{count:"exact",head:true});
+      if(supsRes?.supervisors) setSupervisors(supsRes.supervisors);
+      if(feedRes?.events) setActivityFeed(feedRes.events);
+      setAllTickets(tixRes.data||[]);
+      setInvites(invRes.data||[]);
+      setAnnouncements(annsRes.data||[]);
 
-      // Messages count
-      const {count:msgCount}=await supabase.from("messages").select("*",{count:"exact",head:true});
-
-      // Support tickets
-      const {data:tix}=await supabase.from("support_tickets").select("*").order("created_at",{ascending:false});
-      setAllTickets(tix||[]);
-
-      // Invites
-      const {data:inv}=await supabase.from("invites").select("*").order("created_at",{ascending:false});
-      setInvites(inv||[]);
-
-      // Error logs (last 24h)
-      const dayAgo=new Date(now-24*60*60*1000).toISOString();
-      const {count:errCount}=await supabase.from("error_logs").select("*",{count:"exact",head:true}).gte("created_at",dayAgo);
-
-      // Announcements
-      const {data:anns}=await supabase.from("announcements").select("*").order("created_at",{ascending:false});
-      setAnnouncements(anns||[]);
-
-      // Weekly signups (last 12 weeks)
-      const weeks=[];
-      for(let w=11;w>=0;w--){
-        const wStart=new Date(now-w*7*24*60*60*1000);
-        wStart.setHours(0,0,0,0);
-        wStart.setDate(wStart.getDate()-wStart.getDay());
-        const wEnd=new Date(wStart);
-        wEnd.setDate(wEnd.getDate()+7);
-        const count=supList.filter(s=>{const d=new Date(s.created_at);return d>=wStart&&d<wEnd;}).length;
-        weeks.push({label:`W${12-w}`,start:wStart.toLocaleDateString("en-US",{month:"short",day:"numeric"}),count});
+      if(statsRes){
+        setStats({
+          supervisors:statsRes.supervisors,
+          newToday:statsRes.newToday,
+          newThisWeek:statsRes.newWeek,
+          newMonth:statsRes.newMonth,
+          totalInterns:statsRes.totalInterns,
+          totalSessions:statsRes.totalSessions,
+          totalHours:statsRes.totalHours,
+          activeTrial:statsRes.activeTrial,
+          expiring7d:statsRes.expiring7d,
+          paidUsers:statsRes.paidUsers,
+          churnedMonth:statsRes.churnedMonth,
+          openTickets:statsRes.openTickets,
+          recentErrors:statsRes.recentErrors,
+        });
+        setWeeklySignups(statsRes.weeklySignups||[]);
       }
-      setWeeklySignups(weeks);
-
-      setStats({
-        supervisors:supList.length,
-        newThisWeek:supList.filter(s=>new Date(s.created_at)>=weekAgo).length,
-        totalInterns:internCount||0,
-        totalMessages:msgCount||0,
-        openTickets:(tix||[]).filter(t=>t.status==="open").length,
-        recentErrors:errCount||0,
-      });
       setLoading(false);
     };
     load();
@@ -10575,13 +10573,13 @@ function AdminPanelPage({T,session,tickets,setTickets}) {
     setDrillLoading(false);
   };
 
-  // Admin actions on users
+  // Admin actions on users — via server-side API with audit logging
   const extendTrial=async(userId,days)=>{
     setActionLoading("trial");
     const user=supervisors.find(s=>s.user_id===userId);
     const currentEnd=user?.trial_ends_at?new Date(user.trial_ends_at):new Date();
     const newEnd=new Date(currentEnd.getTime()+days*24*60*60*1000);
-    await supabase.from("supervisors").update({trial_ends_at:newEnd.toISOString()}).eq("user_id",userId);
+    await logAdminAction("extend_trial",userId,user?.email,`Extended trial by ${days} days`,"extend_trial",{current_end:currentEnd.toISOString(),days});
     setSupervisors(p=>p.map(s=>s.user_id===userId?{...s,trial_ends_at:newEnd.toISOString()}:s));
     if(detailUser?.user_id===userId) setDetailUser(prev=>({...prev,trial_ends_at:newEnd.toISOString()}));
     setActionLoading(null);
@@ -10589,7 +10587,8 @@ function AdminPanelPage({T,session,tickets,setTickets}) {
 
   const changePlan=async(userId,plan)=>{
     setActionLoading("plan");
-    await supabase.from("supervisors").update({plan}).eq("user_id",userId);
+    const user=supervisors.find(s=>s.user_id===userId);
+    await logAdminAction("change_plan",userId,user?.email,`Changed plan to ${plan}`,"change_plan",{plan});
     setSupervisors(p=>p.map(s=>s.user_id===userId?{...s,plan}:s));
     if(detailUser?.user_id===userId) setDetailUser(prev=>({...prev,plan}));
     setActionLoading(null);
@@ -10597,7 +10596,8 @@ function AdminPanelPage({T,session,tickets,setTickets}) {
 
   const toggleLifetimeFree=async(userId,current)=>{
     setActionLoading("lifetime");
-    await supabase.from("supervisors").update({lifetime_free:!current}).eq("user_id",userId);
+    const user=supervisors.find(s=>s.user_id===userId);
+    await logAdminAction("toggle_lifetime",userId,user?.email,current?"Removed founder access":"Granted founder access","toggle_lifetime",{value:!current});
     setSupervisors(p=>p.map(s=>s.user_id===userId?{...s,lifetime_free:!current}:s));
     if(detailUser?.user_id===userId) setDetailUser(prev=>({...prev,lifetime_free:!current}));
     setActionLoading(null);
@@ -10606,7 +10606,8 @@ function AdminPanelPage({T,session,tickets,setTickets}) {
   const toggleDisabled=async(userId,current)=>{
     setActionLoading("disable");
     const newStatus=current==="disabled"?"active":"disabled";
-    await supabase.from("supervisors").update({subscription_status:newStatus}).eq("user_id",userId);
+    const user=supervisors.find(s=>s.user_id===userId);
+    await logAdminAction("toggle_disabled",userId,user?.email,`Account ${newStatus}`,"toggle_disabled",{status:newStatus});
     setSupervisors(p=>p.map(s=>s.user_id===userId?{...s,subscription_status:newStatus}:s));
     if(detailUser?.user_id===userId) setDetailUser(prev=>({...prev,subscription_status:newStatus}));
     setActionLoading(null);
@@ -10677,12 +10678,6 @@ function AdminPanelPage({T,session,tickets,setTickets}) {
   const [selectedCharge,setSelectedCharge]=useState(null);
   const [stripeActionLoading,setStripeActionLoading]=useState(null);
   const [billingDetailUser,setBillingDetailUser]=useState(null);
-
-  const getAuthHeader=()=>{
-    const key=Object.keys(localStorage).find(k=>k.startsWith("sb-")&&k.endsWith("-auth-token"));
-    if(!key)return{};
-    try{const d=JSON.parse(localStorage.getItem(key));return d?.access_token?{Authorization:`Bearer ${d.access_token}`}:{};}catch{return{};}
-  };
 
   const loadStripeOverview=async()=>{
     setStripeLoading(true);
@@ -10766,13 +10761,18 @@ function AdminPanelPage({T,session,tickets,setTickets}) {
 
     {/* ─── OVERVIEW TAB ─── */}
     {tab==="overview"&&<div>
-      <div style={{display:"flex",flexWrap:"wrap",gap:14,marginBottom:28}}>
-        {card("Total Supervisors",stats.supervisors,"supervisors","👤")}
-        {card("New This Week",stats.newThisWeek,"newThisWeek","📈")}
-        {card("Active Interns",stats.totalInterns,"totalInterns","🎓")}
-        {card("Messages Sent",stats.totalMessages,"totalMessages","💬")}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:28}}>
+        {card("Supervisors",stats.supervisors,"supervisors","👤")}
+        {card("New Today",stats.newToday||0,"newToday","📅")}
+        {card("This Week",stats.newThisWeek||0,"newThisWeek","📈")}
+        {card("This Month",stats.newMonth||0,"newMonth","📊")}
+        {card("Interns",stats.totalInterns,"totalInterns","🎓")}
+        {card("Sessions",stats.totalSessions||0,null,"📝")}
+        {card("Active Trials",stats.activeTrial||0,null,"⏳")}
+        {card("Expiring 7D",stats.expiring7d||0,null,"⚠️")}
+        {card("Paid Users",stats.paidUsers||0,null,"💳")}
         {card("Open Tickets",stats.openTickets,"openTickets","🎫")}
-        {card("Errors (24h)",stats.recentErrors,"recentErrors","⚠️")}
+        {card("Errors (24h)",stats.recentErrors,"recentErrors","🔴")}
       </div>
 
       {/* Drill-down panel */}
@@ -10806,6 +10806,23 @@ function AdminPanelPage({T,session,tickets,setTickets}) {
           ))}
         </div>
       </div>
+
+      {/* Activity Feed */}
+      {activityFeed.length>0&&<div style={{background:"#fff",border:`1px solid ${goldBorder}`,borderRadius:14,padding:24,marginTop:24}}>
+        <h3 style={{margin:"0 0 16px",fontSize:16,color:t.text,fontFamily:"'Fraunces',Georgia,serif"}}>Recent Activity</h3>
+        {activityFeed.slice(0,20).map((ev,i)=>{
+          const dotColor={signup:"#2E7A4E",intern:"#2A4E8A",upgrade:"#C4A040",ticket:"#B87D2A",admin:"#6B3FA0"}[ev.type]||"#999";
+          const relTime=(iso)=>{if(!iso)return"";const d=Math.floor((Date.now()-new Date(iso).getTime())/60000);if(d<1)return"just now";if(d<60)return`${d}m ago`;if(d<1440)return`${Math.floor(d/60)}h ago`;return`${Math.floor(d/1440)}d ago`;};
+          return <div key={i}>
+            {i>0&&<div style={{height:1,background:t.borderLight||"#E8EDE8"}}/>}
+            <div style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0"}}>
+              <span style={{width:8,height:8,borderRadius:"50%",background:dotColor,flexShrink:0}}/>
+              <span style={{flex:1,fontSize:13,color:t.text}}>{ev.description}</span>
+              <span style={{fontSize:11,color:t.faint,fontFamily:"'DM Mono',monospace",flexShrink:0}}>{relTime(ev.timestamp)}</span>
+            </div>
+          </div>;
+        })}
+      </div>}
     </div>}
 
     {/* ─── USERS TAB ─── */}
