@@ -4151,8 +4151,8 @@ function PaymentsPage({interns,groups,onSelectIntern,T}) {
   return <div>
     <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:20}}>
       <div>
-        <h1 style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:32,fontWeight:700,color:"#102828",margin:"0 0 4px",letterSpacing:"-0.02em"}}>Payments</h1>
-        <p style={{color:t.muted,fontSize:14,margin:0}}>Track and export supervision fees</p>
+        <h1 style={{fontFamily:"'Fraunces',serif",fontSize:32,fontWeight:600,color:"#102828",margin:0}}>Payments</h1>
+        <p style={{fontFamily:"Georgia,serif",fontSize:15,color:"#608080",margin:"4px 0 0"}}>Track and export supervision fees</p>
       </div>
       <Btn T={t} variant="soft" onClick={()=>downloadCSV(buildCSV(),`SupTrack_Payments_${period}.csv`)}>↓ Export CSV</Btn>
     </div>
@@ -4525,8 +4525,8 @@ function InterneesPage({interns,groups,lists,colleagues,internFilter,setInternFi
   return <div>
     <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:16}}>
       <div>
-        <h1 style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:32,fontWeight:700,color:"#102828",margin:"0 0 4px",letterSpacing:"-0.02em"}}>Supervisees</h1>
-        <p style={{color:"#608080",fontSize:15,margin:0}}>Track hours, sessions, and documents for your supervisees</p>
+        <h1 style={{fontFamily:"'Fraunces',serif",fontSize:32,fontWeight:600,color:"#102828",margin:0}}>Supervisees</h1>
+        <p style={{fontFamily:"Georgia,serif",fontSize:15,color:"#608080",margin:"4px 0 0"}}>Track hours, sessions, and documents for your supervisees</p>
       </div>
       <div style={{display:"flex",gap:8}}>
         <button onClick={onOpenOnboarding}
@@ -4788,7 +4788,7 @@ function GroupsPage({groups,interns,colleagues,setColleagues,setGroups,onSelectI
     </div>}
 
     <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:24}}>
-      <div><h1 style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:32,fontWeight:700,color:"#102828",margin:"0 0 4px",letterSpacing:"-0.02em"}}>Supervision Groups</h1><p style={{color:t.muted,fontSize:14,margin:0}}>Log group sessions and manage membership</p></div>
+      <div><h1 style={{fontFamily:"'Fraunces',serif",fontSize:32,fontWeight:600,color:"#102828",margin:0}}>Supervision Groups</h1><p style={{fontFamily:"Georgia,serif",fontSize:15,color:"#608080",margin:"4px 0 0"}}>Log group sessions and manage membership</p></div>
       <Btn T={t} onClick={()=>setShowNew(true)}>+ New Group</Btn>
     </div>
 
@@ -5258,8 +5258,8 @@ function CETrackerPage({ceData,setCeData,T,session}) {
 
     <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:20}}>
       <div>
-        <h1 style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:32,fontWeight:700,color:"#102828",margin:"0 0 4px",letterSpacing:"-0.02em"}}>CE & License Renewal</h1>
-        <p style={{color:t.muted,fontSize:14,margin:0}}>Track your continuing education and attach certificates for renewal</p>
+        <h1 style={{fontFamily:"'Fraunces',serif",fontSize:32,fontWeight:600,color:"#102828",margin:0}}>CE & License Renewal</h1>
+        <p style={{fontFamily:"Georgia,serif",fontSize:15,color:"#608080",margin:"4px 0 0"}}>Track your continuing education and attach certificates for renewal</p>
       </div>
       <div style={{display:"flex",gap:8}}>
         <Btn T={t} variant="secondary" small onClick={downloadCSV}>⬇ Log (.csv)</Btn>
@@ -6147,8 +6147,14 @@ function PublicProfilePage({supervisorPhoto,setSupervisorPhoto,supervisorName:su
 
   return <div>
     {/* Header */}
+    <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:32}}>
+      <div>
+        <h1 style={{fontFamily:"'Fraunces',serif",fontSize:32,fontWeight:600,color:"#102828",margin:0}}>My Profile</h1>
+        <p style={{fontFamily:"Georgia,serif",fontSize:15,color:"#608080",margin:"4px 0 0"}}>Your public supervisor profile</p>
+      </div>
+    </div>
     <div style={{textAlign:"center",marginBottom:8}}>
-      <h1 style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:36,fontWeight:700,color:"#1E4040",margin:"0 0 4px",letterSpacing:-1}}>{profile.name||supName||"Your Profile"}</h1>
+      <h2 style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:28,fontWeight:700,color:"#1E4040",margin:"0 0 4px",letterSpacing:-1}}>{profile.name||supName||"Your Profile"}</h2>
       <p style={{color:"#A0B0A8",fontSize:11,margin:"4px 0 0",fontFamily:"'DM Mono',monospace",letterSpacing:0.3}}>suptrack.com/supervisor/{slug}</p>
     </div>
     <div style={{display:"flex",justifyContent:"flex-end",marginBottom:20}}>
@@ -6404,8 +6410,8 @@ function CalendarPage({T}) {
   return <div>
     <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:24}}>
       <div>
-        <h1 style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:32,fontWeight:700,color:"#102828",margin:"0 0 4px",letterSpacing:"-0.02em"}}>Calendar</h1>
-        <p style={{color:t.muted,fontSize:14,margin:0}}>Connect your calendar — supervision sessions auto-populate for one-click logging</p>
+        <h1 style={{fontFamily:"'Fraunces',serif",fontSize:32,fontWeight:600,color:"#102828",margin:0}}>Calendar</h1>
+        <p style={{fontFamily:"Georgia,serif",fontSize:15,color:"#608080",margin:"4px 0 0"}}>Connect your calendar — supervision sessions auto-populate for one-click logging</p>
       </div>
       {connected&&<button onClick={exportAllIcs} style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:10,padding:"8px 16px",cursor:"pointer",fontSize:12,color:t.text,fontFamily:"'DM Mono',monospace",display:"flex",alignItems:"center",gap:6,boxShadow:"0 1px 3px rgba(0,0,0,0.06)",flexShrink:0}}>
         📅 Export all (.ics)
@@ -6602,9 +6608,11 @@ function BillingPage({billing,setBilling,interns,T,F,colleagues=[],session,super
   const Label = useMemo(()=>function BLabel({children}){ return <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:8}}>{children}</div>;},[t]);
 
   return <div>
-    <div style={{marginBottom:26}}>
-      <h1 style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:32,fontWeight:700,color:"#102828",margin:"0 0 4px",letterSpacing:"-0.02em"}}>Plan & Billing</h1>
-      <p style={{color:t.muted,fontSize:14,margin:0}}>Manage your subscription, team seats, and referrals</p>
+    <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:32}}>
+      <div>
+        <h1 style={{fontFamily:"'Fraunces',serif",fontSize:32,fontWeight:600,color:"#102828",margin:0}}>Plan & Billing</h1>
+        <p style={{fontFamily:"Georgia,serif",fontSize:15,color:"#608080",margin:"4px 0 0"}}>Manage your subscription, team seats, and referrals</p>
+      </div>
     </div>
 
     {/* Payment method modal — redirects to Stripe portal to securely add a card */}
@@ -7058,7 +7066,7 @@ Tone: Collegial, warm, confident. You're a trusted colleague, not a chatbot. Aim
   if (!hipaaAck) return (
     <div style={{maxWidth:560,margin:"60px auto",textAlign:"center"}}>
       <div style={{fontSize:40,marginBottom:16}}>🧠</div>
-      <h1 style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:32,fontWeight:700,color:"#102828",margin:"0 0 4px",letterSpacing:"-0.02em"}}>Supervision Consultation AI</h1>
+      <h1 style={{fontFamily:"'Fraunces',serif",fontSize:32,fontWeight:600,color:"#102828",margin:0}}>Supervision Consultation AI</h1>
       <p style={{fontSize:14,color:t.muted,lineHeight:1.7,marginBottom:24}}>
         This is a confidential space to consult on supervisory challenges — difficult conversations, ethical dilemmas, gatekeeping, parallel process, and more. Your AI consultant knows your supervisees and can give context-aware guidance.
       </p>
@@ -7075,13 +7083,11 @@ Tone: Collegial, warm, confident. You're a trusted colleague, not a chatbot. Aim
   return (
     <div style={{display:"flex",flexDirection:"column",height:"calc(100vh - 76px)"}}>
       {/* Header */}
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20,flexShrink:0}}>
+      <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:32,flexShrink:0}}>
         <div>
-          <h1 style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:32,fontWeight:700,color:"#102828",margin:"0 0 4px",letterSpacing:"-0.02em"}}>
-            ✦ Supervision Consultation
-          </h1>
-          <p style={{color:t.muted,fontSize:13,margin:0}}>
-            Your AI supervision consultant — context-aware, HIPAA-safe, always available
+          <h1 style={{fontFamily:"'Fraunces',serif",fontSize:32,fontWeight:600,color:"#102828",margin:0}}>Consult AI</h1>
+          <p style={{fontFamily:"Georgia,serif",fontSize:15,color:"#608080",margin:"4px 0 0"}}>
+            A confidential space to consult on supervisory challenges
             {consultIntern&&<span style={{marginLeft:8}}><Badge color={t.accentText} bg={t.accentLight}>Consulting re: {dn(consultIntern)}</Badge></span>}
           </p>
         </div>
@@ -7846,22 +7852,21 @@ Be direct, clinical, encouraging. Under 400 words.`;
   if (phase==="select") {
     const filtered = filterLang==="all" ? LAB_SCENARIOS : LAB_SCENARIOS.filter(sc=>(filterLang==="es"?sc.language==="es":!sc.language));
     return <div>
-    <div style={{marginBottom:22}}>
-      <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:4}}>
-        <h1 style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:32,fontWeight:700,color:"#102828",margin:"0 0 4px",letterSpacing:"-0.02em"}}>✦ Supervision Lab</h1>
-        <div style={{display:"flex",gap:8,alignItems:"center"}}>
+    <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:32}}>
+      <div>
+        <h1 style={{fontFamily:"'Fraunces',serif",fontSize:32,fontWeight:600,color:"#102828",margin:0}}>✦ Supervision Lab</h1>
+        <p style={{fontFamily:"Georgia,serif",fontSize:15,color:"#608080",margin:"4px 0 0"}}>Practice supervision with a voice-based AI simulated supervisee</p>
+      </div>
+      <div style={{display:"flex",gap:8,alignItems:"center"}}>
           {sessionHistory.length>0&&<button onClick={()=>setPhase("history")}
             style={{background:t.accentLight,color:t.accentText,border:`1px solid ${t.accentMid}`,borderRadius:8,padding:"7px 14px",cursor:"pointer",fontSize:12,fontFamily:"'DM Mono',monospace",flexShrink:0}}>
             Session history ({sessionHistory.length})
           </button>}
-        </div>
-      </div>
-      <p style={{color:t.muted,fontSize:14,margin:"0 0 8px",lineHeight:1.6}}>Practice supervision with a voice-based AI simulated supervisee. Speak out loud — they respond in real time. End the session for clinical feedback on your approach.</p>
-      <div style={{background:t.isGradient?(t.gradientSubtle||t.accentLight):t.accentLight,border:`1px solid ${t.isGradient?"transparent":t.accentMid}`,borderRadius:8,padding:"8px 14px",fontSize:12,color:t.accentText}}>
-        🎙 Requires microphone · Chrome or Edge recommended · Natural AI voices included
       </div>
     </div>
-
+      <div style={{background:t.isGradient?(t.gradientSubtle||t.accentLight):t.accentLight,border:`1px solid ${t.isGradient?"transparent":t.accentMid}`,borderRadius:8,padding:"8px 14px",fontSize:12,color:t.accentText,marginBottom:18}}>
+        🎙 Requires microphone · Chrome or Edge recommended · Natural AI voices included
+      </div>
 
     {/* Voice settings */}
     <div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:14,padding:"18px 20px",marginBottom:18}}>
@@ -8455,8 +8460,8 @@ function DiscoverPage({interns,onAddIntern,T,session}) {
 
     <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:20}}>
       <div>
-        <h1 style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:32,fontWeight:700,color:"#102828",margin:"0 0 4px",letterSpacing:"-0.02em"}}>Discover</h1>
-        <p style={{color:t.muted,fontSize:14,margin:0}}>Find supervisees and supervisors that align with your values and practice</p>
+        <h1 style={{fontFamily:"'Fraunces',serif",fontSize:32,fontWeight:600,color:"#102828",margin:0}}>Discover</h1>
+        <p style={{fontFamily:"Georgia,serif",fontSize:15,color:"#608080",margin:"4px 0 0"}}>Find supervisees and supervisors that align with your values and practice</p>
       </div>
     </div>
 
@@ -8804,8 +8809,12 @@ function MessagesPage({T,session}) {
   const statusBg=(s)=>({pending:"#FAF2E0",active:"#E8F5EE",declined:"#FAE8E8",archived:"#E8F0EE"}[s]||"#E8F0EE");
 
   return <div>
-    <h1 style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:32,fontWeight:700,color:"#102828",margin:"0 0 4px",letterSpacing:"-0.02em"}}>Messages</h1>
-    <p style={{color:"#608080",fontSize:14,margin:"0 0 24px"}}>Supervision requests and conversations</p>
+    <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:32}}>
+      <div>
+        <h1 style={{fontFamily:"'Fraunces',serif",fontSize:32,fontWeight:600,color:"#102828",margin:0}}>Messages</h1>
+        <p style={{fontFamily:"Georgia,serif",fontSize:15,color:"#608080",margin:"4px 0 0"}}>Supervision requests and conversations</p>
+      </div>
+    </div>
 
     {loading&&<div style={{textAlign:"center",padding:"40px 0",color:"#608080"}}>Loading...</div>}
 
@@ -8992,8 +9001,8 @@ function RemindersPanel({interns,groups,onNavigate,onSelectIntern,T}) {
   return <div>
     <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:20}}>
       <div>
-        <h1 style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:32,fontWeight:700,color:"#102828",margin:"0 0 4px",letterSpacing:"-0.02em"}}>Reminders</h1>
-        <p style={{color:t.muted,fontSize:14,margin:0}}>Upcoming deadlines, overdue items, and things that need your attention</p>
+        <h1 style={{fontFamily:"'Fraunces',serif",fontSize:32,fontWeight:600,color:"#102828",margin:0}}>Reminders</h1>
+        <p style={{fontFamily:"Georgia,serif",fontSize:15,color:"#608080",margin:"4px 0 0"}}>Upcoming deadlines, overdue items, and things that need your attention</p>
       </div>
       {dismissed.size>0&&<button onClick={()=>{setDismissed(new Set());try{localStorage.removeItem("suptrack_dismissed_reminders");}catch{}}}
         style={{background:"none",border:`1px solid ${t.border}`,borderRadius:8,padding:"6px 14px",cursor:"pointer",fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace"}}>
@@ -9140,9 +9149,11 @@ function ResourcesHubPage({interns,consultIntern,T}) {
   const [section,setSection]=useState(consultIntern?"consult":"consult");
   React.useEffect(()=>{if(consultIntern)setSection("consult");},[consultIntern]);
   return <div>
-    <div style={{marginBottom:24}}>
-      <h1 style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:32,fontWeight:700,color:"#102828",margin:"0 0 4px",letterSpacing:"-0.02em"}}>Resources</h1>
-      <p style={{color:t.muted,fontSize:14,margin:0}}>AI-powered tools for supervisors</p>
+    <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:32}}>
+      <div>
+        <h1 style={{fontFamily:"'Fraunces',serif",fontSize:32,fontWeight:600,color:"#102828",margin:0}}>Resources</h1>
+        <p style={{fontFamily:"Georgia,serif",fontSize:15,color:"#608080",margin:"4px 0 0"}}>AI-powered tools for supervisors</p>
+      </div>
     </div>
     <div style={{display:"flex",gap:0,border:`1px solid ${t.border}`,borderRadius:10,overflow:"hidden",marginBottom:28,width:"fit-content"}}>
       {[["consult","✦ Consult AI"],["lab","✦ Supervision Lab"]].map(([id,label],i)=>(
@@ -9171,9 +9182,11 @@ function ResourcesPage({T}) {
   });
 
   return <div>
-    <div style={{marginBottom:24}}>
-      <h1 style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:32,fontWeight:700,color:"#102828",margin:"0 0 4px",letterSpacing:"-0.02em"}}>Supervision Resources</h1>
-      <p style={{color:t.muted,fontSize:14,margin:0,lineHeight:1.6}}>Peer-reviewed articles, foundational texts, and professional standards across behavioral health disciplines — with full citations and direct links.</p>
+    <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:32}}>
+      <div>
+        <h1 style={{fontFamily:"'Fraunces',serif",fontSize:32,fontWeight:600,color:"#102828",margin:0}}>Supervision Resources</h1>
+        <p style={{fontFamily:"Georgia,serif",fontSize:15,color:"#608080",margin:"4px 0 0",lineHeight:1.6}}>Peer-reviewed articles, foundational texts, and professional standards across behavioral health disciplines — with full citations and direct links.</p>
+      </div>
     </div>
 
     {/* Search */}
@@ -9549,9 +9562,11 @@ Replace all bracketed placeholders with appropriate values based on the supervis
   const Card = useMemo(()=>function AgCard({children,style={}}){ return <div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:14,padding:"22px 24px",boxShadow:"0 1px 4px rgba(0,0,0,0.04)",...style}}>{children}</div>;},[t]);
 
   return <div>
-    <div style={{marginBottom:24}}>
-      <h1 style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:32,fontWeight:700,color:"#102828",margin:"0 0 4px",letterSpacing:"-0.02em"}}>Supervision Agreements</h1>
-      <p style={{color:t.muted,fontSize:14,margin:0}}>Customize your agreement template, generate intern-specific versions, and track signatures</p>
+    <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:32}}>
+      <div>
+        <h1 style={{fontFamily:"'Fraunces',serif",fontSize:32,fontWeight:600,color:"#102828",margin:0}}>Supervision Agreements</h1>
+        <p style={{fontFamily:"Georgia,serif",fontSize:15,color:"#608080",margin:"4px 0 0"}}>Customize your agreement template, generate intern-specific versions, and track signatures</p>
+      </div>
     </div>
 
     {/* Tab nav */}
@@ -10057,9 +10072,11 @@ function SupportPage({supervisorName, supervisorEmail, tickets, setTickets, T, s
   }[s] || { color:t.muted, bg:t.surfaceAlt, label:s });
 
   return <div>
-    <div style={{marginBottom:24}}>
-      <h1 style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:32,fontWeight:700,color:"#102828",margin:"0 0 4px",letterSpacing:"-0.02em"}}>Support</h1>
-      <p style={{color:t.muted,fontSize:14,margin:0}}>Reach out to the SupTrack team — we read every message</p>
+    <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:32}}>
+      <div>
+        <h1 style={{fontFamily:"'Fraunces',serif",fontSize:32,fontWeight:600,color:"#102828",margin:0}}>Support</h1>
+        <p style={{fontFamily:"Georgia,serif",fontSize:15,color:"#608080",margin:"4px 0 0"}}>Reach out to the SupTrack team — we read every message</p>
+      </div>
     </div>
 
     {/* Tabs */}
@@ -11583,8 +11600,12 @@ function SettingsPage({theme,setTheme,setCustomTheme,font,setFont,darkMode,setDa
   const previewTheme = buildCustomTheme(customAccent, customBgTone);
 
   return <div>
-    <h1 style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:32,fontWeight:700,color:"#102828",margin:"0 0 4px",letterSpacing:"-0.02em"}}>Settings</h1>
-    <p style={{color:t.muted,fontSize:14,margin:"0 0 28px"}}>Personalize your SupTrack</p>
+    <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:32}}>
+      <div>
+        <h1 style={{fontFamily:"'Fraunces',serif",fontSize:32,fontWeight:600,color:"#102828",margin:0}}>Settings</h1>
+        <p style={{fontFamily:"Georgia,serif",fontSize:15,color:"#608080",margin:"4px 0 0"}}>Personalize your SupTrack</p>
+      </div>
+    </div>
     <div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:14,padding:"22px 24px",marginBottom:16,boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
       <div style={{fontFamily:"inherit",fontSize:18,color:t.text,marginBottom:4}}>Your name</div>
       <p style={{fontSize:13,color:t.muted,marginBottom:14}}>Used for your initials, sidebar, and documentation</p>
