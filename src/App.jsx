@@ -6844,7 +6844,7 @@ Tone: Collegial, warm, confident. You're a trusted colleague, not a chatbot. Aim
         </div>
         <div style={{display:"flex",gap:8,alignItems:"center"}}>
           {apiKey&&<span style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace"}}>🔑 Key set</span>}
-          {messages.length>0&&<Btn T={t} variant="secondary" small onClick={()=>setMessages([])}>Clear</Btn>}
+          {messages.length>0&&<Btn T={t} variant="secondary" small onClick={()=>setMessages([])}>New Conversation</Btn>}
         </div>
       </div>
 
