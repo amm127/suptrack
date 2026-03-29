@@ -6784,101 +6784,70 @@ function BillingPage({billing,setBilling,interns,T,F,colleagues=[],session,super
     </div>}
 
     {/* ── Referrals tab ── */}
-    {tab==="referrals" && <div style={{display:"flex",flexDirection:"column",gap:16}}>
+    {tab==="referrals" && (()=>{
+      const refCode = supervisorProfile?.referral_code || session?.user?.id?.slice(0,8).toUpperCase() || "";
+      const refLink = `https://suptrack.com/signup?ref=${refCode}`;
+      const [refList,setRefList] = [billing._referrals||[], (v)=>setBilling(p=>({...p,_referrals:v}))];
+      const [refLoaded,setRefLoaded] = [billing._refLoaded||false, (v)=>setBilling(p=>({...p,_refLoaded:v}))];
+      // Load referrals from Supabase on first view
+      if(!refLoaded&&session?.user){
+        supabase.from("referrals").select("*").eq("referrer_id",session.user.id).order("created_at",{ascending:false}).then(({data})=>{
+          setRefList(data||[]);
+          setRefLoaded(true);
+        });
+      }
+      const converted = refList.filter(r=>r.status==="converted"||r.status==="rewarded").length;
+      const signedUp = refList.filter(r=>r.status==="signed_up").length;
+      const rewarded = refList.filter(r=>r.status==="rewarded").length;
+      const statusColor = (s) => ({pending:"#C4A040",signed_up:"#1E4040",converted:"#2E7A4E",rewarded:"#2E7A4E"}[s]||"#608080");
+      const statusBg = (s) => ({pending:"#FAF2E0",signed_up:"#E8F0EE",converted:"#E8F5EE",rewarded:"#E8F5EE"}[s]||"#E8F0EE");
+      const statusLabel = (s) => ({pending:"Pending",signed_up:"Signed up",converted:"Converted",rewarded:"✓ Rewarded"}[s]||s);
 
-      {/* Milestone progress — each tier is completely independent */}
-      {(()=>{
-        const tp = billing.tierProgress || {};
-        const TIERS = [
-          { num:1, required:1,  reward:"1 month free",  icon:"🎁", color:"#7B9FD4", bg:"#EEF2FA", desc:"Your very first paid referral" },
-          { num:2, required:3,  reward:"1 month free",  icon:"🎉", color:"#88B8A0", bg:"#EEF8F2", desc:"3 separate paid referrals" },
-          { num:3, required:10, reward:"3 months free", icon:"⭐", color:"#A088C8", bg:"#F0EBF9", desc:"10 separate paid referrals" },
-          { num:4, required:25, reward:"1 year free",   icon:"🏆", color:"#E8A878", bg:"#FDF5EE", desc:"25 separate paid referrals" },
-        ];
-
-        return <Card>
-          <Label>Your reward tiers</Label>
-          <div style={{fontSize:13,color:t.muted,marginBottom:16,lineHeight:1.6}}>
-            Each tier is <strong style={{color:t.text}}>completely independent</strong> — the same referral only counts toward one tier. You need fresh signups for each.
-          </div>
-          <div style={{display:"flex",flexDirection:"column",gap:12}}>
-            {TIERS.map(tier=>{
-              const prog = tp[tier.num] || {required:tier.required, earned:0, referrals:[], unlocked:false};
-              const pct = Math.min(100, Math.round((prog.earned/tier.required)*100));
-              const unlocked = prog.unlocked || prog.earned >= tier.required;
-              return <div key={tier.num} style={{background:unlocked?`${tier.color}12`:t.surfaceAlt,border:`1px solid ${unlocked?tier.color+"40":t.border}`,borderRadius:12,padding:"14px 16px",transition:"all 0.2s"}}>
-                <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:unlocked?0:10}}>
-                  <div style={{width:38,height:38,borderRadius:10,background:tier.bg,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>{tier.icon}</div>
-                  <div style={{flex:1,minWidth:0}}>
-                    <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
-                      <span style={{fontSize:14,color:t.text,fontWeight:500}}>{tier.reward}</span>
-                      <span style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace"}}>{tier.desc}</span>
-                    </div>
-                    {!unlocked&&<div style={{fontSize:12,color:t.muted,marginTop:2}}>
-                      {prog.earned} of {tier.required} referrals · {tier.required-prog.earned} more needed
-                    </div>}
-                  </div>
-                  {unlocked
-                    ? <Badge color={tier.color} bg={tier.bg}>✓ Unlocked!</Badge>
-                    : <span style={{fontSize:12,color:t.faint,fontFamily:"'DM Mono',monospace",flexShrink:0}}>{prog.earned}/{tier.required}</span>}
-                </div>
-                {/* Progress bar — only shown when not yet unlocked */}
-                {!unlocked&&<div style={{height:5,background:t.borderLight,borderRadius:999,overflow:"hidden"}}>
-                  <div style={{height:"100%",width:`${pct}%`,background:tier.color,borderRadius:999,transition:"width 0.6s ease"}}/>
-                </div>}
-              </div>;
-            })}
-          </div>
-          <div style={{fontSize:12,color:t.muted,marginTop:12,lineHeight:1.6}}>
-            Rewards are applied automatically when each tier is reached. Credits don't expire. The same person can't count toward multiple tiers.
-          </div>
-        </Card>;
-      })()}
-
-      {/* Referral link */}
-      <Card>
-        <Label>Your referral link</Label>
-        <div style={{fontSize:13,color:t.muted,marginBottom:14,lineHeight:1.6}}>
-          When someone signs up with your link, they get their <strong style={{color:t.text}}>first month free</strong>. You earn credit toward your reward tiers when they pay.
+      return <div style={{display:"flex",flexDirection:"column",gap:16}}>
+        {/* Stats */}
+        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14}}>
+          <Card><div style={{textAlign:"center"}}><div style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:28,fontWeight:700,color:"#1E4040"}}>{refList.length}</div><div style={{fontSize:12,color:"#608080",marginTop:4}}>People referred</div></div></Card>
+          <Card><div style={{textAlign:"center"}}><div style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:28,fontWeight:700,color:"#2E7A4E"}}>{converted}</div><div style={{fontSize:12,color:"#608080",marginTop:4}}>Converted to paid</div></div></Card>
+          <Card><div style={{textAlign:"center"}}><div style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:28,fontWeight:700,color:"#C4A040"}}>{rewarded}</div><div style={{fontSize:12,color:"#608080",marginTop:4}}>Rewards earned</div></div></Card>
         </div>
-        <div style={{display:"flex",gap:10,marginBottom:12}}>
-          <div style={{flex:1,background:t.surfaceAlt,borderRadius:10,padding:"11px 14px",fontSize:13,color:t.muted,fontFamily:"'DM Mono',monospace",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-            https://app.suptrack.com/signup?ref={billing.referralCode}
+
+        {/* Referral link */}
+        <Card>
+          <Label>Your referral link</Label>
+          <div style={{fontSize:13,color:"#608080",marginBottom:14,lineHeight:1.6}}>
+            When someone signs up with your link, they get their <strong style={{color:"#102828"}}>first month free</strong>. You earn credit when they upgrade to a paid plan.
           </div>
-          <button onClick={copyReferral} style={{background:copied?t.accent:t.surface,color:copied?"#fff":t.text,border:`1px solid ${t.border}`,borderRadius:10,padding:"10px 20px",fontSize:13,cursor:"pointer",fontFamily:"'DM Mono',monospace",flexShrink:0,transition:"all 0.15s"}}>
-            {copied?"✓ Copied":"Copy link"}
-          </button>
-        </div>
-        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-          {["Copy for email","Share on LinkedIn","Send via text"].map(action=>(
-            <button key={action} onClick={copyReferral} style={{background:t.surfaceAlt,color:t.muted,border:`1px solid ${t.border}`,borderRadius:8,padding:"6px 14px",fontSize:12,cursor:"pointer",fontFamily:"'DM Mono',monospace"}}>{action}</button>
+          <div style={{display:"flex",gap:10,marginBottom:12}}>
+            <div style={{flex:1,background:"#E8F0EE",borderRadius:10,padding:"11px 14px",fontSize:13,color:"#1E4040",fontFamily:"'DM Mono',monospace",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+              {refLink}
+            </div>
+            <button onClick={()=>{navigator.clipboard?.writeText(refLink);setCopied(true);setTimeout(()=>setCopied(false),2000);}} style={{background:copied?"#1E4040":"#FAFDFB",color:copied?"#C8E8E0":"#1E4040",border:"1px solid #C8D8D4",borderRadius:10,padding:"10px 20px",fontSize:13,cursor:"pointer",fontFamily:"'DM Mono',monospace",flexShrink:0,transition:"all 0.15s"}}>
+              {copied?"✓ Copied":"Copy link"}
+            </button>
+          </div>
+          <button onClick={()=>{window.open(`mailto:?subject=${encodeURIComponent("Try SupTrack — supervision management for clinical supervisors")}&body=${encodeURIComponent(`I've been using SupTrack to manage my supervision practice and thought you might find it helpful too.\n\nSign up here (you'll get your first month free): ${refLink}\n\nIt handles hours tracking, session notes, agreements, and more — all in one place.`)}`)}} style={{background:"#E8F0EE",color:"#1E4040",border:"1px solid #C8D8D4",borderRadius:8,padding:"8px 16px",fontSize:12,cursor:"pointer",fontFamily:"'DM Mono',monospace"}}>Share via email</button>
+        </Card>
+
+        {/* Referral history */}
+        <Card>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
+            <Label>Referral history</Label>
+            <div style={{fontSize:12,color:"#608080",fontFamily:"'DM Mono',monospace"}}>{converted} converted · {signedUp} signed up</div>
+          </div>
+          {refList.length===0&&<div style={{fontSize:14,color:"#608080",textAlign:"center",padding:"16px 0"}}>No referrals yet — share your link to get started.</div>}
+          {refList.map((ref,i)=>(
+            <div key={ref.id||i} style={{display:"flex",alignItems:"center",gap:14,padding:"12px 0",borderTop:i>0?`1px solid ${t.borderLight}`:"none"}}>
+              <Avatar initials={(ref.referred_email||"?").split("@")[0].slice(0,2).toUpperCase()} size={36} T={t}/>
+              <div style={{flex:1}}>
+                <div style={{fontSize:14,color:"#102828",fontWeight:500}}>{ref.referred_email||"Pending"}</div>
+                <div style={{fontSize:12,color:"#608080",marginTop:1}}>{ref.created_at?new Date(ref.created_at).toLocaleDateString():""}</div>
+              </div>
+              <span style={{fontSize:11,color:statusColor(ref.status),background:statusBg(ref.status),borderRadius:6,padding:"2px 8px",fontFamily:"'DM Mono',monospace"}}>{statusLabel(ref.status)}</span>
+            </div>
           ))}
-        </div>
-      </Card>
-
-      {/* Referral history */}
-      <Card>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
-          <Label style={{margin:0}}>Referral history</Label>
-          <div style={{fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace"}}>{billing.referrals.filter(r=>r.creditEarned).length} paid · {billing.referrals.filter(r=>!r.creditEarned).length} pending</div>
-        </div>
-        {billing.referrals.length===0&&<div style={{fontSize:14,color:t.muted}}>No referrals yet — share your link to get started.</div>}
-        {billing.referrals.map((ref,i)=>(
-          <div key={i} style={{display:"flex",alignItems:"center",gap:14,padding:"12px 0",borderTop:i>0?`1px solid ${t.borderLight}`:"none"}}>
-            <div style={{width:36,height:36,borderRadius:"50%",background:ref.creditEarned?t.accentMid:t.surfaceAlt,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,color:ref.creditEarned?t.accentText:t.muted,fontFamily:"'DM Mono',monospace",fontWeight:600,flexShrink:0}}>
-              {ref.name.split(" ").map(w=>w[0]).join("").slice(0,2)}
-            </div>
-            <div style={{flex:1}}>
-              <div style={{fontSize:14,color:t.text,fontWeight:500}}>{ref.name}</div>
-              <div style={{fontSize:12,color:t.muted,marginTop:1}}>Joined {ref.joined}</div>
-            </div>
-            <Badge color={ref.creditEarned?t.accentText:S.amber} bg={ref.creditEarned?t.accentLight:S.amberLight}>
-              {ref.creditEarned?"✓ Paid":"⏳ Trial"}
-            </Badge>
-          </div>
-        ))}
-      </Card>
-    </div>}
+        </Card>
+      </div>;
+    })()}
 
     {/* ── Founding tab ── */}
     {tab==="founding" && <div style={{display:"flex",flexDirection:"column",gap:16}}>

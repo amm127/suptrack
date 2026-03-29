@@ -48,6 +48,8 @@ export default async function handler(req, res) {
           billing_cycle: cycle,
           stripe_customer_id: sub.customer,
           seat_count: seatCount,
+          subscription_status: sub.status === 'active' ? 'active' : sub.status === 'trialing' ? 'trial' : sub.status,
+          stripe_subscription_id: sub.id,
         }).eq('user_id', userId);
       }
       break;
@@ -59,6 +61,8 @@ export default async function handler(req, res) {
         await supabase.from('supervisors').update({
           plan: 'starter',
           seat_count: 0,
+          subscription_status: 'cancelled',
+          stripe_subscription_id: null,
         }).eq('user_id', userId);
       }
       break;
