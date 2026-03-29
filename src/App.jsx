@@ -698,9 +698,37 @@ const buildReport = (intern,groups,opts) => {
 };
 
 // ── Shared UI ──────────────────────────────────────────────────────────────
-const Avatar = ({initials,size=40,color,textColor,T,photo,editable,onPhotoChange}) => {
+const Avatar = ({initials,size=40,color,textColor,T,photo,editable,onPhotoChange,userId}) => {
   const t=T||THEMES.sage;
-  const handleFile=(e)=>{ const file=e.target.files?.[0]; if(!file) return; const r=new FileReader(); r.onload=(ev)=>onPhotoChange&&onPhotoChange(ev.target.result); r.readAsDataURL(file); };
+  const handleFile=async(e)=>{
+    const file=e.target.files?.[0]; if(!file) return;
+    // Resize to max 400x400
+    const img=new Image();
+    const dataUrl=await new Promise(resolve=>{const r=new FileReader();r.onload=ev=>resolve(ev.target.result);r.readAsDataURL(file);});
+    img.src=dataUrl;
+    await new Promise(resolve=>{img.onload=resolve;});
+    const max=400;
+    let w=img.width,h=img.height;
+    if(w>max||h>max){const scale=Math.min(max/w,max/h);w=Math.round(w*scale);h=Math.round(h*scale);}
+    const canvas=document.createElement("canvas");canvas.width=w;canvas.height=h;
+    canvas.getContext("2d").drawImage(img,0,0,w,h);
+    const blob=await new Promise(resolve=>canvas.toBlob(resolve,"image/jpeg",0.85));
+    // Try uploading to Supabase Storage
+    if(userId&&blob){
+      const path=`${userId}/avatar.jpg`;
+      const {error}=await supabase.storage.from("avatars").upload(path,blob,{contentType:"image/jpeg",upsert:true});
+      if(!error){
+        const {data:urlData}=supabase.storage.from("avatars").getPublicUrl(path);
+        if(urlData?.publicUrl){
+          const url=urlData.publicUrl+"?t="+Date.now(); // cache bust
+          onPhotoChange&&onPhotoChange(url);
+          return;
+        }
+      } else { console.error("Avatar upload error:",error.message); }
+    }
+    // Fallback to base64
+    onPhotoChange&&onPhotoChange(dataUrl);
+  };
   return <div style={{position:"relative",width:size,height:size,flexShrink:0}}>
     {photo
       ? <img src={photo} alt={initials} style={{width:size,height:size,borderRadius:"50%",objectFit:"cover",display:"block"}}/>
@@ -5935,7 +5963,7 @@ function PublicProfilePage({supervisorPhoto,setSupervisorPhoto,supervisorName:su
         <div style={cardStyle}>
           {sectionLabel("Identity")}
           <div style={{display:"flex",flexDirection:"column",alignItems:"center",marginBottom:20}}>
-            <Avatar initials={supervisorInitials||"??"} size={80} T={{...t,accentMid:"#1E4040",accentText:"#F0DECA"}} photo={supervisorPhoto} editable={true} onPhotoChange={(url)=>{setSupervisorPhoto(url);if(onSaveProfile)onSaveProfile({photo:url});}}/>
+            <Avatar initials={supervisorInitials||"??"} size={80} T={{...t,accentMid:"#1E4040",accentText:"#F0DECA"}} photo={supervisorPhoto} editable={true} userId={sp?.user_id} onPhotoChange={(url)=>{setSupervisorPhoto(url);if(onSaveProfile)onSaveProfile({photo:url});}}/>
             <div style={{marginTop:12,textAlign:"center"}}>
               {editing
                 ? <input {...inp("name")} style={{...inp("name").style,fontSize:22,fontFamily:"'Fraunces',Georgia,serif",fontWeight:600,textAlign:"center",marginBottom:6}}/>
