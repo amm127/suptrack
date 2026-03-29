@@ -2210,8 +2210,9 @@ function EditProfileModal({intern,onSave,onClose,T}) {
     university:    intern.university||"",
     licenseGoal:   intern.licenseGoal||"",
     // Role & discipline
-    supervisorRole: intern.supervisorRole||"primary",
+    supervisorRole: intern.supervisorRole||"",
     discipline:     intern.discipline||intern.internType||"counseling",
+    isPracticum:    intern.isPracticum||false,
   });
   const [section,setSection]=useState("personal");
   const [errors,setErrors]=useState({});
@@ -2236,7 +2237,7 @@ function EditProfileModal({intern,onSave,onClose,T}) {
       phone:form.phone, email:form.email, startDate:form.startDate,
       credential:form.credential, credentialBody:form.credentialBody,
       university:form.university, licenseGoal:form.licenseGoal,
-      supervisorRole:form.supervisorRole, discipline:form.discipline, internType:form.discipline,
+      supervisorRole:form.supervisorRole, discipline:form.discipline, internType:form.discipline, isPracticum:form.isPracticum, proBono:form.isPracticum?true:intern.proBono,
       supervisor_role:form.supervisorRole,
       employment:{
         employer:form.employer, employerAddress:form.employerAddress,
@@ -2347,12 +2348,13 @@ function EditProfileModal({intern,onSave,onClose,T}) {
           </div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
             <div>
-              {iLabel("Supervisor role")}
+              {iLabel("Supervisor role (optional)")}
               <select value={form.supervisorRole} onChange={e=>set("supervisorRole",e.target.value)}
                 style={{width:"100%",border:`1px solid ${t.border}`,borderRadius:8,padding:"8px 12px",fontSize:13,fontFamily:"inherit",color:t.text,background:t.bg,outline:"none",cursor:"pointer"}}>
                 {form.discipline==="student"
                   ? <option value="student">Student</option>
                   : <>
+                      <option value="">— Not specified —</option>
                       <option value="primary">Primary Intern</option>
                       <option value="secondary">Secondary Intern</option>
                       <option value="student">Student</option>
@@ -2383,6 +2385,17 @@ function EditProfileModal({intern,onSave,onClose,T}) {
             <div>{iLabel("Licensure goal")}{inp("licenseGoal","e.g. LPC")}</div>
           </div>
           {form.discipline==="student"&&<div>{iLabel("University *")}{inp("university","e.g. University of Nevada, Reno")}</div>}
+          {/* Practicum toggle */}
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",background:t.surfaceAlt,borderRadius:8,padding:"10px 14px",marginTop:8}}>
+            <div>
+              <div style={{fontSize:13,color:t.text,fontWeight:500}}>Graduate practicum (unpaid)</div>
+              <div style={{fontSize:11,color:t.muted,marginTop:2}}>Hides payment fields and alerts</div>
+            </div>
+            <button onClick={()=>set("isPracticum",!form.isPracticum)}
+              style={{background:form.isPracticum?t.accent:t.border,border:"none",borderRadius:20,width:36,height:20,cursor:"pointer",position:"relative",transition:"all 0.15s",flexShrink:0}}>
+              <span style={{position:"absolute",top:2,left:form.isPracticum?18:2,width:16,height:16,borderRadius:"50%",background:"#fff",transition:"left 0.15s"}}/>
+            </button>
+          </div>
         </div>}
       </div>
 
@@ -5007,8 +5020,8 @@ const generateAlerts = (interns, ceData, supervisorProfile) => {
   interns.filter(i=>i.status==="active").forEach(intern=>{
     const name = dn(intern);
 
-    // PAYMENT OVERDUE (30+ days)
-    if(!intern.proBono){
+    // PAYMENT OVERDUE (30+ days) — skip for practicum/pro bono
+    if(!intern.proBono && !intern.isPracticum){
       const overdue = (intern.payments||[]).find(p=>p.status==="overdue");
       if(overdue){
         const paidDate = overdue.date ? new Date(overdue.date) : null;
