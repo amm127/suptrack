@@ -7621,50 +7621,7 @@ function SupervisionLabPage({T}) {
   const [fetchingFeedback, setFetchingFeedback] = useState(false);
   const [selectedVoice, setSelectedVoice] = useState(ELEVENLABS_VOICES[0]);
   const [audioPlaying, setAudioPlaying] = useState(false);
-  const [useElevenLabs, setUseElevenLabs] = useState(false);
-  const [elKey, setElKey] = useState("");
-  const [elKeyInput, setElKeyInput] = useState("");
-  const [elKeySaved, setElKeySaved] = useState(false);
-
-  // Load saved ElevenLabs key on mount
-  React.useEffect(()=>{
-    const loadKey=async()=>{
-      // Try Supabase first
-      try{
-        const authKey=Object.keys(localStorage).find(k=>k.startsWith("sb-")&&k.endsWith("-auth-token"));
-        if(authKey){
-          const d=JSON.parse(localStorage.getItem(authKey));
-          if(d?.user?.id){
-            const {data}=await supabase.from("supervisors").select("elevenlabs_api_key").eq("user_id",d.user.id).single();
-            if(data?.elevenlabs_api_key){setElKey(data.elevenlabs_api_key);setUseElevenLabs(true);setElKeySaved(true);return;}
-          }
-        }
-      }catch{}
-      // Fall back to localStorage
-      const saved=localStorage.getItem("elevenlabs_key");
-      if(saved){setElKey(saved);setUseElevenLabs(true);setElKeySaved(true);}
-    };
-    loadKey();
-  },[]);
-
-  const saveElKey=(key)=>{
-    setElKey(key);setUseElevenLabs(true);setElKeySaved(true);
-    localStorage.setItem("elevenlabs_key",key);
-    // Save to Supabase
-    try{
-      const authKey=Object.keys(localStorage).find(k=>k.startsWith("sb-")&&k.endsWith("-auth-token"));
-      if(authKey){const d=JSON.parse(localStorage.getItem(authKey));if(d?.user?.id)supabase.from("supervisors").update({elevenlabs_api_key:key}).eq("user_id",d.user.id);}
-    }catch{}
-  };
-
-  const clearElKey=()=>{
-    setElKey("");setElKeyInput("");setUseElevenLabs(false);setElKeySaved(false);
-    localStorage.removeItem("elevenlabs_key");
-    try{
-      const authKey=Object.keys(localStorage).find(k=>k.startsWith("sb-")&&k.endsWith("-auth-token"));
-      if(authKey){const d=JSON.parse(localStorage.getItem(authKey));if(d?.user?.id)supabase.from("supervisors").update({elevenlabs_api_key:null}).eq("user_id",d.user.id);}
-    }catch{}
-  };
+  const [voiceEnabled, setVoiceEnabled] = useState(true);
 
   const [filterLang, setFilterLang] = useState("all");
   // Pre-load browser voices async (Chrome loads them lazily)
@@ -7735,20 +7692,23 @@ function SupervisionLabPage({T}) {
     synthRef.current.speak(utt);
   };
 
-  const speakElevenLabs = async (text, voiceId, lang, onEnd) => {
-    if (!elKey) { speakBrowser(text, lang, onEnd); return; }
+  const speakServer = async (text, voiceId, lang, onEnd) => {
     try {
-      const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,{method:"POST",headers:{"Content-Type":"application/json","xi-api-key":elKey},body:JSON.stringify({text,model_id:"eleven_turbo_v2",voice_settings:{stability:0.5,similarity_boost:0.8}})});
+      const authKey=Object.keys(localStorage).find(k=>k.startsWith("sb-")&&k.endsWith("-auth-token"));
+      const headers={"Content-Type":"application/json"};
+      if(authKey){try{const d=JSON.parse(localStorage.getItem(authKey));if(d?.access_token)headers.Authorization=`Bearer ${d.access_token}`;}catch{}}
+      const res = await fetch("/api/generate-voice",{method:"POST",headers,body:JSON.stringify({text:text.slice(0,500),voiceId})});
       if(!res.ok) throw new Error();
       const blob=await res.blob(); const url=URL.createObjectURL(blob);
       if(audioRef.current){audioRef.current.src=url;audioRef.current.onplay=()=>{setSpeaking(true);setAudioPlaying(true);};audioRef.current.onended=()=>{setSpeaking(false);setAudioPlaying(false);URL.revokeObjectURL(url);if(onEnd)onEnd();};audioRef.current.onerror=()=>{setSpeaking(false);setAudioPlaying(false);if(onEnd)onEnd();};audioRef.current.play();}
-    } catch(e){speakBrowser(text, lang, onEnd);}
+    } catch{speakBrowser(text, lang, onEnd);}
   };
+
+  const VOICE_IDS = {sarah:"21m00Tcm4TlvDq8ikWAM",james:"TxGEqnHWrfWFTfGW9XjX",aria:"pNInz6obpgDQGcFmaJgB",marcus:"VR6AewLTigWG4xSOukaG",elena:"EXAVITQu4vr4xnSDxMaL",daniel:"onwK4e9ZLuTAKqWW03F9",sofia_es:"XB0fDUnXU5powFXDhCwa",pablo_es:"pqHfZKP75CvOlQylNhV4"};
 
   const speak = (text, onEnd) => {
     const lang = scenario?.language==="es"?"es-ES":"en-US";
-    const elVoiceMap = {sarah:"21m00Tcm4TlvDq8ikWAM",james:"TxGEqnHWrfWFTfGW9XjX",aria:"pNInz6obpgDQGcFmaJgB",marcus:"VR6AewLTigWG4xSOukaG",elena:"EXAVITQu4vr4xnSDxMaL",daniel:"onwK4e9ZLuTAKqWW03F9",sofia_es:"XB0fDUnXU5powFXDhCwa",pablo_es:"pqHfZKP75CvOlQylNhV4"};
-    if(useElevenLabs&&elKey) speakElevenLabs(text, elVoiceMap[selectedVoice.id]||elVoiceMap.sarah, lang, onEnd);
+    if(voiceEnabled) speakServer(text, VOICE_IDS[selectedVoice.id]||VOICE_IDS.sarah, lang, onEnd);
     else speakBrowser(text, lang, onEnd);
   };
 
@@ -7779,12 +7739,8 @@ function SupervisionLabPage({T}) {
   // Auto-start listening after AI finishes speaking
   const speakAndListen = (text) => {
     const lang = scenario?.language==="es"?"es-ES":"en-US";
-    const elVoiceMap = {sarah:"21m00Tcm4TlvDq8ikWAM",james:"TxGEqnHWrfWFTfGW9XjX",aria:"pNInz6obpgDQGcFmaJgB",marcus:"VR6AewLTigWG4xSOukaG",elena:"EXAVITQu4vr4xnSDxMaL",daniel:"onwK4e9ZLuTAKqWW03F9",sofia_es:"XB0fDUnXU5powFXDhCwa",pablo_es:"pqHfZKP75CvOlQylNhV4"};
-    const afterSpeak = () => {
-      // Short pause then auto-open mic
-      setTimeout(startListening, 400);
-    };
-    if(useElevenLabs&&elKey) speakElevenLabs(text, elVoiceMap[selectedVoice.id]||elVoiceMap.sarah, lang, afterSpeak);
+    const afterSpeak = () => { setTimeout(startListening, 400); };
+    if(voiceEnabled) speakServer(text, VOICE_IDS[selectedVoice.id]||VOICE_IDS.sarah, lang, afterSpeak);
     else speakBrowser(text, lang, afterSpeak);
   };
 
@@ -7890,61 +7846,20 @@ Be direct, clinical, encouraging. Under 400 words.`;
       </div>
       <p style={{color:t.muted,fontSize:14,margin:"0 0 8px",lineHeight:1.6}}>Practice supervision with a voice-based AI simulated supervisee. Speak out loud — they respond in real time. End the session for clinical feedback on your approach.</p>
       <div style={{background:t.isGradient?(t.gradientSubtle||t.accentLight):t.accentLight,border:`1px solid ${t.isGradient?"transparent":t.accentMid}`,borderRadius:8,padding:"8px 14px",fontSize:12,color:t.accentText}}>
-        🎙 Requires microphone · Chrome or Edge recommended · <strong>For realistic voices: enable ElevenLabs below</strong> (free tier available at elevenlabs.io)
+        🎙 Requires microphone · Chrome or Edge recommended · Natural AI voices included
       </div>
     </div>
 
 
     {/* Voice settings */}
     <div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:14,padding:"18px 20px",marginBottom:18}}>
-      <div style={{fontSize:14,color:t.text,fontWeight:500,marginBottom:4}}>Supervisee voice</div>
-
-      {/* ElevenLabs — primary recommended path */}
-      {!elKey
-        ? <div style={{background:t.isGradient?(t.gradientSubtle||t.accentLight):t.accentLight,border:`1px solid ${t.accentMid}`,borderRadius:10,padding:"14px 16px",marginBottom:14}}>
-            <div style={{fontSize:13,color:t.accentText,fontWeight:600,marginBottom:4}}>
-              🎙 Get realistic voices free — takes 60 seconds
-            </div>
-            <div style={{fontSize:12,color:t.accentText,opacity:0.85,marginBottom:10,lineHeight:1.6}}>
-              Browser voices sound robotic. ElevenLabs gives you natural-sounding voices at no cost — 10,000 characters/month free, no credit card needed.
-            </div>
-            <div style={{display:"flex",gap:8,marginBottom:8}}>
-              <input
-                value={elKeyInput}
-                onChange={e=>setElKeyInput(e.target.value)}
-                onKeyDown={e=>{if(e.key==="Enter"&&elKeyInput.trim()){saveElKey(elKeyInput.trim());}}}
-                placeholder="Paste your ElevenLabs API key here..."
-                type="password"
-                style={{flex:1,border:`1px solid ${t.accentMid}`,borderRadius:8,padding:"8px 12px",fontSize:13,fontFamily:"'DM Mono',monospace",color:t.text,background:t.surface,outline:"none"}}
-              />
-              <button
-                onClick={()=>{if(elKeyInput.trim()){saveElKey(elKeyInput.trim());}}}
-                style={{background:t.accent,color:"#fff",border:"none",borderRadius:8,padding:"8px 16px",cursor:"pointer",fontSize:13,fontWeight:500,fontFamily:"inherit",whiteSpace:"nowrap"}}>
-                Save key
-              </button>
-            </div>
-            <a href="https://elevenlabs.io" target="_blank" rel="noopener noreferrer"
-              style={{fontSize:11,color:t.accentText,fontFamily:"'DM Mono',monospace",opacity:0.75}}>
-              → elevenlabs.io → Sign up free → Profile → API Keys
-            </a>
-          </div>
-        : <div style={{display:"flex",alignItems:"center",gap:10,background:t.surfaceAlt,borderRadius:8,padding:"8px 14px",marginBottom:14}}>
-            <span style={{fontSize:13,color:t.accentText}}>✓ ElevenLabs connected</span>
-            <span style={{fontSize:11,color:t.faint,fontFamily:"'DM Mono',monospace",flex:1}}>{elKey.slice(0,8)}···</span>
-            <label style={{display:"flex",alignItems:"center",gap:6,cursor:"pointer",fontSize:12,color:t.muted}}>
-              <input type="checkbox" checked={useElevenLabs} onChange={e=>setUseElevenLabs(e.target.checked)} style={{width:13,height:13}}/>
-              Enabled
-            </label>
-            <button onClick={clearElKey}
-              style={{background:"none",border:"none",cursor:"pointer",fontSize:11,color:S.red,fontFamily:"'DM Mono',monospace",padding:0}}>
-              Remove
-            </button>
-          </div>}
-
-      {/* Browser voice fallback note */}
-      {!elKey&&<div style={{fontSize:11,color:t.faint,marginBottom:12,fontFamily:"'DM Mono',monospace"}}>
-        Without ElevenLabs: using best available browser voice (quality varies by device — usually mediocre)
-      </div>}
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+        <div style={{fontSize:14,color:t.text,fontWeight:500}}>Supervisee voice</div>
+        <label style={{display:"flex",alignItems:"center",gap:6,cursor:"pointer",fontSize:12,color:t.muted}}>
+          <input type="checkbox" checked={voiceEnabled} onChange={e=>setVoiceEnabled(e.target.checked)} style={{width:13,height:13,accentColor:t.accent}}/>
+          Natural voices {voiceEnabled?"on":"off"}
+        </label>
+      </div>
 
       {/* Voice picker */}
       <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:8}}>Choose voice</div>
