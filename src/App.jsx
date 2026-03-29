@@ -3028,8 +3028,10 @@ function Dashboard({interns,groups,lists,colleagues,onSelectIntern,onNavigate,on
   const [newTodo,setNewTodo]=useState("");
   const [newTodoLink,setNewTodoLink]=useState("none");
   const [showNewTodo,setShowNewTodo]=useState(false);
-  const [dismissedAlerts,setDismissedAlerts]=useState(new Set());
-  const [snoozedAlerts,setSnoozedAlerts]=useState({});
+  const [dismissedAlerts,setDismissedAlerts]=useState(()=>{try{const s=localStorage.getItem("suptrack_dismissed_alerts");return s?new Set(JSON.parse(s)):new Set();}catch{return new Set();}});
+  const [snoozedAlerts,setSnoozedAlerts]=useState(()=>{try{const s=localStorage.getItem("suptrack_snoozed_alerts");return s?JSON.parse(s):{};}catch{return {};}});
+  React.useEffect(()=>{try{localStorage.setItem("suptrack_dismissed_alerts",JSON.stringify([...dismissedAlerts]));}catch{}},[dismissedAlerts]);
+  React.useEffect(()=>{try{localStorage.setItem("suptrack_snoozed_alerts",JSON.stringify(snoozedAlerts));}catch{}},[snoozedAlerts]);
 
   // Live clock
   const [now,setNow]=useState(new Date());
@@ -4891,14 +4893,16 @@ const generateAlerts = (interns, ceData) => {
       }
     }
   });
-  // CE renewal alert — computed from actual license data
-  if (ceData?.myLicense?.expires) {
+  // CE renewal alert — only if license type AND expiry are actually filled in
+  if (ceData?.myLicense?.expires && ceData.myLicense.type && ceData.myLicense.renewalHoursRequired > 0) {
     const expDate = new Date(ceData.myLicense.expires);
-    const daysUntil = Math.ceil((expDate-today)/(1000*60*60*24));
-    const hoursLeft = (ceData.myLicense.renewalHoursRequired||0) - (ceData.myLicense.renewalHoursCompleted||0);
-    if (daysUntil > 0 && daysUntil <= 180 && hoursLeft > 0) {
-      const months = Math.round(daysUntil/30);
-      alerts.push({ id:"ce-own", type:"ce", severity:daysUntil<=60?"high":"info", internId:null, internName:null, message:`Your license renewal is due in ${months} month${months!==1?"s":""} — ${hoursLeft} CE hours remaining`, action:"ce" });
+    if (!isNaN(expDate)) {
+      const daysUntil = Math.ceil((expDate-today)/(1000*60*60*24));
+      const hoursLeft = (ceData.myLicense.renewalHoursRequired||0) - (ceData.myLicense.renewalHoursCompleted||0);
+      if (daysUntil > 0 && daysUntil <= 180 && hoursLeft > 0) {
+        const months = Math.round(daysUntil/30);
+        alerts.push({ id:"ce-own", type:"ce", severity:daysUntil<=60?"high":"info", internId:null, internName:null, message:`Your ${ceData.myLicense.type} renewal is due in ${months} month${months!==1?"s":""} — ${hoursLeft} CE hours remaining`, action:"ce" });
+      }
     }
   }
   return alerts;
