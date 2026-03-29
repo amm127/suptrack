@@ -12,6 +12,7 @@ export default function Auth() {
   const [fullName, setFullName] = useState('')
   const [isInternInvite, setIsInternInvite] = useState(false)
   const [internInviteToken, setInternInviteToken] = useState('')
+  const [pageContent, setPageContent] = useState(null)
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -23,6 +24,9 @@ export default function Auth() {
       setIsSignUp(true)
       setInviteCode(invite)
     }
+    // Load custom page content
+    supabase.from('page_content').select('content').eq('page_key', 'signin_page').single()
+      .then(({ data }) => { if (data?.content) setPageContent(data.content) })
   }, [])
 
   const LIFETIME_FREE_CODES = ['STfree1','STfree2','STfree3','STfree4','STfree5']
@@ -129,7 +133,7 @@ export default function Auth() {
             <span style={{color:'#1E4040',fontSize:10,opacity:0.4}}>✦</span>
           </div>
           <div style={{fontFamily:'Georgia, serif',fontSize:13,fontStyle:'italic',color:'#608080',letterSpacing:3.5,marginTop:14}}>
-            Supervision, simplified.
+            {pageContent?.tagline || 'Supervision, simplified.'}
           </div>
         </div>
 
@@ -143,7 +147,7 @@ export default function Auth() {
             {isInternInvite ? 'Intern Portal' : isSignUp ? 'Create account' : 'Welcome back'}
           </div>
           <div style={{fontSize:14,color:'#608080',textAlign:'center',fontStyle:'italic',marginBottom:32,letterSpacing:0.5}}>
-            {isInternInvite ? 'Your supervisor invited you.' : isSignUp ? 'Start your 14-day free trial' : 'Sign in to your account'}
+            {isInternInvite ? 'Your supervisor invited you.' : isSignUp ? (pageContent?.subtext_signup || 'Start your 14-day free trial') : (pageContent?.subtext_signin || 'Sign in to your account')}
           </div>
 
           <form onSubmit={e=>{e.preventDefault();handleSubmit();}}>

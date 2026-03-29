@@ -10712,11 +10712,80 @@ function AdminPanelPage({T,session,tickets,setTickets}) {
     {id:"overview",label:"Overview"},
     {id:"users",label:"Users"},
     {id:"billing",label:"Billing"},
+    {id:"content",label:"Content"},
     {id:"invites",label:"Invite Codes"},
     {id:"tickets",label:"Tickets"},
     {id:"stats",label:"Stats"},
     {id:"announcements",label:"Announcements"},
   ];
+
+  // Content editor state
+  const [contentPages,setContentPages]=useState([]);
+  const [contentTemplates,setContentTemplates]=useState([]);
+  const [contentHistory,setContentHistory]=useState([]);
+  const [contentLoading,setContentLoading]=useState(false);
+  const [editingPage,setEditingPage]=useState(null);
+  const [editingTemplate,setEditingTemplate]=useState(null);
+  const [editFields,setEditFields]=useState({});
+  const [contentSaving,setContentSaving]=useState(false);
+  const [contentSubTab,setContentSubTab]=useState("pages");
+
+  const EDITABLE_PAGES=[
+    {key:"signin_page",label:"Sign-In Page",fields:[{id:"tagline",label:"Tagline",type:"text",default:"Supervision, simplified."},{id:"subtext_signup",label:"Sign-Up Subtext",type:"text",default:"Start your 14-day free trial"},{id:"subtext_signin",label:"Sign-In Subtext",type:"text",default:"Sign in to your account"}]},
+    {key:"directory_page",label:"Directory Page",fields:[{id:"hero_title",label:"Hero Title",type:"text",default:"Find Your Supervisor"},{id:"hero_subtitle",label:"Hero Subtitle",type:"text",default:"Browse clinical supervisors accepting new supervisees."},{id:"empty_state",label:"Empty State Text",type:"text",default:"No supervisors match your search."}]},
+    {key:"terms_page",label:"Terms of Service",fields:[{id:"content",label:"Full Content",type:"richtext",default:""}]},
+    {key:"privacy_page",label:"Privacy Policy",fields:[{id:"content",label:"Full Content",type:"richtext",default:""}]},
+    {key:"public_profile",label:"Public Profile Template",fields:[{id:"cta_text",label:"CTA Button Text",type:"text",default:"Request Consultation"},{id:"footer_text",label:"Footer Text",type:"text",default:"Powered by SupTrack"}]},
+  ];
+
+  const EMAIL_TEMPLATE_KEYS=[
+    {key:"WELCOME",label:"Welcome Email"},
+    {key:"NEW_MESSAGE",label:"New Message"},
+    {key:"PAYMENT_DUE",label:"Payment Due"},
+    {key:"PAYMENT_RECEIVED",label:"Payment Received"},
+    {key:"HOURS_MILESTONE",label:"Hours Milestone"},
+    {key:"LICENSE_90_DAYS",label:"License 90 Days"},
+    {key:"LICENSE_30_DAYS",label:"License 30 Days"},
+    {key:"DOCUMENT_UPLOADED",label:"Document Uploaded"},
+    {key:"INTERN_BIRTHDAY",label:"Intern Birthday"},
+    {key:"WEEKLY_SUMMARY",label:"Weekly Summary"},
+  ];
+
+  const loadContent=async()=>{
+    setContentLoading(true);
+    try{
+      const r=await fetch("/api/admin/content",{headers:getAuthHeader()});
+      if(r.ok){const d=await r.json();setContentPages(d.pages||[]);setContentTemplates(d.templates||[]);setContentHistory(d.history||[]);}
+    }catch(e){console.error("Content load error:",e);}
+    setContentLoading(false);
+  };
+
+  const savePageContent=async(pageKey,content)=>{
+    setContentSaving(true);
+    try{
+      await fetch("/api/admin/content",{method:"POST",headers:{"Content-Type":"application/json",...getAuthHeader()},body:JSON.stringify({type:"page",page_key:pageKey,content})});
+      await loadContent();
+    }catch(e){console.error("Save error:",e);}
+    setContentSaving(false);
+  };
+
+  const saveTemplateContent=async(templateKey,subject,body)=>{
+    setContentSaving(true);
+    try{
+      await fetch("/api/admin/content",{method:"POST",headers:{"Content-Type":"application/json",...getAuthHeader()},body:JSON.stringify({type:"template",template_key:templateKey,subject,body})});
+      await loadContent();
+    }catch(e){console.error("Save error:",e);}
+    setContentSaving(false);
+  };
+
+  const restoreVersion=async(historyId)=>{
+    setContentSaving(true);
+    try{
+      await fetch("/api/admin/content",{method:"POST",headers:{"Content-Type":"application/json",...getAuthHeader()},body:JSON.stringify({type:"restore",history_id:historyId})});
+      await loadContent();
+    }catch(e){console.error("Restore error:",e);}
+    setContentSaving(false);
+  };
 
   const card=(label,value,key,icon)=>(
     <div onClick={()=>drillInto(key)} style={{flex:"1 1 140px",background:"#fff",border:`1px solid ${goldBorder}`,borderRadius:14,padding:"20px 18px",cursor:"pointer",transition:"all 0.15s",boxShadow:"0 2px 8px rgba(196,160,64,0.08)"}}>
@@ -10752,7 +10821,7 @@ function AdminPanelPage({T,session,tickets,setTickets}) {
     {/* Tab bar */}
     <div style={{display:"flex",gap:4,marginBottom:28,borderBottom:`1px solid ${goldBorder}`,paddingBottom:0}}>
       {TABS.map(tb=>(
-        <button key={tb.id} onClick={()=>{setTab(tb.id);setStatDrill(null);setSelectedUser(null);setSelectedTicket(null);setDetailUser(null);setBillingDetailUser(null);setStripeCustomer(null);if(tb.id==="billing"&&!stripeData)loadStripeOverview();}}
+        <button key={tb.id} onClick={()=>{setTab(tb.id);setStatDrill(null);setSelectedUser(null);setSelectedTicket(null);setDetailUser(null);setBillingDetailUser(null);setStripeCustomer(null);setEditingPage(null);setEditingTemplate(null);if(tb.id==="billing"&&!stripeData)loadStripeOverview();if(tb.id==="content"&&!contentPages.length)loadContent();}}
           style={{background:tab===tb.id?goldLight:"transparent",color:tab===tb.id?gold:t.muted,border:"none",borderBottom:tab===tb.id?`2px solid ${gold}`:"2px solid transparent",padding:"10px 18px",cursor:"pointer",fontSize:13,fontFamily:"'DM Mono',monospace",fontWeight:tab===tb.id?600:400,transition:"all 0.15s",borderRadius:"8px 8px 0 0"}}>
           {tb.label}{tb.id==="tickets"&&stats.openTickets>0?` (${stats.openTickets})`:""}
         </button>
@@ -11457,6 +11526,128 @@ function AdminPanelPage({T,session,tickets,setTickets}) {
         </div>
       ))}
       {announcements.length===0&&<div style={{textAlign:"center",padding:40,color:t.faint,fontSize:13}}>No announcements yet</div>}
+    </div>}
+
+    {/* ─── CONTENT TAB ─── */}
+    {tab==="content"&&<div>
+      {/* Sub-tabs */}
+      <div style={{display:"flex",gap:8,marginBottom:24}}>
+        {[{id:"pages",label:"Pages"},{id:"emails",label:"Email Templates"},{id:"history",label:"Version History"}].map(st=>
+          <button key={st.id} onClick={()=>setContentSubTab(st.id)}
+            style={{background:contentSubTab===st.id?goldLight:"none",color:contentSubTab===st.id?gold:t.muted,border:`1px solid ${contentSubTab===st.id?gold:t.border}`,borderRadius:8,padding:"6px 16px",cursor:"pointer",fontSize:12,fontFamily:"'DM Mono',monospace",fontWeight:contentSubTab===st.id?600:400}}>{st.label}</button>
+        )}
+        {!contentPages.length&&!contentLoading&&<button onClick={loadContent} style={{marginLeft:"auto",background:gold,color:"#fff",border:"none",borderRadius:8,padding:"6px 16px",cursor:"pointer",fontSize:12,fontFamily:"'DM Mono',monospace",fontWeight:600}}>Load Content</button>}
+      </div>
+
+      {contentLoading&&<div style={{textAlign:"center",padding:40,color:t.muted}}>Loading content...</div>}
+
+      {/* Pages sub-tab */}
+      {contentSubTab==="pages"&&!contentLoading&&<div>
+        {editingPage?<div style={{background:"#fff",border:`1px solid ${goldBorder}`,borderRadius:14,padding:24}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+            <h3 style={{margin:0,fontSize:18,color:t.text,fontFamily:"'Fraunces',Georgia,serif"}}>{EDITABLE_PAGES.find(p=>p.key===editingPage)?.label||editingPage}</h3>
+            <div style={{display:"flex",gap:8}}>
+              <button onClick={()=>{savePageContent(editingPage,editFields);setEditingPage(null);}} disabled={contentSaving}
+                style={{background:gold,color:"#fff",border:"none",borderRadius:8,padding:"8px 18px",cursor:"pointer",fontSize:12,fontWeight:600,fontFamily:"inherit"}}>{contentSaving?"Saving...":"Save Changes"}</button>
+              <button onClick={()=>{setEditingPage(null);setEditFields({});}} style={{background:t.surfaceAlt,color:t.muted,border:`1px solid ${t.border}`,borderRadius:8,padding:"8px 18px",cursor:"pointer",fontSize:12,fontFamily:"inherit"}}>Discard</button>
+            </div>
+          </div>
+          {(EDITABLE_PAGES.find(p=>p.key===editingPage)?.fields||[]).map(field=>(
+            <div key={field.id} style={{marginBottom:16}}>
+              <label style={{display:"block",fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",marginBottom:6,letterSpacing:1,textTransform:"uppercase"}}>{field.label}</label>
+              {field.type==="richtext"
+                ?<textarea value={editFields[field.id]||""} onChange={e=>setEditFields(p=>({...p,[field.id]:e.target.value}))}
+                  rows={12} style={{width:"100%",padding:"12px 14px",border:`1px solid ${t.border}`,borderRadius:10,fontSize:14,fontFamily:"inherit",color:t.text,background:t.bg,outline:"none",resize:"vertical",lineHeight:1.7,boxSizing:"border-box"}}/>
+                :<input value={editFields[field.id]||""} onChange={e=>setEditFields(p=>({...p,[field.id]:e.target.value}))}
+                  style={{width:"100%",padding:"12px 14px",border:`1px solid ${t.border}`,borderRadius:10,fontSize:14,fontFamily:"inherit",color:t.text,background:t.bg,outline:"none",boxSizing:"border-box"}}/>}
+            </div>
+          ))}
+        </div>
+        :<div>
+          {EDITABLE_PAGES.map(page=>{
+            const saved=contentPages.find(p=>p.page_key===page.key);
+            return <div key={page.key} onClick={()=>{
+              const existing=saved?.content||{};
+              const fields={};page.fields.forEach(f=>{fields[f.id]=existing[f.id]||f.default||"";});
+              setEditFields(fields);setEditingPage(page.key);
+            }} style={{background:"#fff",border:`1px solid ${t.border}`,borderRadius:12,padding:"16px 20px",marginBottom:8,cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",transition:"border-color 0.15s"}}
+              onMouseEnter={e=>e.currentTarget.style.borderColor=gold} onMouseLeave={e=>e.currentTarget.style.borderColor=t.border}>
+              <div>
+                <div style={{fontSize:15,fontWeight:500,color:t.text}}>{page.label}</div>
+                <div style={{fontSize:11,color:t.faint,fontFamily:"'DM Mono',monospace",marginTop:2}}>
+                  {saved?`Last edited by ${saved.updated_by||"unknown"} · ${new Date(saved.updated_at).toLocaleDateString()}`:"Not yet customized — using defaults"}
+                </div>
+              </div>
+              <span style={{fontSize:16,color:t.faint}}>→</span>
+            </div>;
+          })}
+        </div>}
+      </div>}
+
+      {/* Email Templates sub-tab */}
+      {contentSubTab==="emails"&&!contentLoading&&<div>
+        {editingTemplate?<div style={{background:"#fff",border:`1px solid ${goldBorder}`,borderRadius:14,padding:24}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+            <h3 style={{margin:0,fontSize:18,color:t.text,fontFamily:"'Fraunces',Georgia,serif"}}>{EMAIL_TEMPLATE_KEYS.find(t=>t.key===editingTemplate)?.label||editingTemplate}</h3>
+            <div style={{display:"flex",gap:8}}>
+              <button onClick={()=>{saveTemplateContent(editingTemplate,editFields.subject||"",editFields.body||"");setEditingTemplate(null);}} disabled={contentSaving}
+                style={{background:gold,color:"#fff",border:"none",borderRadius:8,padding:"8px 18px",cursor:"pointer",fontSize:12,fontWeight:600,fontFamily:"inherit"}}>{contentSaving?"Saving...":"Save Template"}</button>
+              <button onClick={()=>{setEditingTemplate(null);setEditFields({});}} style={{background:t.surfaceAlt,color:t.muted,border:`1px solid ${t.border}`,borderRadius:8,padding:"8px 18px",cursor:"pointer",fontSize:12,fontFamily:"inherit"}}>Cancel</button>
+            </div>
+          </div>
+          <div style={{marginBottom:16}}>
+            <label style={{display:"block",fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",marginBottom:6,letterSpacing:1,textTransform:"uppercase"}}>SUBJECT LINE</label>
+            <input value={editFields.subject||""} onChange={e=>setEditFields(p=>({...p,subject:e.target.value}))}
+              style={{width:"100%",padding:"12px 14px",border:`1px solid ${t.border}`,borderRadius:10,fontSize:14,fontFamily:"inherit",color:t.text,background:t.bg,outline:"none",boxSizing:"border-box"}}/>
+          </div>
+          <div style={{marginBottom:16}}>
+            <label style={{display:"block",fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",marginBottom:6,letterSpacing:1,textTransform:"uppercase"}}>EMAIL BODY (HTML)</label>
+            <textarea value={editFields.body||""} onChange={e=>setEditFields(p=>({...p,body:e.target.value}))}
+              rows={14} style={{width:"100%",padding:"12px 14px",border:`1px solid ${t.border}`,borderRadius:10,fontSize:13,fontFamily:"'DM Mono',monospace",color:t.text,background:t.bg,outline:"none",resize:"vertical",lineHeight:1.6,boxSizing:"border-box"}}/>
+          </div>
+          {editFields.body&&<div style={{marginTop:16}}>
+            <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",marginBottom:8,letterSpacing:1,textTransform:"uppercase"}}>PREVIEW</div>
+            <div style={{background:"#FAFDFB",border:`1px solid ${t.border}`,borderRadius:12,padding:20,maxHeight:300,overflowY:"auto"}} dangerouslySetInnerHTML={{__html:editFields.body}}/>
+          </div>}
+        </div>
+        :<div>
+          {EMAIL_TEMPLATE_KEYS.map(tmpl=>{
+            const saved=contentTemplates.find(t=>t.template_key===tmpl.key);
+            return <div key={tmpl.key} onClick={()=>{
+              setEditFields({subject:saved?.subject||"",body:saved?.body||""});
+              setEditingTemplate(tmpl.key);
+            }} style={{background:"#fff",border:`1px solid ${t.border}`,borderRadius:12,padding:"16px 20px",marginBottom:8,cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",transition:"border-color 0.15s"}}
+              onMouseEnter={e=>e.currentTarget.style.borderColor=gold} onMouseLeave={e=>e.currentTarget.style.borderColor=t.border}>
+              <div>
+                <div style={{fontSize:15,fontWeight:500,color:t.text}}>{tmpl.label}</div>
+                <div style={{fontSize:11,color:t.faint,fontFamily:"'DM Mono',monospace",marginTop:2}}>
+                  {saved?`Customized · ${saved.updated_by||"unknown"} · ${new Date(saved.updated_at).toLocaleDateString()}`:"Using default template"}
+                </div>
+              </div>
+              <span style={{fontSize:16,color:t.faint}}>→</span>
+            </div>;
+          })}
+        </div>}
+      </div>}
+
+      {/* Version History sub-tab */}
+      {contentSubTab==="history"&&!contentLoading&&<div>
+        {contentHistory.length===0&&<div style={{textAlign:"center",padding:40,color:t.faint,fontSize:13}}>No version history yet</div>}
+        {contentHistory.map((h,i)=>(
+          <div key={h.id||i} style={{background:"#fff",border:`1px solid ${t.border}`,borderRadius:12,padding:"14px 20px",marginBottom:8,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div>
+              <div style={{fontSize:14,fontWeight:500,color:t.text}}>{h.page_key}</div>
+              <div style={{fontSize:11,color:t.faint,fontFamily:"'DM Mono',monospace",marginTop:2}}>
+                by {h.edited_by||"unknown"} · {h.created_at?new Date(h.created_at).toLocaleString():""}
+              </div>
+            </div>
+            <button onClick={()=>{if(confirm(`Restore this version of ${h.page_key}?`))restoreVersion(h.id);}} disabled={contentSaving}
+              style={{background:goldLight,color:gold,border:`1px solid ${goldBorder}`,borderRadius:8,padding:"6px 14px",cursor:"pointer",fontSize:11,fontFamily:"'DM Mono',monospace",fontWeight:500}}>
+              {contentSaving?"...":"Restore"}
+            </button>
+          </div>
+        ))}
+      </div>}
     </div>}
   </div>;
 }
