@@ -516,6 +516,18 @@ const DEFAULT_SECTIONS = [
 const dn    = (i) => i.preferredName || i.name.split(" ")[0]; // display name — preferred or first name
 
 // ── iCal / Google Calendar helpers ────────────────────────────────────────
+// ── Email notification helper ─────────────────────────────────────────────
+const sendEmail = async (to, type, data, notifPrefs) => {
+  // Check notification preferences — skip if this type is disabled
+  if(notifPrefs && notifPrefs[type] === false) return;
+  try {
+    await fetch("/api/send-email", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ to, type, data }),
+    });
+  } catch (e) { console.error("[SupTrack] Email send error:", e); }
+};
+
 const icsDateFmt = (d) => {
   const dt = d instanceof Date ? d : new Date(d);
   if (isNaN(dt)) return "19700101T000000";
@@ -10224,7 +10236,7 @@ function AdminInboxPage({tickets, setTickets, T}) {
   </div>;
 }
 
-function SettingsPage({theme,setTheme,setCustomTheme,font,setFont,darkMode,setDarkMode,highContrast,setHighContrast,supervisorName,setSupervisorName,onSaveProfile,T}) {
+function SettingsPage({theme,setTheme,setCustomTheme,font,setFont,darkMode,setDarkMode,highContrast,setHighContrast,supervisorName,setSupervisorName,onSaveProfile,T,notifPrefs,setNotifPrefs,session}) {
   const t=T||THEMES.sage;
 
   // ── Custom theme builder ──────────────────────────────────────────────────
@@ -10441,6 +10453,41 @@ function SettingsPage({theme,setTheme,setCustomTheme,font,setFont,darkMode,setDa
         style={{background:"none",border:`1px solid ${S.red}`,borderRadius:8,padding:"8px 20px",cursor:"pointer",fontSize:13,color:S.red,fontFamily:"'DM Mono',monospace"}}>
         Reset to demo data
       </button>
+    </div>
+
+    {/* Notification Preferences */}
+    <div style={{marginTop:28}}>
+      <h2 style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:20,fontWeight:600,color:"#1E4040",margin:"0 0 14px"}}>Email Notifications</h2>
+      <div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:14,overflow:"hidden",boxShadow:"0 2px 12px rgba(30,64,64,0.06)"}}>
+        {[
+          {key:"NEW_MESSAGE",label:"New messages",desc:"When someone sends you a message"},
+          {key:"CONNECTION_REQUEST",label:"Supervision requests",desc:"When someone requests to work with you"},
+          {key:"PAYMENT_DUE",label:"Payment reminders",desc:"When a payment is 30+ days overdue"},
+          {key:"PAYMENT_RECEIVED",label:"Payment confirmations",desc:"When a payment is marked as received"},
+          {key:"DOCUMENT_UPLOADED",label:"Document uploads",desc:"When an intern uploads a document"},
+          {key:"HOURS_MILESTONE",label:"Hours milestones",desc:"When an intern hits 25%, 50%, 75%, or 100%"},
+          {key:"LICENSE_90_DAYS",label:"License renewal (90 days)",desc:"Reminder 90 days before expiration"},
+          {key:"LICENSE_30_DAYS",label:"License renewal (30 days)",desc:"Urgent reminder 30 days before"},
+          {key:"INTERN_BIRTHDAY",label:"Intern birthdays",desc:"3 days before an intern's birthday"},
+          {key:"WEEKLY_SUMMARY",label:"Weekly summary",desc:"Your week in review every Monday"},
+        ].map((item,i)=>(
+          <div key={item.key} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 18px",borderTop:i>0?`1px solid ${t.borderLight}`:"none"}}>
+            <div>
+              <div style={{fontSize:14,color:t.text}}>{item.label}</div>
+              <div style={{fontSize:12,color:"#608080",marginTop:2}}>{item.desc}</div>
+            </div>
+            <button onClick={()=>{
+              const next={...notifPrefs,[item.key]:!notifPrefs?.[item.key]};
+              setNotifPrefs(next);
+              if(session?.user) supabase.from("notification_preferences").upsert({supervisor_id:session.user.id,preferences:next},{onConflict:"supervisor_id"});
+            }}
+              style={{background:notifPrefs?.[item.key]!==false?t.accent:t.border,border:"none",borderRadius:20,width:40,height:22,cursor:"pointer",position:"relative",transition:"all 0.15s",flexShrink:0}}>
+              <span style={{position:"absolute",top:2,left:notifPrefs?.[item.key]!==false?20:2,width:18,height:18,borderRadius:"50%",background:"#fff",transition:"left 0.15s"}}/>
+            </button>
+          </div>
+        ))}
+      </div>
+      <div style={{fontSize:12,color:"#A0B8B4",marginTop:10}}>Manage your email preferences at any time. Changes save automatically.</div>
     </div>
   </div>;
 }
@@ -11330,6 +11377,18 @@ useEffect(() => {
           console.log(`[SupTrack] No rate configured for ${updated.name||"intern"} — skipping auto-charge`);
         }
       }
+      // Check for hours milestones and send email
+      if(old&&updated.hoursTotal>0&&updated.hoursCompleted!==old.hoursCompleted){
+        const oldPct=old.hoursTotal>0?old.hoursCompleted/old.hoursTotal:0;
+        const newPct=updated.hoursCompleted/updated.hoursTotal;
+        const milestones=[0.25,0.5,0.75,1.0];
+        for(const m of milestones){
+          if(oldPct<m&&newPct>=m){
+            sendEmail(session.user.email,"HOURS_MILESTONE",{internName:updated.name,percentage:Math.round(m*100),completed:updated.hoursCompleted,required:updated.hoursTotal},notifPrefs);
+            break;
+          }
+        }
+      }
       // Sync hour_logs to Supabase — insert incremental hours for changed categories
       if(old&&updated.hourLog&&JSON.stringify(updated.hourLog)!==JSON.stringify(old.hourLog||[])){
         const oldLog=old.hourLog||[];
@@ -11403,6 +11462,14 @@ useEffect(() => {
   const [todos,setTodos]=useState([]);
   // Unread messages count for nav badge
   const [unreadMessages,setUnreadMessages]=useState(0);
+  // Notification preferences
+  const [notifPrefs,setNotifPrefs]=useState({NEW_MESSAGE:true,CONNECTION_REQUEST:true,PAYMENT_DUE:true,PAYMENT_RECEIVED:true,DOCUMENT_UPLOADED:true,HOURS_MILESTONE:true,LICENSE_90_DAYS:true,LICENSE_30_DAYS:true,INTERN_BIRTHDAY:true,WEEKLY_SUMMARY:true});
+  React.useEffect(()=>{
+    if(!session?.user)return;
+    supabase.from("notification_preferences").select("*").eq("supervisor_id",session.user.id).single().then(({data})=>{
+      if(data?.preferences) setNotifPrefs(prev=>({...prev,...data.preferences}));
+    });
+  },[session]);
   React.useEffect(()=>{
     if(!session?.user)return;
     supabase.from("conversations").select("unread_count").eq("supervisor_id",session.user.id).then(({data})=>{
@@ -11720,7 +11787,7 @@ useEffect(() => {
       {page==="admin"&&isAdmin&&<AdminInboxPage T={t} tickets={tickets} setTickets={setTickets}/>}
       {page==="admin"&&!isAdmin&&<div style={{padding:40,color:t.muted,fontSize:14}}>Access restricted.</div>}
       {page==="profile"&&<PublicProfilePage T={t} supervisorPhoto={supervisorPhoto} setSupervisorPhoto={setSupervisorPhoto} supervisorName={supervisorName} setSupervisorName={setSupervisorName} supervisorInitials={supervisorInitials} supervisorProfile={supervisorProfile} onSaveProfile={saveSupervisorProfile}/>}
-      {page==="settings"&&<SettingsPage T={t} theme={theme} setTheme={setTheme} setCustomTheme={setCustomTheme} font={fontKey} setFont={setFontKey} darkMode={darkMode} setDarkMode={setDarkMode} highContrast={highContrast} setHighContrast={setHighContrast} supervisorName={supervisorName} setSupervisorName={setSupervisorName} onSaveProfile={saveSupervisorProfile}/>}
+      {page==="settings"&&<SettingsPage T={t} theme={theme} setTheme={setTheme} setCustomTheme={setCustomTheme} font={fontKey} setFont={setFontKey} darkMode={darkMode} setDarkMode={setDarkMode} highContrast={highContrast} setHighContrast={setHighContrast} supervisorName={supervisorName} setSupervisorName={setSupervisorName} onSaveProfile={saveSupervisorProfile} notifPrefs={notifPrefs} setNotifPrefs={setNotifPrefs} session={session}/>}
       {!["dashboard","interns","intern-profile","groups","payments","billing","ce","calendar","consult","lab","resources","discover","agreements","reminders","messages","support","admin","profile","settings"].includes(page)&&<Dashboard T={t} interns={interns} groups={groups} lists={lists} colleagues={colleagues} supervisorName={supervisorName} onAddIntern={()=>{if(activeInternCount>=internLimit){setUpgradePrompt("intern");return;}setAddInternOpen(true);}} onQuickAction={setQuickActionOpen} onSelectIntern={i=>{setSelectedInternId_sv(i.id);setPage("intern-profile");}} onNavigate={navigate} onOpenOnboarding={()=>setOnboardingOpen(true)} quickActionOrder={quickActionOrder} quickActionHidden={quickActionHidden} allQuickActions={ALL_QUICK_ACTIONS} onQuickActionReorder={setQuickActionOrder} onQuickActionToggle={(id)=>{setQuickActionHidden(prev=>{const s=new Set(prev);s.has(id)?s.delete(id):s.add(id);return s;});}}/>}
       {quickActionOpen&&<QuickActionModal T={t} action={quickActionOpen} interns={interns} groups={groups} onUpdateIntern={updateIntern} onClose={()=>setQuickActionOpen(null)}/>}
       {onboardingOpen&&<OnboardingModal T={t} supervisorName={supervisorName} onClose={()=>setOnboardingOpen(false)}/>}
