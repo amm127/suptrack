@@ -128,9 +128,66 @@ if (!slug) {
 
         ${infoCards ? `<div class="info-grid">${infoCards}</div>` : ''}
 
-        <button class="connect-btn" onclick="window.location.href='/'">Sign in to connect</button>
+        <button class="connect-btn" id="req-btn" onclick="document.getElementById('req-modal').style.display='flex'">Request Supervision</button>
+
+        <div id="req-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);align-items:center;justify-content:center;z-index:100">
+          <div style="background:#FAFDFB;border-radius:18px;padding:32px;width:90%;max-width:440px;box-shadow:0 16px 48px rgba(0,0,0,0.15)" onclick="event.stopPropagation()">
+            <div style="font-family:'DM Sans',system-ui;font-size:20px;color:#1E4040;font-weight:600;margin-bottom:4px">Request Supervision</div>
+            <div style="font-size:13px;color:#608080;margin-bottom:20px">Send a message to ${name}. They'll get back to you soon.</div>
+            <div id="req-success" style="display:none;text-align:center;padding:20px 0">
+              <div style="font-size:36px;margin-bottom:10px">✦</div>
+              <div style="font-size:16px;color:#1E4040;font-weight:600;margin-bottom:6px">Request sent!</div>
+              <div style="font-size:13px;color:#608080">${name} will be in touch soon.</div>
+            </div>
+            <form id="req-form" onsubmit="return false" style="display:flex;flex-direction:column;gap:12px">
+              <input id="req-name" placeholder="Your name" required style="border:1px solid #C8D8D4;border-radius:10px;padding:11px 14px;font-size:14px;outline:none;font-family:inherit">
+              <input id="req-email" type="email" placeholder="Email" required style="border:1px solid #C8D8D4;border-radius:10px;padding:11px 14px;font-size:14px;outline:none;font-family:inherit">
+              <input id="req-phone" placeholder="Phone (optional)" style="border:1px solid #C8D8D4;border-radius:10px;padding:11px 14px;font-size:14px;outline:none;font-family:inherit">
+              <input id="req-license" placeholder="License type or program" style="border:1px solid #C8D8D4;border-radius:10px;padding:11px 14px;font-size:14px;outline:none;font-family:inherit">
+              <textarea id="req-msg" placeholder="Tell them about yourself and what you're looking for..." rows="4" style="border:1px solid #C8D8D4;border-radius:10px;padding:11px 14px;font-size:14px;outline:none;font-family:inherit;resize:vertical"></textarea>
+              <button type="button" onclick="submitReq()" style="background:#1E4040;color:#C8E8E0;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit">Send Request</button>
+              <button type="button" onclick="document.getElementById('req-modal').style.display='none'" style="background:none;border:1px solid #C8D8D4;border-radius:10px;padding:10px;font-size:14px;cursor:pointer;color:#608080;font-family:inherit">Cancel</button>
+            </form>
+          </div>
+        </div>
       </div>
     `;
+
+    // Close modal on backdrop click
+    document.getElementById('req-modal')?.addEventListener('click',e=>{if(e.target.id==='req-modal')e.target.style.display='none';});
+
+    // Submit handler
+    window.submitReq = async () => {
+      const name = document.getElementById('req-name')?.value?.trim();
+      const email = document.getElementById('req-email')?.value?.trim();
+      const phone = document.getElementById('req-phone')?.value?.trim();
+      const license = document.getElementById('req-license')?.value?.trim();
+      const msg = document.getElementById('req-msg')?.value?.trim();
+      if (!name || !email) { alert('Please enter your name and email.'); return; }
+
+      // Create conversation
+      const { data: conv, error: convErr } = await supabase.from('conversations').insert({
+        supervisor_id: match.user_id,
+        contact_name: name, contact_email: email, contact_phone: phone || null,
+        contact_license: license || null,
+        status: 'pending', last_message: msg || 'Supervision request',
+        unread_count: 1, updated_at: new Date().toISOString(),
+      }).select().single();
+
+      if (convErr) { alert('Something went wrong. Please try again.'); console.error(convErr); return; }
+
+      // Create first message
+      if (conv) {
+        await supabase.from('messages').insert({
+          conversation_id: conv.id,
+          sender_type: 'contact', sender_name: name,
+          content: msg || `Hi, I'm interested in supervision. My credential: ${license || 'not specified'}.`,
+        });
+      }
+
+      document.getElementById('req-form').style.display = 'none';
+      document.getElementById('req-success').style.display = 'block';
+    };
   }
 }
 </script>

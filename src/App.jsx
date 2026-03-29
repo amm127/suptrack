@@ -8691,6 +8691,148 @@ function SupervisorDirectory({T,onConnect,requested}) {
 
 
 
+// ── Messages Center ───────────────────────────────────────────────────────
+function MessagesPage({T,session}) {
+  const t=T||THEMES.sage;
+  const [conversations,setConversations]=useState([]);
+  const [messages,setMessages]=useState([]);
+  const [selected,setSelected]=useState(null);
+  const [input,setInput]=useState("");
+  const [loading,setLoading]=useState(true);
+  const messagesEndRef=React.useRef(null);
+
+  // Load conversations
+  React.useEffect(()=>{
+    if(!session?.user)return;
+    supabase.from("conversations").select("*").eq("supervisor_id",session.user.id).order("updated_at",{ascending:false}).then(({data})=>{
+      setConversations(data||[]);
+      setLoading(false);
+    });
+  },[session]);
+
+  // Load messages for selected conversation
+  React.useEffect(()=>{
+    if(!selected)return;
+    supabase.from("messages").select("*").eq("conversation_id",selected).order("created_at",{ascending:true}).then(({data})=>{
+      setMessages(data||[]);
+      setTimeout(()=>messagesEndRef.current?.scrollIntoView({behavior:"smooth"}),100);
+    });
+    // Mark as read
+    supabase.from("conversations").update({unread_count:0}).eq("id",selected);
+    setConversations(p=>p.map(c=>c.id===selected?{...c,unread_count:0}:c));
+  },[selected]);
+
+  // Real-time subscription for new messages
+  React.useEffect(()=>{
+    if(!session?.user)return;
+    const channel=supabase.channel("messages-realtime").on("postgres_changes",{event:"INSERT",schema:"public",table:"messages"},payload=>{
+      if(payload.new.conversation_id===selected){
+        setMessages(p=>[...p,payload.new]);
+        setTimeout(()=>messagesEndRef.current?.scrollIntoView({behavior:"smooth"}),100);
+      }
+      // Update conversation list
+      setConversations(p=>p.map(c=>c.id===payload.new.conversation_id?{...c,last_message:payload.new.content,updated_at:payload.new.created_at,unread_count:payload.new.conversation_id===selected?0:(c.unread_count||0)+1}:c));
+    }).subscribe();
+    return ()=>supabase.removeChannel(channel);
+  },[session,selected]);
+
+  const sendMessage=async()=>{
+    if(!input.trim()||!selected||!session?.user)return;
+    const msg={conversation_id:selected,sender_type:"supervisor",sender_name:"Supervisor",content:input.trim(),created_at:new Date().toISOString()};
+    setMessages(p=>[...p,msg]);
+    setInput("");
+    await supabase.from("messages").insert(msg);
+    await supabase.from("conversations").update({last_message:msg.content,updated_at:msg.created_at}).eq("id",selected);
+    setConversations(p=>p.map(c=>c.id===selected?{...c,last_message:msg.content,updated_at:msg.created_at}:c));
+  };
+
+  const updateStatus=async(id,status)=>{
+    await supabase.from("conversations").update({status}).eq("id",id);
+    setConversations(p=>p.map(c=>c.id===id?{...c,status}:c));
+  };
+
+  const conv=conversations.find(c=>c.id===selected);
+  const totalUnread=conversations.reduce((s,c)=>s+(c.unread_count||0),0);
+
+  const statusColor=(s)=>({pending:"#C4A040",active:"#2E7A4E",declined:"#A0453E",archived:"#608080"}[s]||"#608080");
+  const statusBg=(s)=>({pending:"#FAF2E0",active:"#E8F5EE",declined:"#FAE8E8",archived:"#E8F0EE"}[s]||"#E8F0EE");
+
+  return <div>
+    <h1 style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:28,fontWeight:700,color:"#1E4040",margin:"0 0 4px"}}>Messages</h1>
+    <p style={{color:"#608080",fontSize:14,margin:"0 0 24px"}}>Supervision requests and conversations</p>
+
+    {loading&&<div style={{textAlign:"center",padding:"40px 0",color:"#608080"}}>Loading...</div>}
+
+    {!loading&&conversations.length===0&&<div style={{textAlign:"center",padding:"60px 20px"}}>
+      <div style={{fontSize:32,marginBottom:12,color:"#1E4040",opacity:0.3}}>✦</div>
+      <div style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:20,color:"#1E4040",marginBottom:8}}>No messages yet</div>
+      <div style={{fontSize:14,color:"#608080",maxWidth:360,margin:"0 auto"}}>Interns can find you in the directory and send supervision requests. They'll appear here.</div>
+    </div>}
+
+    {!loading&&conversations.length>0&&<div style={{display:"grid",gridTemplateColumns:"320px 1fr",gap:0,border:`1px solid ${t.border}`,borderRadius:16,overflow:"hidden",minHeight:500,background:t.surface}}>
+
+      {/* Conversation list */}
+      <div style={{borderRight:`1px solid ${t.border}`,overflowY:"auto",maxHeight:600}}>
+        {conversations.map(c=>(
+          <div key={c.id} onClick={()=>setSelected(c.id)}
+            style={{padding:"14px 16px",borderBottom:`1px solid ${t.borderLight}`,cursor:"pointer",background:selected===c.id?t.accentLight:t.surface,transition:"background 0.1s"}}>
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:4}}>
+              <Avatar initials={(c.contact_name||"?").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()} size={32} T={t}/>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+                  <div style={{fontSize:14,color:t.text,fontWeight:c.unread_count>0?600:400,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.contact_name||c.contact_email||"Unknown"}</div>
+                  {c.unread_count>0&&<div style={{width:8,height:8,borderRadius:"50%",background:"#1E4040",flexShrink:0}}/>}
+                </div>
+                <div style={{fontSize:11,color:"#608080",fontFamily:"'DM Mono',monospace"}}>{c.updated_at?new Date(c.updated_at).toLocaleDateString():""}</div>
+              </div>
+            </div>
+            <div style={{fontSize:12,color:t.muted,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",marginBottom:4}}>{c.last_message||"No messages yet"}</div>
+            <span style={{fontSize:10,color:statusColor(c.status),background:statusBg(c.status),borderRadius:4,padding:"1px 6px",fontFamily:"'DM Mono',monospace"}}>{c.status||"pending"}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Message thread */}
+      <div style={{display:"flex",flexDirection:"column"}}>
+        {!selected&&<div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",color:"#608080",fontSize:14}}>Select a conversation</div>}
+        {selected&&conv&&<>
+          {/* Header */}
+          <div style={{padding:"14px 20px",borderBottom:`1px solid ${t.border}`,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+            <div>
+              <div style={{fontSize:16,color:t.text,fontWeight:500}}>{conv.contact_name}</div>
+              <div style={{fontSize:12,color:"#608080"}}>{conv.contact_email}{conv.contact_phone?" · "+conv.contact_phone:""}</div>
+            </div>
+            <div style={{display:"flex",gap:6}}>
+              {conv.status==="pending"&&<>
+                <Btn T={t} small onClick={()=>updateStatus(conv.id,"active")}>Accept</Btn>
+                <Btn T={t} variant="secondary" small onClick={()=>updateStatus(conv.id,"declined")}>Decline</Btn>
+              </>}
+              {conv.status==="active"&&<Btn T={t} variant="secondary" small onClick={()=>updateStatus(conv.id,"archived")}>Archive</Btn>}
+            </div>
+          </div>
+          {/* Messages */}
+          <div style={{flex:1,overflowY:"auto",padding:"16px 20px",display:"flex",flexDirection:"column",gap:10,maxHeight:400}}>
+            {messages.map((m,i)=>{
+              const isMine=m.sender_type==="supervisor";
+              return <div key={m.id||i} style={{alignSelf:isMine?"flex-end":"flex-start",maxWidth:"75%"}}>
+                <div style={{background:isMine?"#1E4040":"#E8F0EE",color:isMine?"#C8E8E0":"#102828",borderRadius:isMine?"14px 14px 4px 14px":"14px 14px 14px 4px",padding:"10px 14px",fontSize:14,lineHeight:1.5}}>{m.content}</div>
+                <div style={{fontSize:10,color:"#A0B8B4",marginTop:3,textAlign:isMine?"right":"left",fontFamily:"'DM Mono',monospace"}}>{m.sender_name} · {m.created_at?new Date(m.created_at).toLocaleTimeString([],{hour:"numeric",minute:"2-digit"}):""}</div>
+              </div>;
+            })}
+            <div ref={messagesEndRef}/>
+          </div>
+          {/* Input */}
+          {(conv.status==="active"||conv.status==="pending")&&<div style={{padding:"12px 20px",borderTop:`1px solid ${t.border}`,display:"flex",gap:10}}>
+            <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")sendMessage();}}
+              placeholder="Type a message..." style={{flex:1,border:`1px solid ${t.border}`,borderRadius:10,padding:"10px 14px",fontSize:14,fontFamily:"inherit",color:t.text,background:t.bg,outline:"none"}}/>
+            <Btn T={t} onClick={sendMessage} disabled={!input.trim()}>Send</Btn>
+          </div>}
+        </>}
+      </div>
+    </div>}
+  </div>;
+}
+
 // ── Reminders / Notification engine ─────────────────────────────────────────
 function generateReminders(interns, groups) {
   const reminders = [];
@@ -10903,7 +11045,7 @@ useEffect(() => {
   },[groups]);
   React.useEffect(()=>{try{localStorage.setItem("suptrack_lists",JSON.stringify(lists));}catch{}},[lists]);
   React.useEffect(()=>{try{localStorage.setItem("suptrack_colleagues",JSON.stringify(colleagues));}catch{}},[colleagues]);
-  const [page,setPage]=useState(()=>{try{const p=localStorage.getItem("suptrack_page");return p&&["dashboard","interns","intern-profile","groups","payments","billing","ce","calendar","consult","lab","resources","discover","agreements","reminders","support","admin","profile","settings"].includes(p)?p:"dashboard";}catch{return "dashboard";}});
+  const [page,setPage]=useState(()=>{try{const p=localStorage.getItem("suptrack_page");return p&&["dashboard","interns","intern-profile","groups","payments","billing","ce","calendar","consult","lab","resources","discover","agreements","reminders","messages","support","admin","profile","settings"].includes(p)?p:"dashboard";}catch{return "dashboard";}});
   React.useEffect(()=>{try{localStorage.setItem("suptrack_page",page);}catch{}},[page]);
   React.useEffect(()=>{const el=document.getElementById("suptrack-content");if(el)el.scrollTop=0;window.scrollTo(0,0);},[page]);
   const [selectedInternId_sv,setSelectedInternId_sv]=useState(()=>{try{const v=localStorage.getItem("suptrack_intern_id");return v?Number(v):null;}catch{return null;}});
@@ -11259,6 +11401,14 @@ useEffect(() => {
 
   // Todos — loaded from Supabase
   const [todos,setTodos]=useState([]);
+  // Unread messages count for nav badge
+  const [unreadMessages,setUnreadMessages]=useState(0);
+  React.useEffect(()=>{
+    if(!session?.user)return;
+    supabase.from("conversations").select("unread_count").eq("supervisor_id",session.user.id).then(({data})=>{
+      setUnreadMessages((data||[]).reduce((s,c)=>s+(c.unread_count||0),0));
+    });
+  },[session]);
   React.useEffect(()=>{
     if(!session?.user)return;
     supabase.from("todos").select("*").eq("supervisor_id",session.user.id).order("created_at",{ascending:true}).then(({data})=>{
@@ -11278,6 +11428,7 @@ useEffect(() => {
     {id:"lab",        label:"✦ Supervision Lab"},
     {id:"agreements", label:"Agreements"},
     {id:"reminders",   label:"Reminders"},
+    {id:"messages",   label:"Messages"},
     {id:"discover",   label:"🔭 Discover"},
     {id:"profile",    label:"My Profile"},
     {id:"billing",    label:"Plan & Billing"},
@@ -11489,6 +11640,7 @@ useEffect(() => {
               {t.isRainbow&&<div style={{width:7,height:7,borderRadius:"50%",background:rc,flexShrink:0,opacity:active?1:0.35}}/>}
               {t.isGradient&&!t.sidebarBg&&<div style={{width:7,height:7,borderRadius:"50%",background:t.gradient,backgroundSize:"200% 200%",animation:"gradientShift 5s ease infinite",flexShrink:0,opacity:active?1:0.4}}/>}
               <span style={{display:"inline-block",...(t.isGradient&&active&&!t.sidebarBg?{background:t.gradient,backgroundSize:"200% 200%",animation:"gradientShift 5s ease infinite",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"}:{color:active?(rc||sAcc):t.sidebarText||(isAI?t.accentText:t.text)})}}>{item.label}</span>
+              {item.id==="messages"&&unreadMessages>0&&<span style={{background:"#1E4040",color:"#C8E8E0",borderRadius:20,fontSize:10,padding:"1px 6px",marginLeft:6,fontFamily:"'DM Mono',monospace"}}>{unreadMessages}</span>}
             </button>;
           })}</nav>}
 
@@ -11564,11 +11716,12 @@ useEffect(() => {
 
       {page==="support"&&<SupportPage T={t} supervisorName={supervisorName} supervisorEmail={session?.user?.email||""} tickets={tickets} setTickets={setTickets} session={session}/>}
       {page==="reminders"&&<RemindersPanel T={t} interns={interns} groups={groups} onNavigate={(dest,ctx)=>{setPage(dest);if(ctx)setSelectedGroupId(ctx);}} onSelectIntern={i=>{setSelectedInternId_sv(i.id);setPage("intern-profile");}}/>}
+      {page==="messages"&&<MessagesPage T={t} session={session}/>}
       {page==="admin"&&isAdmin&&<AdminInboxPage T={t} tickets={tickets} setTickets={setTickets}/>}
       {page==="admin"&&!isAdmin&&<div style={{padding:40,color:t.muted,fontSize:14}}>Access restricted.</div>}
       {page==="profile"&&<PublicProfilePage T={t} supervisorPhoto={supervisorPhoto} setSupervisorPhoto={setSupervisorPhoto} supervisorName={supervisorName} setSupervisorName={setSupervisorName} supervisorInitials={supervisorInitials} supervisorProfile={supervisorProfile} onSaveProfile={saveSupervisorProfile}/>}
       {page==="settings"&&<SettingsPage T={t} theme={theme} setTheme={setTheme} setCustomTheme={setCustomTheme} font={fontKey} setFont={setFontKey} darkMode={darkMode} setDarkMode={setDarkMode} highContrast={highContrast} setHighContrast={setHighContrast} supervisorName={supervisorName} setSupervisorName={setSupervisorName} onSaveProfile={saveSupervisorProfile}/>}
-      {!["dashboard","interns","intern-profile","groups","payments","billing","ce","calendar","consult","lab","resources","discover","agreements","reminders","support","admin","profile","settings"].includes(page)&&<Dashboard T={t} interns={interns} groups={groups} lists={lists} colleagues={colleagues} supervisorName={supervisorName} onAddIntern={()=>{if(activeInternCount>=internLimit){setUpgradePrompt("intern");return;}setAddInternOpen(true);}} onQuickAction={setQuickActionOpen} onSelectIntern={i=>{setSelectedInternId_sv(i.id);setPage("intern-profile");}} onNavigate={navigate} onOpenOnboarding={()=>setOnboardingOpen(true)} quickActionOrder={quickActionOrder} quickActionHidden={quickActionHidden} allQuickActions={ALL_QUICK_ACTIONS} onQuickActionReorder={setQuickActionOrder} onQuickActionToggle={(id)=>{setQuickActionHidden(prev=>{const s=new Set(prev);s.has(id)?s.delete(id):s.add(id);return s;});}}/>}
+      {!["dashboard","interns","intern-profile","groups","payments","billing","ce","calendar","consult","lab","resources","discover","agreements","reminders","messages","support","admin","profile","settings"].includes(page)&&<Dashboard T={t} interns={interns} groups={groups} lists={lists} colleagues={colleagues} supervisorName={supervisorName} onAddIntern={()=>{if(activeInternCount>=internLimit){setUpgradePrompt("intern");return;}setAddInternOpen(true);}} onQuickAction={setQuickActionOpen} onSelectIntern={i=>{setSelectedInternId_sv(i.id);setPage("intern-profile");}} onNavigate={navigate} onOpenOnboarding={()=>setOnboardingOpen(true)} quickActionOrder={quickActionOrder} quickActionHidden={quickActionHidden} allQuickActions={ALL_QUICK_ACTIONS} onQuickActionReorder={setQuickActionOrder} onQuickActionToggle={(id)=>{setQuickActionHidden(prev=>{const s=new Set(prev);s.has(id)?s.delete(id):s.add(id);return s;});}}/>}
       {quickActionOpen&&<QuickActionModal T={t} action={quickActionOpen} interns={interns} groups={groups} onUpdateIntern={updateIntern} onClose={()=>setQuickActionOpen(null)}/>}
       {onboardingOpen&&<OnboardingModal T={t} supervisorName={supervisorName} onClose={()=>setOnboardingOpen(false)}/>}
       {addInternOpen&&<AddInternModal T={t} groups={groups} lists={lists}
