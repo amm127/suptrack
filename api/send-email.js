@@ -122,9 +122,9 @@ function welcomeEmail(name, trialEndDate) {
         <div style="text-align:center;font-size:20px;color:#C4A040;margin-bottom:24px">✦</div>
         <p style="font-size:18px;color:#1E4040;margin:0 0 20px;line-height:1.6">Hey ${name},</p>
         <p style="font-size:16px;color:#3A5A4A;line-height:1.8;margin:0 0 16px">Welcome to SupTrack — we're really glad you're here.</p>
-        <p style="font-size:15px;color:#4A6A5A;line-height:1.8;margin:0 0 16px">We built this because we know what supervision actually feels like. The documentation. The scheduling. The wondering if you're tracking everything right. The weight of holding space for someone else's clinical growth while managing your own practice.</p>
+        <p style="font-size:15px;color:#4A6A5A;line-height:1.8;margin:0 0 16px">We built this because we know what supervision actually feels like. The documentation. The scheduling. The wondering if you're tracking everything correctly. The weight of holding space for someone else's clinical growth while managing everything else on your plate.</p>
         <p style="font-size:15px;color:#4A6A5A;line-height:1.8;margin:0 0 24px">You shouldn't have to do all of that in spreadsheets and sticky notes.</p>
-        <p style="font-size:15px;color:#4A6A5A;line-height:1.8;margin:0 0 24px">SupTrack is built by a supervisor, for supervisors. Every feature exists because someone like you needed it. And we're just getting started.</p>
+        <p style="font-size:15px;color:#4A6A5A;line-height:1.8;margin:0 0 24px">SupTrack was built by supervisors, for supervisors. Every feature exists because someone like you needed it. And we're just getting started.</p>
 
         <div style="margin-bottom:24px">
           <p style="font-size:15px;color:#1E4040;font-weight:600;margin:0 0 6px">Here's what you can do right now:</p>
@@ -136,12 +136,11 @@ function welcomeEmail(name, trialEndDate) {
         </div>
 
         <p style="font-size:15px;color:#4A6A5A;line-height:1.8;margin:0 0 24px">Your 14-day free trial is fully unlocked${trialEndDate?' until <strong>'+trialEndDate+'</strong>':''} — no credit card, no pressure, no catch. Just the tools you need to supervise with confidence.</p>
-        <p style="font-size:15px;color:#4A6A5A;line-height:1.8;margin:0 0 28px">If you ever have a question, a suggestion, or just want to tell us what you need — reply to this email. It comes straight to us.</p>
+        <p style="font-size:15px;color:#4A6A5A;line-height:1.8;margin:0 0 28px">Have a question or a suggestion? Reply to this email — we actually read them.</p>
 
         <p style="font-size:15px;color:#4A6A5A;line-height:1.8;margin:0 0 8px">Here's to supervision that finally feels as meaningful as the work itself.</p>
         <p style="font-size:15px;color:#1E4040;margin:0 0 4px">With warmth,</p>
-        <p style="font-size:16px;color:#1E4040;font-weight:700;margin:0 0 4px">Alyson</p>
-        <p style="font-size:13px;color:#8A9A8A;margin:0 0 28px">Founder, SupTrack</p>
+        <p style="font-size:16px;color:#1E4040;font-weight:700;margin:0 0 28px">The SupTrack Team</p>
 
         <div style="text-align:center">
           <a href="${APP_URL}" style="display:inline-block;background:#1E4040;color:#C8E8E0;text-decoration:none;padding:14px 36px;border-radius:10px;font-size:16px;font-weight:700;font-family:Georgia,serif">Get Started →</a>
@@ -152,7 +151,6 @@ function welcomeEmail(name, trialEndDate) {
       </div>
       <div style="text-align:center;padding:24px 0;font-size:11px;color:#B0A8A0">
         <a href="${APP_URL}" style="color:#8A9A8A;text-decoration:none">suptrack.com</a> ·
-        <a href="${APP_URL}?page=settings" style="color:#8A9A8A;text-decoration:none">Manage notifications</a> ·
         <a href="${APP_URL}?page=settings" style="color:#8A9A8A;text-decoration:none">Unsubscribe</a>
       </div>
     </div>
@@ -213,7 +211,7 @@ export default async function handler(req, res) {
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from: type === 'WELCOME' ? 'Alyson at SupTrack <hello@suptrack.com>' : FROM_EMAIL, to, subject, html }),
+      body: JSON.stringify({ from: type === 'WELCOME' ? 'SupTrack <hello@suptrack.com>' : FROM_EMAIL, to, subject, html }),
     });
 
     const result = await response.json();
