@@ -57,6 +57,46 @@ function AutosaveIndicator({ status, isOffline }) {
   </div>;
 }
 
+// ── Error logging utility ─────────────────────────────────────────────────
+let _loggingError = false;
+function logError(message, stack, userId) {
+  if (_loggingError) return; // prevent loops
+  _loggingError = true;
+  try {
+    supabase.from('error_logs').insert({
+      user_id: userId || null,
+      error_message: (message || 'Unknown error').slice(0, 500),
+      error_stack: (stack || '').slice(0, 2000),
+      page_url: window.location.href,
+      created_at: new Date().toISOString(),
+    }).then(() => {}).catch(() => {});
+  } catch (_) { /* silently fail */ }
+  setTimeout(() => { _loggingError = false; }, 100);
+}
+
+// Intercept console.error to also log to Supabase
+const _origConsoleError = console.error;
+console.error = (...args) => {
+  _origConsoleError.apply(console, args);
+  const msg = args.map(a => typeof a === 'string' ? a : a?.message || (typeof a === 'object' ? JSON.stringify(a).slice(0, 200) : String(a))).join(' ');
+  if (msg.includes('error_logs') || msg.includes('_loggingError')) return; // prevent loops
+  const stack = args.find(a => a?.stack)?.stack || '';
+  // Get current user id from localStorage if available
+  let uid = null;
+  try { const k = Object.keys(localStorage).find(k => k.startsWith('sb-') && k.endsWith('-auth-token')); if (k) { const d = JSON.parse(localStorage.getItem(k)); uid = d?.user?.id || null; } } catch (_) {}
+  logError(msg, stack, uid);
+};
+
+// Global unhandled error listeners
+if (typeof window !== 'undefined') {
+  window.addEventListener('error', (event) => {
+    logError(event.message || 'Unhandled error', event.error?.stack || '', null);
+  });
+  window.addEventListener('unhandledrejection', (event) => {
+    logError(event.reason?.message || 'Unhandled promise rejection', event.reason?.stack || '', null);
+  });
+}
+
 // API keys are now server-side only — no VITE_ prefix needed
 // ── Date helpers — no hardcoded dates in runtime logic ─────────────────────
 const TODAY = () => new Date().toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});
@@ -10668,7 +10708,12 @@ function AdminPanelPage({T,session,tickets,setTickets}) {
     } else if(statKey==="recentErrors"){
       const dayAgo=new Date(now-24*60*60*1000).toISOString();
       const {data:errs}=await supabase.from("error_logs").select("*").gte("created_at",dayAgo).order("created_at",{ascending:false}).limit(50);
-      data=(errs||[]).map(e=>({message:e.message||e.error||"Unknown error",source:e.source||"app",date:new Date(e.created_at).toLocaleString()}));
+      // Look up user emails
+      const userIds=[...new Set((errs||[]).map(e=>e.user_id).filter(Boolean))];
+      const userMap={};
+      if(userIds.length>0){const {data:users}=await supabase.from("supervisors").select("user_id,email").in("user_id",userIds);(users||[]).forEach(u=>{userMap[u.user_id]=u.email;});}
+      const relTime=(iso)=>{const d=Math.floor((Date.now()-new Date(iso).getTime())/60000);if(d<1)return"just now";if(d<60)return`${d}m ago`;if(d<1440)return`${Math.floor(d/60)}h ago`;return`${Math.floor(d/1440)}d ago`;};
+      data=(errs||[]).map(e=>({time:relTime(e.created_at),message:(e.error_message||e.message||e.error||"Unknown error").slice(0,80),page:e.page_url||"—",user:e.user_id?userMap[e.user_id]||"Unknown":"—",stack:(e.error_stack||e.stack||"").slice(0,120)||"—"}));
     }
     setDrillData(data);
     setDrillLoading(false);
@@ -10888,10 +10933,10 @@ function AdminPanelPage({T,session,tickets,setTickets}) {
     setContentSaving(false);
   };
 
-  const card=(label,value,key,icon)=>(
-    <div onClick={()=>drillInto(key)} style={{flex:"1 1 140px",background:"#fff",border:`1px solid ${goldBorder}`,borderRadius:14,padding:"20px 18px",cursor:"pointer",transition:"all 0.15s",boxShadow:"0 2px 8px rgba(196,160,64,0.08)"}}>
+  const card=(label,value,key,icon,valueColor)=>(
+    <div onClick={()=>key&&drillInto(key)} style={{flex:"1 1 140px",background:"#fff",border:`1px solid ${goldBorder}`,borderRadius:14,padding:"20px 18px",cursor:key?"pointer":"default",transition:"all 0.15s",boxShadow:"0 2px 8px rgba(196,160,64,0.08)"}}>
       <div style={{fontSize:11,color:"#8A7A50",fontFamily:"'DM Mono',monospace",letterSpacing:1,marginBottom:8,textTransform:"uppercase"}}>{icon} {label}</div>
-      <div style={{fontSize:32,fontWeight:700,color:"#1E4040",fontFamily:"'Fraunces',Georgia,serif"}}>{loading?"—":value}</div>
+      <div style={{fontSize:32,fontWeight:700,color:valueColor||"#1E4040",fontFamily:"'Fraunces',Georgia,serif"}}>{loading?"—":value}</div>
     </div>
   );
 
@@ -10942,7 +10987,7 @@ function AdminPanelPage({T,session,tickets,setTickets}) {
         {card("Expiring 7D",stats.expiring7d||0,null,"⚠️")}
         {card("Paid Users",stats.paidUsers||0,null,"💳")}
         {card("Open Tickets",stats.openTickets,"openTickets","🎫")}
-        {card("Errors (24h)",stats.recentErrors,"recentErrors","🔴")}
+        {card("Errors (24h)",stats.recentErrors,"recentErrors","🔴",stats.recentErrors>=6?"#A04040":stats.recentErrors>=1?"#B87D2A":"#608080")}
       </div>
 
       {/* Drill-down panel */}
@@ -12595,7 +12640,7 @@ function InternPortal({intern:initialIntern,groups,onExit,onUpdateIntern,supervi
 class ErrorBoundary extends React.Component {
   constructor(props){super(props);this.state={hasError:false,error:null};}
   static getDerivedStateFromError(error){return {hasError:true,error};}
-  componentDidCatch(error,info){console.error("SupTrack render error:",error,info);}
+  componentDidCatch(error,info){logError(`React render error: ${error.message}`,error.stack+(info?.componentStack||''),null);}
   render(){
     if(this.state.hasError){
       return <div style={{padding:40,fontFamily:"system-ui",maxWidth:600,margin:"80px auto"}}>
@@ -13299,6 +13344,12 @@ useEffect(() => {
   React.useEffect(()=>{try{localStorage.setItem("suptrack_billing",JSON.stringify(billing));}catch{}},[billing]);
 
   const isAdmin = supervisorProfile?.lifetime_free === true;
+  const [errorCount24h,setErrorCount24h]=useState(0);
+  React.useEffect(()=>{
+    if(!isAdmin||!session?.user)return;
+    const dayAgo=new Date(Date.now()-24*60*60*1000).toISOString();
+    supabase.from("error_logs").select("*",{count:"exact",head:true}).gte("created_at",dayAgo).then(({count})=>{setErrorCount24h(count||0);});
+  },[isAdmin,session]);
   const TICKETS_SEED = [];
   const [tickets,setTickets]=useState(()=>{try{const s=localStorage.getItem("suptrack_tickets");return s?JSON.parse(s):TICKETS_SEED;}catch{return TICKETS_SEED;}});
   React.useEffect(()=>{try{localStorage.setItem("suptrack_tickets",JSON.stringify(tickets));}catch{}},[tickets]);
@@ -13581,7 +13632,7 @@ useEffect(() => {
         <Confetti active={founderConfetti}/>
         {isAdmin&&<button onClick={()=>setPage("admin")}
           style={{marginTop:8,background:page==="admin"?"rgba(196,160,64,0.10)":"none",border:"none",cursor:"pointer",fontSize:11,color:page==="admin"?"#C4A040":"#B0A070",fontFamily:"'DM Mono',monospace",padding:"5px 8px",borderRadius:6,display:"flex",alignItems:"center",gap:5,fontWeight:page==="admin"?600:400,transition:"all 0.15s"}}>
-          ✦ Admin Panel{tickets.filter(tk=>tk.status==="open").length>0&&<span style={{background:"#C4A040",color:"#fff",borderRadius:20,fontSize:9,padding:"1px 5px"}}>{tickets.filter(tk=>tk.status==="open").length}</span>}
+          ✦ Admin Panel{tickets.filter(tk=>tk.status==="open").length>0&&<span style={{background:"#C4A040",color:"#fff",borderRadius:20,fontSize:9,padding:"1px 5px"}}>{tickets.filter(tk=>tk.status==="open").length}</span>}{errorCount24h>0&&<span style={{width:8,height:8,borderRadius:"50%",background:"#A04040",display:"inline-block",marginLeft:4,flexShrink:0}} title={`${errorCount24h} error${errorCount24h!==1?"s":""} in last 24h`}/>}
         </button>}
       </div>
     </div>
