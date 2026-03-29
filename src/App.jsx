@@ -3201,7 +3201,7 @@ function PlatformOverview({T,session,onNavigate}) {
   </div>;
 }
 
-function Dashboard({interns,groups,lists,colleagues,onSelectIntern,onNavigate,onOpenOnboarding,onAddIntern,onQuickAction,supervisorName,quickActionOrder,quickActionHidden,allQuickActions,onQuickActionReorder,onQuickActionToggle,T,ceData,todos,setTodos,session,supervisorProfile:sp}) {
+function Dashboard({interns,groups,lists,colleagues,onSelectIntern,onNavigate,onOpenOnboarding,onAddIntern,onQuickAction,supervisorName,supervisorPhoto,supervisorInitials,quickActionOrder,quickActionHidden,allQuickActions,onQuickActionReorder,onQuickActionToggle,T,ceData,todos,setTodos,session,supervisorProfile:sp}) {
   const t=T||THEMES.sage;
   const alerts = useMemo(()=>generateAlerts(interns,ceData,sp),[interns,ceData,sp]);
   const [activeList,setActiveList]=useState("all");
@@ -3278,9 +3278,12 @@ function Dashboard({interns,groups,lists,colleagues,onSelectIntern,onNavigate,on
 
   return <div>
     <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:16}}>
-      <div>
-        <h1 style={{fontFamily:"inherit",fontSize:30,fontWeight:400,color:t.text,margin:"0 0 4px",letterSpacing:"-0.02em"}}>{greeting} {firstName}</h1>
-        <p style={{color:t.muted,fontSize:14,margin:0}}>{dateStr} · <span style={{fontFamily:"'DM Mono',monospace",fontSize:13}}>{timeStr}</span></p>
+      <div style={{display:"flex",alignItems:"center",gap:14}}>
+        <Avatar initials={supervisorInitials||"??"} size={46} T={t} photo={supervisorPhoto}/>
+        <div>
+          <h1 style={{fontFamily:"inherit",fontSize:30,fontWeight:400,color:t.text,margin:"0 0 4px",letterSpacing:"-0.02em"}}>{greeting} {firstName}</h1>
+          <p style={{color:t.muted,fontSize:14,margin:0}}>{dateStr} · <span style={{fontFamily:"'DM Mono',monospace",fontSize:13}}>{timeStr}</span></p>
+        </div>
       </div>
       <div style={{display:"flex",gap:6,alignItems:"center"}}>
         <Btn T={t} variant="secondary" onClick={()=>setCustomizing(c=>!c)}>{customizing?"Done":"Customize"}</Btn>
@@ -6129,7 +6132,7 @@ function OnboardingModal({onClose,supervisorName,T}) {
 }
 
 // ── Public profile page ────────────────────────────────────────────────────
-function PublicProfilePage({supervisorPhoto,setSupervisorPhoto,supervisorName:supName,setSupervisorName,supervisorInitials,T,supervisorProfile:sp,onSaveProfile}) {
+function PublicProfilePage({supervisorPhoto,setSupervisorPhoto,supervisorName:supName,setSupervisorName,supervisorInitials,T,supervisorProfile:sp,onSaveProfile,session}) {
   const t=T||THEMES.sage;
   const [editing,setEditing]=useState(false);
   const [newSpecialty,setNewSpecialty]=useState("");
@@ -6221,7 +6224,7 @@ function PublicProfilePage({supervisorPhoto,setSupervisorPhoto,supervisorName:su
         <div style={cardStyle}>
           {sectionLabel("Identity")}
           <div style={{display:"flex",flexDirection:"column",alignItems:"center",marginBottom:20}}>
-            <Avatar initials={supervisorInitials||"??"} size={80} T={{...t,accentMid:"#1E4040",accentText:"#F0DECA"}} photo={supervisorPhoto} editable={true} userId={sp?.user_id} onPhotoChange={(url)=>{setSupervisorPhoto(url);if(onSaveProfile)onSaveProfile({photo:url});}}/>
+            <Avatar initials={supervisorInitials||"??"} size={80} T={{...t,accentMid:"#1E4040",accentText:"#F0DECA"}} photo={supervisorPhoto} editable={true} userId={sp?.user_id||session?.user?.id} onPhotoChange={(url)=>{setSupervisorPhoto(url);if(onSaveProfile)onSaveProfile({photo:url});}}/>
             <div style={{marginTop:12,textAlign:"center"}}>
               {editing
                 ? <input {...inp("name")} style={{...inp("name").style,fontSize:22,fontFamily:"'Fraunces',Georgia,serif",fontWeight:600,textAlign:"center",marginBottom:6}}/>
@@ -12732,6 +12735,7 @@ useEffect(() => {
           group_ids:updated.groupIds||[],
           list_ids:updated.listIds||[],
           shared_with:updated.sharedWith||[],
+          photo:updated.photo||null,
         };
         supabase.from("interns").update(internRow).eq("id",updated.id).then(({error})=>{if(error)console.error("Intern update error:",error);});
       }
@@ -13040,7 +13044,7 @@ useEffect(() => {
           <button onClick={()=>setPage("settings")} style={{background:"none",border:"none",color:"#A0453E",textDecoration:"underline",cursor:"pointer",fontSize:12,fontFamily:"inherit",padding:0}}>Export your data</button>
         </div>}
       </div>}
-      {page==="dashboard"&&<Dashboard T={t} interns={interns} groups={groups} lists={lists} colleagues={colleagues} supervisorName={supervisorName} ceData={ceData} todos={todos} setTodos={setTodos} session={session} supervisorProfile={supervisorProfile}
+      {page==="dashboard"&&<Dashboard T={t} interns={interns} groups={groups} lists={lists} colleagues={colleagues} supervisorName={supervisorName} supervisorPhoto={supervisorPhoto} supervisorInitials={supervisorInitials} ceData={ceData} todos={todos} setTodos={setTodos} session={session} supervisorProfile={supervisorProfile}
         onAddIntern={()=>{if(isReadOnly){setToast({type:"error",message:"Upgrade your plan to add supervisees"});return;}if(activeInternCount>=internLimit){setUpgradePrompt("intern");return;}setAddInternOpen(true);}}
         onQuickAction={a=>{if(isReadOnly){setToast({type:"error",message:"Upgrade your plan to make changes"});return;}setQuickActionOpen(a);}}
         onSelectIntern={i=>{setSelectedInternId_sv(i.id);setPage("intern-profile");}}
@@ -13076,7 +13080,7 @@ useEffect(() => {
       {page==="messages"&&<MessagesPage T={t} session={session}/>}
       {page==="admin"&&isAdmin&&<AdminPanelPage T={t} session={session} tickets={tickets} setTickets={setTickets}/>}
       {page==="admin"&&!isAdmin&&(()=>{setTimeout(()=>setPage("dashboard"),0);return null;})()}
-      {page==="profile"&&<PublicProfilePage T={t} supervisorPhoto={supervisorPhoto} setSupervisorPhoto={setSupervisorPhoto} supervisorName={supervisorName} setSupervisorName={setSupervisorName} supervisorInitials={supervisorInitials} supervisorProfile={supervisorProfile} onSaveProfile={saveSupervisorProfile}/>}
+      {page==="profile"&&<PublicProfilePage T={t} supervisorPhoto={supervisorPhoto} setSupervisorPhoto={setSupervisorPhoto} supervisorName={supervisorName} setSupervisorName={setSupervisorName} supervisorInitials={supervisorInitials} supervisorProfile={supervisorProfile} onSaveProfile={saveSupervisorProfile} session={session}/>}
       {page==="settings"&&<SettingsPage T={t} theme={theme} setTheme={setTheme} setCustomTheme={setCustomTheme} font={fontKey} setFont={setFontKey} darkMode={darkMode} setDarkMode={setDarkMode} highContrast={highContrast} setHighContrast={setHighContrast} supervisorName={supervisorName} setSupervisorName={setSupervisorName} onSaveProfile={saveSupervisorProfile} notifPrefs={notifPrefs} setNotifPrefs={setNotifPrefs} session={session} supervisorProfile={supervisorProfile} setToast={setToast}/>}
       {!["dashboard","interns","intern-profile","groups","payments","billing","ce","calendar","consult","lab","resources","discover","agreements","reminders","messages","support","admin","profile","settings"].includes(page)&&<Dashboard T={t} interns={interns} groups={groups} lists={lists} colleagues={colleagues} supervisorName={supervisorName} onAddIntern={()=>{if(activeInternCount>=internLimit){setUpgradePrompt("intern");return;}setAddInternOpen(true);}} onQuickAction={setQuickActionOpen} onSelectIntern={i=>{setSelectedInternId_sv(i.id);setPage("intern-profile");}} onNavigate={navigate} onOpenOnboarding={()=>setOnboardingOpen(true)} quickActionOrder={quickActionOrder} quickActionHidden={quickActionHidden} allQuickActions={ALL_QUICK_ACTIONS} onQuickActionReorder={setQuickActionOrder} onQuickActionToggle={(id)=>{setQuickActionHidden(prev=>{const s=new Set(prev);s.has(id)?s.delete(id):s.add(id);return s;});}}/>}
       {quickActionOpen&&<QuickActionModal T={t} action={quickActionOpen} interns={interns} groups={groups} onUpdateIntern={updateIntern} onClose={()=>setQuickActionOpen(null)}/>}
