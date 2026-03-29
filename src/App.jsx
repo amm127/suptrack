@@ -6208,7 +6208,7 @@ function PublicProfilePage({supervisorPhoto,setSupervisorPhoto,supervisorName:su
           const displayName=profile.name.split(",")[0].trim()||supName;
           if(displayName&&displayName!==supName)setSupervisorName(displayName);
           if(onSaveProfile){
-            onSaveProfile({name:displayName,credential:profile.credential||"",phone:profile.phone||"",license_goal:profile.licenseGoal||"",bio:profile.bio||"",photo:supervisorPhoto,profile_data:profile});
+            onSaveProfile({name:displayName,photo:supervisorPhoto,profile_data:profile});
           }
         }
         setEditing(e=>!e);
@@ -12453,7 +12453,7 @@ useEffect(() => {
         // Use the name from the supervisors table. That's the source of truth.
         const name = data.name || "";
         setSupervisorName(name);
-        setSupervisorPhoto(data.photo||null);
+        setSupervisorPhoto(data.photo||data.photo_url||null);
         setSupervisorProfile(data);
 
         // One-time login email checks: license expiry
@@ -12509,22 +12509,24 @@ useEffect(() => {
     if('photo' in updates) setSupervisorPhoto(updates.photo);
     setSupervisorProfile(p=>({...p,...updates}));
 
-    // Build a clean row with only known Supabase columns
+    // Build row with only columns guaranteed to exist in Supabase
     const row = {};
-    const VALID_COLS = ["name","email","phone","credential","photo","plan","trial_ends_at","stripe_customer_id","billing_cycle","seat_count","lifetime_free","profile_data","bio","license_goal"];
-    for(const key of VALID_COLS){
-      if(key in updates) row[key] = updates[key];
+    // Core columns that exist as real table columns
+    if(updates.name) row.name = updates.name;
+    if(updates.email) row.email = updates.email;
+    if('photo' in updates) row.photo = updates.photo;
+    if(updates.dashboard_layout) row.dashboard_layout = updates.dashboard_layout;
+    // Consolidate profile fields into profile_data JSONB
+    const existingPd = supervisorProfile?.profile_data || {};
+    const incomingPd = updates.profile_data || {};
+    const profileFields = ["credential","phone","bio","license_goal","licenseNumber","licenseState","credentialBody","tagline","yearsExperience","supervisionStyle","specialties","accepting","acceptingStudents","acceptingLicensed","feeIndividual","feeGroup","feeIndividualUnit","feeGroupUnit","location","telehealth","inPerson","languages","maxSupervisees"];
+    const mergedPd = {...existingPd,...incomingPd};
+    for(const f of profileFields){if(f in updates) mergedPd[f]=updates[f];}
+    if(updates.name) mergedPd.name = updates.name;
+    if(incomingPd.name && !updates.name) row.name = incomingPd.name;
+    if(Object.keys(incomingPd).length>0 || profileFields.some(f=>f in updates)){
+      row.profile_data = mergedPd;
     }
-    // Always sync name into profile_data
-    if(updates.name){
-      row.name = updates.name;
-      if(updates.profile_data) row.profile_data = {...updates.profile_data, name: updates.name};
-      else {
-        const existingPd = supervisorProfile?.profile_data || {};
-        row.profile_data = {...existingPd, name: updates.name};
-      }
-    }
-    if(updates.profile_data?.name && !row.name) row.name = updates.profile_data.name;
 
     if(Object.keys(row).length===0) return;
 
