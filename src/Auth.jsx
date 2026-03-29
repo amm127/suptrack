@@ -209,8 +209,14 @@ export default function Auth() {
         </div>
 
         {/* Footer */}
-        <div style={{textAlign:'center',fontSize:11,color:'#7A9898',letterSpacing:2,marginTop:36,animation:'st-fadeUp 1s ease 0.2s both'}}>
+        <div style={{textAlign:'center',fontSize:11,color:'#7A9898',letterSpacing:1.5,marginTop:36,animation:'st-fadeUp 1s ease 0.2s both',lineHeight:2}}>
           &copy; {new Date().getFullYear()} SUPTRACK &middot; CLINICAL SUPERVISION PLATFORM
+          <br/>
+          <a href="/terms" style={{color:'#7A9898',textDecoration:'none',borderBottom:'1px solid #A8C0BC'}}>Terms of Service</a>
+          {' '}&middot;{' '}
+          <a href="/privacy" style={{color:'#7A9898',textDecoration:'none',borderBottom:'1px solid #A8C0BC'}}>Privacy Policy</a>
+          {' '}&middot;{' '}
+          <a href="mailto:support@suptrack.com" style={{color:'#7A9898',textDecoration:'none',borderBottom:'1px solid #A8C0BC'}}>support@suptrack.com</a>
         </div>
       </div>
     </>

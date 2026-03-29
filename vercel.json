@@ -17,6 +17,8 @@
     { "source": "/directory", "destination": "/directory.html" },
     { "source": "/find-supervisor", "destination": "/directory.html" },
     { "source": "/supervisor/:slug", "destination": "/supervisor.html" },
-    { "source": "/((?!api|assets|logo|favicon|supervisor|directory).*)", "destination": "/index.html" }
+    { "source": "/terms", "destination": "/terms.html" },
+    { "source": "/privacy", "destination": "/privacy.html" },
+    { "source": "/((?!api|assets|logo|favicon|supervisor|directory|terms|privacy).*)", "destination": "/index.html" }
   ]
 }

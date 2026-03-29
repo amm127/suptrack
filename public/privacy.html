@@ -4,45 +4,194 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Privacy Policy — SupTrack</title>
+  <meta name="description" content="SupTrack Privacy Policy — How we collect, use, and protect your data.">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/fraunces@5/index.css"/>
   <style>
-    body { font-family: 'DM Sans', system-ui, sans-serif; max-width: 720px; margin: 0 auto; padding: 40px 24px; color: #1A1A2E; line-height: 1.8; background: #FAF9F8; }
-    h1 { font-size: 28px; font-weight: 500; margin-bottom: 8px; }
-    h2 { font-size: 18px; font-weight: 500; margin-top: 32px; }
-    p, li { font-size: 14px; color: #444; }
-    a { color: #7B9FD4; }
-    .back { display: inline-block; margin-bottom: 24px; font-size: 13px; color: #7B9FD4; text-decoration: none; }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:Georgia,'Times New Roman',serif; background:#EEF2F0; color:#102828; line-height:1.9; }
+    a { color:#1E4040; }
+
+    .header { background:#FAFDFB; border-bottom:1px solid #C8D8D4; padding:20px 24px; text-align:center; }
+    .header a { text-decoration:none; }
+    .logo { font-family:'Fraunces',Georgia,serif; font-size:28px; font-weight:700; color:#1E4040; letter-spacing:-1px; }
+    .logo-sparkle { color:#C4A040; font-size:14px; opacity:0.6; }
+
+    .container { max-width:800px; margin:0 auto; padding:48px 28px 80px; }
+    h1 { font-family:'Fraunces',Georgia,serif; font-size:36px; font-weight:700; color:#1E4040; margin-bottom:6px; letter-spacing:-0.5px; }
+    .meta { font-size:13px; color:#608080; font-style:italic; margin-bottom:40px; letter-spacing:0.5px; }
+    h2 { font-family:'Fraunces',Georgia,serif; font-size:20px; font-weight:600; color:#1E4040; margin:36px 0 12px; padding-bottom:8px; border-bottom:1px solid #C8D8D4; }
+    h3 { font-family:'Fraunces',Georgia,serif; font-size:16px; font-weight:600; color:#1E4040; margin:20px 0 8px; }
+    p { font-size:15px; color:#2A4A4A; margin-bottom:14px; }
+    ul, ol { font-size:15px; color:#2A4A4A; margin:0 0 14px 24px; }
+    li { margin-bottom:6px; }
+    strong { color:#102828; }
+
+    .callout { background:#FAFDFB; border:1px solid #C8D8D4; border-radius:12px; padding:20px 24px; margin:20px 0; }
+    .callout-warn { background:#FDF6F0; border-color:#E8DCC0; }
+    .callout-warn strong { color:#8A6A20; }
+
+    .footer { background:#FAFDFB; border-top:1px solid #C8D8D4; padding:28px 24px; text-align:center; font-size:12px; color:#7A9898; letter-spacing:1px; }
+    .footer a { color:#608080; text-decoration:none; border-bottom:1px solid #C8D8D4; }
+    .footer a:hover { color:#1E4040; }
+    .footer-links { margin-top:8px; }
+
+    @media(max-width:600px){
+      .container { padding:32px 20px 60px; }
+      h1 { font-size:28px; }
+    }
   </style>
 </head>
 <body>
-  <a class="back" href="/">← Back to SupTrack</a>
-  <h1>Privacy Policy</h1>
-  <p style="color: #888; font-size: 13px;">Last updated: March 27, 2026</p>
+  <div class="header">
+    <a href="/"><span class="logo-sparkle">✦ </span><span class="logo">SupTrack</span></a>
+  </div>
 
-  <h2>1. Information We Collect</h2>
-  <p>SupTrack collects information you provide when creating an account (name, email, password) and data you enter while using the platform, including supervisee records, session notes, hour logs, documents, and payment records.</p>
+  <div class="container">
+    <h1>Privacy Policy</h1>
+    <div class="meta">Effective date: March 1, 2026 &middot; Last updated: March 28, 2026</div>
 
-  <h2>2. How We Use Your Information</h2>
-  <p>We use your information solely to provide and improve the SupTrack supervision management platform. We do not sell, rent, or share your personal data with third parties for marketing purposes.</p>
+    <p>SupTrack LLC ("SupTrack," "we," "us," or "our") is committed to protecting the privacy of clinical supervisors and their supervisees who use our platform. This Privacy Policy describes the information we collect, how we use it, and the choices available to you.</p>
 
-  <h2>3. Data Storage and Security</h2>
-  <p>Your data is stored securely using Supabase (hosted on AWS) with row-level security policies ensuring each supervisor can only access their own data. All data is encrypted in transit via TLS and at rest.</p>
+    <h2>1. Information We Collect</h2>
 
-  <h2>4. HIPAA Considerations</h2>
-  <p>SupTrack is designed for clinical supervision documentation. While we implement security best practices, supervisors are responsible for ensuring their use of the platform complies with applicable privacy regulations. Do not enter protected health information (PHI) of clients into session notes. Session notes should document the supervision interaction, not client-identifying details.</p>
+    <h3>1.1 Account Information</h3>
+    <p>When you create a SupTrack account, we collect:</p>
+    <ul>
+      <li>Full name</li>
+      <li>Email address</li>
+      <li>Password (stored as a salted hash — we never see or store your plaintext password)</li>
+      <li>Professional credentials and license information (type, number, expiration date)</li>
+      <li>Profile photo (optional)</li>
+    </ul>
 
-  <h2>5. AI Features</h2>
-  <p>When you use AI-powered features (session note generation, consultation), your input is sent to Anthropic's API for processing. Anthropic does not use API inputs for model training. No data is retained by the AI provider after processing.</p>
+    <h3>1.2 Supervisee Data</h3>
+    <p>As a supervisor, you may enter data about your supervisees, including:</p>
+    <ul>
+      <li>Names, contact information, and demographic details</li>
+      <li>Credential type and licensure goals</li>
+      <li>Supervision session notes and topics</li>
+      <li>Hours logs (direct, indirect, primary, secondary)</li>
+      <li>Documents and agreements uploaded to the platform</li>
+      <li>Payment and billing records</li>
+    </ul>
 
-  <h2>6. Data Retention and Deletion</h2>
-  <p>Your data is retained as long as your account is active. You may request deletion of your account and all associated data by contacting support. Upon deletion, all supervisee records, session notes, and documents are permanently removed.</p>
+    <h3>1.3 Payment Information</h3>
+    <p>Payment information (credit card numbers, billing addresses) is collected and processed directly by <strong>Stripe</strong>. SupTrack does not store your full credit card number. We receive only a customer ID, last four digits, card brand, and transaction confirmations from Stripe.</p>
 
-  <h2>7. Cookies</h2>
-  <p>SupTrack uses essential cookies and local storage for authentication and user preferences. We do not use tracking cookies or third-party analytics.</p>
+    <h3>1.4 Usage Data</h3>
+    <p>We automatically collect:</p>
+    <ul>
+      <li>Browser type and version</li>
+      <li>Pages visited and features used</li>
+      <li>Error logs and performance data</li>
+      <li>IP address (used for rate limiting and security, not tracking)</li>
+      <li>Timestamps of account activity</li>
+    </ul>
 
-  <h2>8. Changes to This Policy</h2>
-  <p>We may update this privacy policy from time to time. We will notify users of material changes via email or in-app notification.</p>
+    <h2>2. How We Use Your Information</h2>
+    <p>We use your information to:</p>
+    <ul>
+      <li>Provide and operate the SupTrack platform</li>
+      <li>Process your subscription payments</li>
+      <li>Send transactional emails (welcome, password reset, payment confirmations, deletion warnings)</li>
+      <li>Send notification emails you have opted into (messages, milestones, reminders)</li>
+      <li>Generate AI-powered session notes and consultation responses (using Anthropic's API)</li>
+      <li>Diagnose technical issues and improve platform reliability</li>
+      <li>Prevent fraud and enforce our Terms of Service</li>
+    </ul>
+    <p>We do <strong>not</strong> sell, rent, or share your personal data with third parties for marketing or advertising purposes.</p>
 
-  <h2>9. Contact</h2>
-  <p>For privacy questions or data requests, contact us at <a href="mailto:privacy@suptrack.io">privacy@suptrack.io</a>.</p>
+    <h2>3. Third-Party Services</h2>
+    <p>SupTrack uses the following third-party services to operate. Your data may be processed by these services in accordance with their respective privacy policies:</p>
+
+    <ul>
+      <li><strong>Supabase</strong> (database hosting and authentication) — Your account data, supervisee records, and all platform data is stored in a Supabase-hosted PostgreSQL database with row-level security ensuring each supervisor can only access their own data. Data is encrypted at rest and in transit.</li>
+      <li><strong>Stripe</strong> (payment processing) — Handles all subscription billing and payment method storage. SupTrack does not store your full payment card details. Stripe is PCI DSS Level 1 certified.</li>
+      <li><strong>Resend</strong> (transactional email) — Delivers account emails including welcome messages, notifications, password resets, and deletion warnings. Email addresses are shared with Resend solely for delivery purposes.</li>
+      <li><strong>Vercel</strong> (hosting and serverless functions) — Hosts the SupTrack web application and API endpoints. Server-side code executes in Vercel's serverless environment.</li>
+      <li><strong>Anthropic</strong> (AI features) — When you use AI-powered features such as session note generation or clinical consultation, your input is sent to Anthropic's Claude API for processing. <strong>Anthropic does not use API inputs for model training.</strong> No data is retained by Anthropic after processing your request.</li>
+    </ul>
+
+    <h2>4. Data Retention</h2>
+    <p>Your data is retained as long as your account is active and in good standing. When your trial or subscription expires:</p>
+    <ul>
+      <li><strong>Days 0–30:</strong> Account enters read-only mode. All data remains accessible. You may export your data during this period.</li>
+      <li><strong>Day 30:</strong> Data is soft-deleted. Storage files (avatars, documents, certificates) are removed.</li>
+      <li><strong>Day 60:</strong> All records are permanently and irreversibly deleted.</li>
+    </ul>
+    <p>Warning emails are sent at 16 days, 5 days, and 1 day before scheduled deletion.</p>
+    <p>The following records are <strong>preserved indefinitely</strong> regardless of account status, for legal and business continuity purposes:</p>
+    <ul>
+      <li>Payment transaction records (minimum 7 years per tax regulations)</li>
+      <li>Support ticket records</li>
+      <li>Error and audit logs</li>
+    </ul>
+
+    <h2>5. Your Rights</h2>
+    <p>You have the right to:</p>
+    <ul>
+      <li><strong>Access</strong> your data at any time through the SupTrack platform</li>
+      <li><strong>Export</strong> your data as CSV files via Settings &gt; Account &gt; Export My Data</li>
+      <li><strong>Delete</strong> your account and all associated data via Settings &gt; Account &gt; Delete My Account</li>
+      <li><strong>Correct</strong> inaccurate information by editing your profile or supervisee records</li>
+      <li><strong>Opt out</strong> of non-essential notification emails via Settings &gt; Email Notifications</li>
+    </ul>
+    <p>To exercise any of these rights or to make a data-related request, contact us at <a href="mailto:privacy@suptrack.com">privacy@suptrack.com</a>.</p>
+
+    <h2>6. HIPAA Disclaimer</h2>
+    <div class="callout callout-warn">
+      <p><strong>Important:</strong> SupTrack is a supervision management and administrative tool. SupTrack is <strong>not</strong> a covered entity under HIPAA (the Health Insurance Portability and Accountability Act).</p>
+      <p>Supervisors should <strong>not</strong> store Protected Health Information (PHI) about their clients in SupTrack. Session notes stored in SupTrack are intended to be <strong>administrative supervision records only</strong> — documenting the supervision interaction, topics discussed, and supervisee progress. They should not contain client names, diagnoses, treatment details, or other individually identifiable health information.</p>
+      <p>If you are required to maintain HIPAA-compliant records, please use a HIPAA-compliant electronic health record (EHR) system for client-facing documentation. SupTrack is designed to complement — not replace — your clinical record-keeping obligations.</p>
+    </div>
+
+    <h2>7. Data Security</h2>
+    <p>We take the security of your data seriously and implement the following measures:</p>
+    <ul>
+      <li>All data is encrypted in transit using TLS 1.2+</li>
+      <li>Database records are encrypted at rest</li>
+      <li>Row-level security (RLS) policies ensure supervisors can only access their own data</li>
+      <li>Passwords are salted and hashed — never stored in plaintext</li>
+      <li>API keys and secrets are stored as environment variables, never in client-side code</li>
+      <li>Admin access is restricted to founder accounts with <code>lifetime_free = true</code></li>
+      <li>All administrative actions are logged for audit purposes</li>
+    </ul>
+    <p>While we implement industry-standard security practices, no system is 100% secure. If you discover a security vulnerability, please report it to <a href="mailto:support@suptrack.com">support@suptrack.com</a>.</p>
+
+    <h2>8. Cookies and Local Storage</h2>
+    <p>SupTrack uses:</p>
+    <ul>
+      <li><strong>Authentication cookies/tokens:</strong> Essential for keeping you signed in. These are managed by Supabase Auth and stored in your browser's local storage.</li>
+      <li><strong>Preference storage:</strong> Your theme, font, navigation order, and other UI preferences are stored in browser local storage for a personalized experience.</li>
+    </ul>
+    <p>We do <strong>not</strong> use third-party tracking cookies, advertising pixels, analytics trackers, or social media widgets. We do not participate in cross-site tracking or behavioral advertising.</p>
+
+    <h2>9. Age Requirement</h2>
+    <p>SupTrack is designed for professional clinical supervisors and is not intended for use by individuals under 18 years of age. We do not knowingly collect personal information from anyone under 18. If we learn that we have collected data from a minor, we will delete it promptly.</p>
+
+    <h2>10. International Users</h2>
+    <p>SupTrack is hosted in the United States. If you access SupTrack from outside the United States, your data will be transferred to and processed in the United States. By using SupTrack, you consent to this transfer. We comply with applicable data protection requirements to the extent they apply to our processing of your data.</p>
+
+    <h2>11. Changes to This Policy</h2>
+    <p>We may update this Privacy Policy from time to time. Material changes will be communicated via email or in-app notification at least 30 days before they take effect. The "Last updated" date at the top of this page reflects the most recent revision.</p>
+
+    <h2>12. Contact</h2>
+    <p>For privacy questions, data requests, or concerns about how your information is handled:</p>
+    <ul>
+      <li>Privacy inquiries: <a href="mailto:privacy@suptrack.com">privacy@suptrack.com</a></li>
+      <li>General support: <a href="mailto:support@suptrack.com">support@suptrack.com</a></li>
+    </ul>
+  </div>
+
+  <div class="footer">
+    &copy; 2026 SUPTRACK &middot; CLINICAL SUPERVISION PLATFORM
+    <div class="footer-links">
+      <a href="/">Home</a> &middot;
+      <a href="/terms">Terms of Service</a> &middot;
+      <a href="/privacy">Privacy Policy</a> &middot;
+      <a href="mailto:support@suptrack.com">support@suptrack.com</a> &middot;
+      <a href="mailto:privacy@suptrack.com">privacy@suptrack.com</a>
+    </div>
+  </div>
 </body>
 </html>

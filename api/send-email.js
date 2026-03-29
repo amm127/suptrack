@@ -158,6 +158,10 @@ function welcomeEmail(name, trialEndDate) {
       <div style="text-align:center;padding:24px 0;font-size:11px;color:#B0A8A0">
         <a href="${APP_URL}" style="color:#8A9A8A;text-decoration:none">suptrack.com</a> ·
         <a href="${APP_URL}?page=settings" style="color:#8A9A8A;text-decoration:none">Unsubscribe</a>
+        <br/>
+        <a href="${APP_URL}/terms" style="color:#B0A8A0;text-decoration:none">Terms</a> ·
+        <a href="${APP_URL}/privacy" style="color:#B0A8A0;text-decoration:none">Privacy</a> ·
+        <a href="mailto:support@suptrack.com" style="color:#B0A8A0;text-decoration:none">support@suptrack.com</a>
       </div>
     </div>
   </body></html>`;
@@ -177,6 +181,10 @@ function wrap(content) {
         <a href="${APP_URL}" style="color:#608080;text-decoration:none">suptrack.com</a> ·
         <a href="${APP_URL}?page=settings" style="color:#608080;text-decoration:none">Manage notifications</a> ·
         <a href="${APP_URL}?page=settings" style="color:#608080;text-decoration:none">Unsubscribe</a>
+        <br/>
+        <a href="${APP_URL}/terms" style="color:#A0B8B4;text-decoration:none">Terms</a> ·
+        <a href="${APP_URL}/privacy" style="color:#A0B8B4;text-decoration:none">Privacy</a> ·
+        <a href="mailto:support@suptrack.com" style="color:#A0B8B4;text-decoration:none">support@suptrack.com</a>
       </div>
     </div>
   </body></html>`;
