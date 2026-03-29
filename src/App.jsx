@@ -11355,10 +11355,20 @@ useEffect(() => {
   const trialEndsAt = supervisorProfile?.trial_ends_at ? new Date(supervisorProfile.trial_ends_at) : null;
   const trialActive = trialEndsAt && trialEndsAt > new Date();
   const supervisorPlan = supervisorProfile?.plan || "starter";
-  const effectivePlan = (supervisorPlan==="starter" && trialActive) ? "starter" : supervisorPlan;
   const trialExpired = trialEndsAt && !trialActive && supervisorPlan==="starter" && !supervisorProfile?.stripe_customer_id && !supervisorProfile?.lifetime_free;
-  const PLAN_LIMITS = { starter: 10, growth: 20, practice: Infinity };
-  const internLimit = PLAN_LIMITS[effectivePlan] || 10;
+
+  // Feature gating
+  const PLAN_FEATURES = {
+    starter: { maxInterns:10, aiFeatures:false, boardExport:false, colleagueSharing:false, paymentReminders:false, unlimitedDocs:false, taxExport:false, customCategories:false, multiSupervisor:false, maxDocsPerIntern:5 },
+    growth:  { maxInterns:20, aiFeatures:true,  boardExport:true,  colleagueSharing:true,  paymentReminders:true,  unlimitedDocs:true,  taxExport:false, customCategories:false, multiSupervisor:false, maxDocsPerIntern:999 },
+    practice:{ maxInterns:999,aiFeatures:true,  boardExport:true,  colleagueSharing:true,  paymentReminders:true,  unlimitedDocs:true,  taxExport:true,  customCategories:true,  multiSupervisor:true,  maxDocsPerIntern:999 },
+    trial:   { maxInterns:20, aiFeatures:true,  boardExport:true,  colleagueSharing:true,  paymentReminders:true,  unlimitedDocs:true,  taxExport:false, customCategories:false, multiSupervisor:false, maxDocsPerIntern:999 },
+  };
+  const planFeatures = supervisorProfile?.lifetime_free ? PLAN_FEATURES.practice
+    : (trialActive && !supervisorProfile?.stripe_customer_id) ? PLAN_FEATURES.trial
+    : PLAN_FEATURES[supervisorPlan] || PLAN_FEATURES.starter;
+  const effectivePlan = supervisorProfile?.lifetime_free ? "practice" : (trialActive && !supervisorProfile?.stripe_customer_id) ? "growth" : supervisorPlan;
+  const internLimit = planFeatures.maxInterns;
   const activeInternCount = interns.filter(i=>i.status==="active").length;
   const [upgradePrompt, setUpgradePrompt] = useState(null);
 
@@ -11825,7 +11835,7 @@ useEffect(() => {
         }}
       />}
       {page==="intern-profile"&&!selectedIntern&&(()=>{setTimeout(()=>setPage("interns"),0);return null;})()}
-      {page==="intern-profile"&&selectedIntern&&<InternProfile T={t} plan={supervisorPlan} session={session} intern={selectedIntern} groups={groups} lists={lists} setLists={setLists} colleagues={colleagues} setColleagues={setColleagues} onBack={()=>{setSelectedInternId_sv(null);setPage("interns");}} onUpdateIntern={updateIntern} onDelete={(id)=>{supabase.from("interns").delete().eq("id",id).then(({error})=>{if(error)console.error("Intern delete error:",error);});supabase.from("sessions").delete().eq("intern_id",id).then(({error})=>{if(error)console.error("Sessions delete error:",error);});supabase.from("hour_logs").delete().eq("intern_id",id).then(({error})=>{if(error)console.error("Hour logs delete error:",error);});setInterns(p=>p.filter(i=>i.id!==id));setSelectedInternId_sv(null);setPage("interns");}} onConsult={i=>{setConsultIntern(i);setPage("resources");}} onOpenLab={()=>setPage("lab")} onGroupClick={(gid)=>{setSelectedGroupId(gid);setPage("groups");}}/>}
+      {page==="intern-profile"&&selectedIntern&&<InternProfile T={t} plan={effectivePlan} session={session} intern={selectedIntern} groups={groups} lists={lists} setLists={setLists} colleagues={colleagues} setColleagues={setColleagues} onBack={()=>{setSelectedInternId_sv(null);setPage("interns");}} onUpdateIntern={updateIntern} onDelete={(id)=>{supabase.from("interns").delete().eq("id",id).then(({error})=>{if(error)console.error("Intern delete error:",error);});supabase.from("sessions").delete().eq("intern_id",id).then(({error})=>{if(error)console.error("Sessions delete error:",error);});supabase.from("hour_logs").delete().eq("intern_id",id).then(({error})=>{if(error)console.error("Hour logs delete error:",error);});setInterns(p=>p.filter(i=>i.id!==id));setSelectedInternId_sv(null);setPage("interns");}} onConsult={i=>{setConsultIntern(i);setPage("resources");}} onOpenLab={()=>setPage("lab")} onGroupClick={(gid)=>{setSelectedGroupId(gid);setPage("groups");}}/>}
       {page==="interns"&&<InterneesPage T={t} interns={interns} groups={groups} lists={lists} colleagues={colleagues} internFilter={internFilter} setInternFilter={setInternFilter} internSort={internSort} setInternSort={setInternSort} internViewMode={internViewMode} setInternViewMode={setInternViewMode} onSelectIntern={i=>{setSelectedInternId_sv(i.id);setPage("intern-profile");}} onGroupClick={(gid)=>{setSelectedGroupId(gid);setPage("groups");}} onAddIntern={()=>{if(activeInternCount>=internLimit){setUpgradePrompt("intern");return;}setAddInternOpen(true);}} onOpenOnboarding={()=>setOnboardingOpen(true)}/>}
       {page==="groups"&&<GroupsPage T={t} groups={groups} interns={interns} colleagues={colleagues} setColleagues={setColleagues} setGroups={setGroups} initialGroupId={selectedGroupId} updateInterns={addSessionCharge} updateIntern={updateIntern} onSelectIntern={i=>{setSelectedInternId_sv(i.id);setPage("intern-profile");}}/>}
 
@@ -11835,8 +11845,8 @@ useEffect(() => {
       {page==="calendar"&&<CalendarPage T={t}/>}
       {page==="resources"&&<ResourcesHubPage T={t} interns={interns} consultIntern={consultIntern}/>}
       {page==="resources"&&<ResourcesPage T={t}/>}
-      {page==="consult"&&<ConsultPage T={t} interns={interns} consultIntern={consultIntern}/>}
-      {page==="lab"&&<SupervisionLabPage T={t}/>}
+      {page==="consult"&&(planFeatures.aiFeatures?<ConsultPage T={t} interns={interns} consultIntern={consultIntern}/>:<div style={{textAlign:"center",padding:"60px 20px"}}><div style={{fontSize:32,marginBottom:12}}>✦</div><div style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:22,color:"#1E4040",marginBottom:8}}>AI Consultation</div><p style={{color:"#608080",fontSize:14,maxWidth:400,margin:"0 auto 20px"}}>AI-powered clinical consultation is available on the Growth plan and above.</p><Btn T={t} onClick={()=>setPage("billing")}>Upgrade to Growth</Btn></div>)}
+      {page==="lab"&&(planFeatures.aiFeatures?<SupervisionLabPage T={t}/>:<div style={{textAlign:"center",padding:"60px 20px"}}><div style={{fontSize:32,marginBottom:12}}>✦</div><div style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:22,color:"#1E4040",marginBottom:8}}>Supervision Lab</div><p style={{color:"#608080",fontSize:14,maxWidth:400,margin:"0 auto 20px"}}>AI session notes and the Supervision Lab are available on the Growth plan and above.</p><Btn T={t} onClick={()=>setPage("billing")}>Upgrade to Growth</Btn></div>)}
       {page==="discover"&&<DiscoverPage T={t} session={session} interns={interns} onAddIntern={newIntern=>setInterns(p=>[...p,newIntern])}/>}
       {page==="agreements"&&<AgreementsPage T={t} interns={interns} supervisorName={supervisorName} session={session}/>}
 
@@ -11856,27 +11866,25 @@ useEffect(() => {
         onSendLink={()=>{setAddInternOpen(false);setOnboardingOpen(true);}}
       />}
       {upgradePrompt&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1100}} onClick={()=>setUpgradePrompt(null)}>
-        <div style={{background:"#fff",borderRadius:18,padding:"32px 36px",width:440,boxShadow:"0 24px 64px rgba(0,0,0,0.2)"}} onClick={e=>e.stopPropagation()}>
-          <div style={{fontSize:22,fontWeight:600,color:"#1A1A2E",marginBottom:8}}>Upgrade your plan</div>
-          {upgradePrompt==="intern"&&<p style={{fontSize:14,color:"#666",lineHeight:1.6,marginBottom:20}}>You've reached the maximum of <strong>{internLimit} active supervisees</strong> on the <strong>{supervisorPlan}</strong> plan. Upgrade to add more supervisees.</p>}
-          {upgradePrompt==="ai"&&<p style={{fontSize:14,color:"#666",lineHeight:1.6,marginBottom:20}}>AI-powered session notes are available on the <strong>Growth</strong> plan and above. Upgrade to unlock this feature.</p>}
+        <div style={{background:"#FAFDFB",borderRadius:18,padding:"32px 36px",width:460,boxShadow:"0 24px 64px rgba(30,64,64,0.15)",border:"1px solid #C8D8D4"}} onClick={e=>e.stopPropagation()}>
+          <div style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:22,fontWeight:700,color:"#1E4040",marginBottom:8}}>Upgrade your plan</div>
+          {upgradePrompt==="intern"&&<p style={{fontSize:14,color:"#608080",lineHeight:1.6,marginBottom:20}}>You've reached the maximum of <strong style={{color:"#102828"}}>{internLimit} active supervisees</strong> on the <strong style={{color:"#102828"}}>{effectivePlan}</strong> plan. Upgrade to add more.</p>}
+          {upgradePrompt==="ai"&&<p style={{fontSize:14,color:"#608080",lineHeight:1.6,marginBottom:20}}>AI-powered session notes and clinical consultation are available on the <strong style={{color:"#102828"}}>Growth</strong> plan and above.</p>}
+          {upgradePrompt==="share"&&<p style={{fontSize:14,color:"#608080",lineHeight:1.6,marginBottom:20}}>Colleague sharing and permissions are available on the <strong style={{color:"#102828"}}>Growth</strong> plan and above.</p>}
+          {upgradePrompt==="docs"&&<p style={{fontSize:14,color:"#608080",lineHeight:1.6,marginBottom:20}}>You've reached the document limit on the Starter plan. Upgrade for unlimited document storage.</p>}
           <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:20}}>
-            <div style={{border:"1px solid #E2DDD8",borderRadius:12,padding:"14px 18px",display:"flex",justifyContent:"space-between",alignItems:"center",background:supervisorPlan==="starter"?"#F5F3F0":"#fff"}}>
-              <div><div style={{fontWeight:600,fontSize:14}}>Starter</div><div style={{fontSize:12,color:"#888"}}>Up to 10 supervisees</div></div>
-              {supervisorPlan==="starter"&&<span style={{fontSize:12,color:"#7B9FD4",fontWeight:600}}>Current</span>}
-            </div>
-            <div style={{border:"1px solid #7B9FD4",borderRadius:12,padding:"14px 18px",display:"flex",justifyContent:"space-between",alignItems:"center",background:"#F0F5FF"}}>
-              <div><div style={{fontWeight:600,fontSize:14}}>Growth</div><div style={{fontSize:12,color:"#888"}}>Up to 20 supervisees + AI notes</div></div>
-              {supervisorPlan==="growth"?<span style={{fontSize:12,color:"#7B9FD4",fontWeight:600}}>Current</span>:<span style={{fontSize:12,color:"#7B9FD4",fontWeight:600}}>$29/mo</span>}
-            </div>
-            <div style={{border:"1px solid #5B7B5E",borderRadius:12,padding:"14px 18px",display:"flex",justifyContent:"space-between",alignItems:"center",background:"#F0F7F0"}}>
-              <div><div style={{fontWeight:600,fontSize:14}}>Practice</div><div style={{fontSize:12,color:"#888"}}>Unlimited supervisees + AI + priority support</div></div>
-              {supervisorPlan==="practice"?<span style={{fontSize:12,color:"#5B7B5E",fontWeight:600}}>Current</span>:<span style={{fontSize:12,color:"#5B7B5E",fontWeight:600}}>$59/mo</span>}
-            </div>
+            {[
+              {id:"starter",name:"Starter",price:"$24.99/mo",desc:"Up to 10 supervisees",border:"#C8D8D4",bg:supervisorPlan==="starter"?"#E8F0EE":"#FAFDFB"},
+              {id:"growth",name:"Growth",price:"$39.99/mo",desc:"Up to 20 + AI notes + sharing",border:"#1E4040",bg:supervisorPlan==="growth"?"#E8F0EE":"#FAFDFB"},
+              {id:"practice",name:"Practice",price:"$69.99/mo",desc:"Unlimited + dedicated support",border:"#1E4040",bg:supervisorPlan==="practice"?"#E8F0EE":"#FAFDFB"},
+            ].map(p=><div key={p.id} style={{border:`1px solid ${p.border}`,borderRadius:12,padding:"14px 18px",display:"flex",justifyContent:"space-between",alignItems:"center",background:p.bg}}>
+              <div><div style={{fontWeight:600,fontSize:14,color:"#1E4040"}}>{p.name}</div><div style={{fontSize:12,color:"#608080"}}>{p.desc}</div></div>
+              {supervisorPlan===p.id?<span style={{fontSize:12,color:"#1E4040",fontWeight:600,fontFamily:"'DM Mono',monospace"}}>Current</span>:<span style={{fontSize:13,color:"#1E4040",fontWeight:600}}>{p.price}</span>}
+            </div>)}
           </div>
           <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
-            <button onClick={()=>setUpgradePrompt(null)} style={{background:"none",border:"1px solid #E2DDD8",borderRadius:8,padding:"9px 18px",fontSize:14,cursor:"pointer",color:"#666"}}>Maybe later</button>
-            <button onClick={()=>{setUpgradePrompt(null);setPage("billing");}} style={{background:"#7B9FD4",color:"#fff",border:"none",borderRadius:8,padding:"9px 22px",fontSize:14,fontWeight:600,cursor:"pointer"}}>View plans</button>
+            <button onClick={()=>setUpgradePrompt(null)} style={{background:"none",border:"1px solid #C8D8D4",borderRadius:10,padding:"9px 18px",fontSize:14,cursor:"pointer",color:"#608080"}}>Maybe later</button>
+            <Btn T={t} onClick={()=>{setUpgradePrompt(null);setPage("billing");}}>View plans</Btn>
           </div>
         </div>
       </div>}
