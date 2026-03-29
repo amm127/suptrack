@@ -10964,7 +10964,8 @@ class ErrorBoundary extends React.Component {
 }
 function SupTrackInner() {
   const [session, setSession] = useState(null)
-  const hasHadSessionRef = React.useRef(false);
+  // Check if there's already a session in storage (before async calls)
+  const hasHadSessionRef = React.useRef(!!localStorage.getItem("sb-mkjreqkrjhnjsbtchjhy-auth-token"));
 
 useEffect(() => {
   supabase.auth.getSession().then(({ data: { session } }) => {
@@ -10973,10 +10974,10 @@ useEffect(() => {
   })
   const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
     setSession(session)
-    // Only navigate to dashboard on fresh sign-in, not token refresh
+    // Only navigate to dashboard on actual fresh sign-in, not token refresh or page reload
     if(_event==="SIGNED_IN" && !hasHadSessionRef.current) setPage("dashboard");
     if (session) hasHadSessionRef.current = true;
-    if (_event==="SIGNED_OUT") hasHadSessionRef.current = false;
+    if (_event==="SIGNED_OUT") { hasHadSessionRef.current = false; setPage("dashboard"); }
   })
   return () => subscription.unsubscribe()
 }, [])
@@ -11178,6 +11179,8 @@ useEffect(() => {
   const [quickActionOpen, setQuickActionOpen] = useState(null);
   const [consultIntern, setConsultIntern] = useState(null);
   const [supervisorPhoto, setSupervisorPhoto] = useState(null);
+  const [toast, setToast] = useState(null);
+  React.useEffect(()=>{if(toast)setTimeout(()=>setToast(null),3000);},[toast]);
   const [supervisorName, setSupervisorName] = useState("");
   const [supervisorProfile, setSupervisorProfile] = useState(null);
   const [internUser, setInternUser] = useState(null); // non-null if logged-in user is an intern
@@ -11294,20 +11297,18 @@ useEffect(() => {
 
     if(Object.keys(row).length===0) return;
 
-    console.log("[SupTrack] Saving:", Object.keys(row).join(", "));
     const {data:updated,error} = await supabase.from("supervisors").update(row).eq("user_id",session.user.id).select();
     if(error){
-      console.error("[SupTrack] Save failed:",error.message,error.details);
+      console.error("[SupTrack] Save failed:",error.message);
+      setToast({type:"error",message:"Save failed — check your connection"});
       // Fallback: name-only
       if(row.name){
         const {error:e2} = await supabase.from("supervisors").update({name:row.name}).eq("user_id",session.user.id);
-        if(e2) console.error("[SupTrack] Name-only also failed:",e2.message,"— Add RLS: CREATE POLICY \"update_own\" ON supervisors FOR UPDATE USING (user_id = auth.uid());");
-        else console.log("[SupTrack] Name saved (name-only fallback)");
+        if(!e2) setToast({type:"success",message:"Name saved ✦"});
       }
     } else {
-      const savedName = updated?.[0]?.name;
-      console.log("[SupTrack] Saved OK. Name:", savedName||"(check RLS if empty)");
-      if(!updated?.length) console.warn("[SupTrack] 0 rows returned — RLS may be blocking. Run:\nCREATE POLICY \"update_own\" ON supervisors FOR UPDATE USING (user_id = auth.uid());");
+      if(updated?.length) setToast({type:"success",message:"Saved ✦"});
+      else setToast({type:"error",message:"Save may have failed — check RLS policies"});
     }
   },[session,supervisorProfile]);
   const supervisorInitials = supervisorName ? supervisorName.split(" ").filter(Boolean).map(w=>w[0]).join("").slice(0,2).toUpperCase()||"??" : "??";
@@ -11639,6 +11640,10 @@ useEffect(() => {
   }} onUpdateIntern={updateIntern} supervisorPhoto={supervisorPhoto} supervisorInitials={supervisorInitials} supervisorName={supervisorName}/>;
 
   return <div style={{display:"flex",minHeight:"100vh",background:t.bg,fontFamily:f.body}}>
+    {/* Toast notification */}
+    {toast&&<div style={{position:"fixed",top:20,right:20,zIndex:9999,background:toast.type==="error"?"#FAE8E8":"#E8F5EE",color:toast.type==="error"?"#A0453E":"#2E7A4E",border:`1px solid ${toast.type==="error"?"#E8C5C5":"#A8D8BC"}`,borderRadius:12,padding:"12px 20px",fontSize:14,fontWeight:500,boxShadow:"0 4px 16px rgba(0,0,0,0.1)",animation:"st-fadeUp 0.3s ease",fontFamily:"'DM Sans',system-ui"}}>
+      {toast.message}
+    </div>}
     <link href={f.url} rel="stylesheet"/>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/fraunces@5/index.css"/>
     <style>{`
