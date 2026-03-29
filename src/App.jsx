@@ -11219,7 +11219,6 @@ useEffect(() => {
       if(data){
         // Use the name from the supervisors table. That's the source of truth.
         const name = data.name || "";
-        console.log("[SupTrack] Loaded supervisor:", {name, email:data.email, profile_data_name:data.profile_data?.name});
         setSupervisorName(name);
         setSupervisorPhoto(data.photo||null);
         setSupervisorProfile(data);
@@ -11246,7 +11245,6 @@ useEffect(() => {
         }
       } else {
         // No row — create one. Use full_name from auth metadata, fall back to email.
-        console.log("[SupTrack] No supervisor row — creating");
         const email = session.user.email||"";
         const name = session.user.user_metadata?.full_name || email;
         const {data:newRow,error:insErr} = await supabase.from("supervisors").insert({
@@ -11397,18 +11395,15 @@ useEffect(() => {
               // Single supervisor — one charge at full rate
               const charge = {month:today,amount:rate,status:"overdue",date:new Date().toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}),description:`Session fee — ${newSessions[0]?.type||"Supervision"}`};
               setInterns(prev=>prev.map(i=>i.id!==updated.id?i:{...i,payments:[charge,...(i.payments||[])],paymentStatus:"overdue"}));
-              console.log(`[SupTrack] Payment created for ${internName}: $${rate}`);
             } else {
               // Shared intern — split between supervisors
               const totalSupervisors = otherSupervisors.length + 1;
               const myPortion = Math.round(rate/totalSupervisors*100)/100;
               const myCharge = {month:today,amount:myPortion,status:"overdue",date:new Date().toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}),description:`Session fee — your portion ($${myPortion} of $${rate} split ${totalSupervisors} ways)`};
               setInterns(prev=>prev.map(i=>i.id!==updated.id?i:{...i,payments:[myCharge,...(i.payments||[])],paymentStatus:"overdue"}));
-              console.log(`[SupTrack] Split payment for ${internName}: $${myPortion} (your share of $${rate} split ${totalSupervisors} ways with ${otherSupervisors.map(s=>s.supervisor_name||"colleague").join(", ")})`);
             }
           });
         } else if(rate===0 && !updated.proBono && newSessions.length>0){
-          console.log(`[SupTrack] No rate configured for ${updated.name||"intern"} — skipping auto-charge`);
         }
       }
       // Check for hours milestones and send email
@@ -11432,8 +11427,7 @@ useEffect(() => {
           if(delta<=0)return;
           const supType=h.category?.includes("secondary")?"secondary":"primary";
           const hlRow={intern_id:updated.id,supervisor_id:session.user.id,date:new Date().toISOString().slice(0,10),hours:delta,category:h.category||"",type:h.type||"",label:h.label||"",supervision_type:supType,contact_type:h.type||"direct"};
-          console.log("[updateIntern] Inserting hour_log:",hlRow);
-          supabase.from("hour_logs").insert(hlRow).then(({error})=>{if(error){console.error("Hour log insert error:",error);alert("Hour log save failed: "+error.message);}else{console.log("[updateIntern] Hour log saved OK");}});
+          supabase.from("hour_logs").insert(hlRow).then(({error})=>{if(error)console.error("Hour log insert error:",error);});
         });
       }
       // Email triggers for document uploads and payment changes

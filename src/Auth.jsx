@@ -154,8 +154,22 @@ export default function Auth() {
             </button>
           </form>
 
+          {/* Forgot password */}
+          {!isSignUp&&!isInternInvite&&<div style={{textAlign:'center',margin:'12px 0 0'}}>
+            <button onClick={async()=>{
+              if(!email.trim()){setMessage('Enter your email above first.');setIsError(true);return;}
+              setLoading(true);setMessage('');
+              const {error}=await supabase.auth.resetPasswordForEmail(email.trim(),{redirectTo:window.location.origin});
+              setLoading(false);
+              if(error){setMessage(error.message);setIsError(true);}
+              else{setMessage('Password reset link sent to your email.');setIsError(false);}
+            }} style={{background:'none',border:'none',cursor:'pointer',fontSize:13,color:'#608080',fontFamily:'inherit',textDecoration:'underline'}}>
+              Forgot password?
+            </button>
+          </div>}
+
           {/* Divider */}
-          <div style={{display:'flex',alignItems:'center',gap:12,margin:'22px 0',color:'#C4A040',fontSize:11}}>
+          <div style={{display:'flex',alignItems:'center',gap:12,margin:'18px 0',color:'#C4A040',fontSize:11}}>
             <div style={{flex:1,height:1,background:'#C8D8D4'}}/>
             <span>✦</span>
             <div style={{flex:1,height:1,background:'#C8D8D4'}}/>
