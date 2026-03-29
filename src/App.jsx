@@ -12316,6 +12316,14 @@ useEffect(() => {
     try{const s=localStorage.getItem("suptrack_lists");return s?JSON.parse(s):INITIAL_LISTS;}
     catch{return INITIAL_LISTS;}
   });
+  // Load lists from Supabase profile_data (overrides localStorage)
+  const listsLoadedRef=React.useRef(false);
+  React.useEffect(()=>{
+    if(!supervisorProfile?.profile_data||listsLoadedRef.current)return;
+    listsLoadedRef.current=true;
+    const saved=supervisorProfile.profile_data.lists;
+    if(Array.isArray(saved)) setLists(saved);
+  },[supervisorProfile]);
   const [colleagues,setColleagues]=useState(()=>{
     try{const s=localStorage.getItem("suptrack_colleagues");return s?JSON.parse(s):INITIAL_COLLEAGUES;}
     catch{return INITIAL_COLLEAGUES;}
@@ -12330,7 +12338,13 @@ useEffect(() => {
       supabase.from("groups").upsert(row,{onConflict:"id"}).then(({error})=>{if(error)console.error("Group upsert error:",error);});
     });
   },[groups]);
-  React.useEffect(()=>{try{localStorage.setItem("suptrack_lists",JSON.stringify(lists));}catch{}},[lists]);
+  React.useEffect(()=>{
+    try{localStorage.setItem("suptrack_lists",JSON.stringify(lists));}catch{}
+    if(session?.user&&listsLoadedRef.current){
+      const pd=supervisorProfile?.profile_data||{};
+      supabase.from("supervisors").update({profile_data:{...pd,lists}}).eq("user_id",session.user.id).then(()=>{});
+    }
+  },[lists]);
   React.useEffect(()=>{try{localStorage.setItem("suptrack_colleagues",JSON.stringify(colleagues));}catch{}},[colleagues]);
   const [page,setPage]=useState(()=>{try{const p=localStorage.getItem("suptrack_page");return p&&["dashboard","interns","intern-profile","groups","payments","billing","ce","calendar","consult","lab","resources","discover","agreements","reminders","messages","support","admin","profile","settings"].includes(p)?p:"dashboard";}catch{return "dashboard";}});
   React.useEffect(()=>{try{localStorage.setItem("suptrack_page",page);}catch{}},[page]);
