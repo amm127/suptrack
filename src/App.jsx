@@ -3293,7 +3293,14 @@ function PlatformOverview({T,session,onNavigate,interns,groups,sp}) {
 function Dashboard({interns,groups,lists,colleagues,onSelectIntern,onNavigate,onOpenOnboarding,onAddIntern,onQuickAction,supervisorName,supervisorPhoto,supervisorInitials,quickActionOrder,quickActionHidden,allQuickActions,onQuickActionReorder,onQuickActionToggle,T,ceData,todos,setTodos,session,supervisorProfile:sp}) {
   const t=T||THEMES.sage;
   const alerts = useMemo(()=>generateAlerts(interns,ceData,sp),[interns,ceData,sp]);
-  const [activeList,setActiveList]=useState("all");
+  const [activeBoard,setActiveBoard]=useState("all");
+  const [boards,setBoards]=useState(sp?.boards||[]);
+  const [addingBoard,setAddingBoard]=useState(false);
+  const [newBoardName,setNewBoardName]=useState("");
+  React.useEffect(()=>{setBoards(sp?.boards||[]);},[sp?.boards]);
+  const saveBoards=async(next)=>{setBoards(next);if(!session?.user)return;await supabase.from("supervisors").update({boards:next}).eq("user_id",session.user.id);};
+  const addBoard=()=>{const name=newBoardName.trim();if(!name)return;const id="board_"+Date.now();const next=[...boards,{id,name}];saveBoards(next);setNewBoardName("");setAddingBoard(false);};
+  const removeBoard=(id)=>{saveBoards(boards.filter(b=>b.id!==id));if(activeBoard===id)setActiveBoard("all");};
   const [showInactive,setShowInactive]=useState(false);
   const [visibleStats,setVisibleStats]=useState(DEFAULT_STATS);
   const [sections,setSections]=useState(DEFAULT_SECTIONS.map(s=>({...s,collapsed:false})));
@@ -3347,7 +3354,7 @@ function Dashboard({interns,groups,lists,colleagues,onSelectIntern,onNavigate,on
   const active=interns.filter(i=>i.status==="active");
   const inactive=interns.filter(i=>i.status==="inactive");
   const display=showInactive?interns:active;
-  const filtered=activeList==="all"?display:display.filter(i=>(i.listIds||[]).includes(activeList));
+  const filtered=activeBoard==="all"?display:display.filter(i=>(i.listIds||[]).includes(activeBoard));
 
   const sv=(id)=>({active:active.length,hours:active.reduce((s,i)=>s+i.hoursCompleted,0).toLocaleString(),groups:groups.length,overdue:active.filter(i=>!i.proBono&&i.paymentStatus==="overdue").length,primary:active.filter(i=>i.supervisorRole==="primary").length,secondary:active.filter(i=>i.supervisorRole==="secondary").length,student:active.filter(i=>i.discipline==="student").length,licensed:active.filter(i=>i.discipline!=="student"&&i.discipline!=="sos").length,sos:active.filter(i=>i.discipline==="sos").length,flagged:active.filter(i=>activeFlags(i).length>0).length}[id]);
   const sc=(id)=>{
@@ -3595,7 +3602,14 @@ function Dashboard({interns,groups,lists,colleagues,onSelectIntern,onNavigate,on
     })()}
 
     <div style={{display:"flex",gap:8,marginBottom:22,flexWrap:"wrap",alignItems:"center"}}>
-      {[{id:"all",name:"All"},...lists].map(l=><button key={l.id} onClick={()=>setActiveList(l.id)} style={{background:activeList===l.id?(l.colorLight||t.accentLight):"none",color:activeList===l.id?(l.color||t.accent):t.muted,border:`1px solid ${activeList===l.id?(l.color||t.accent)+"60":t.border}`,borderRadius:20,padding:"5px 16px",fontSize:13,cursor:"pointer",fontFamily:"'DM Mono',monospace"}}>{l.name}</button>)}
+      <button onClick={()=>setActiveBoard("all")} style={{background:activeBoard==="all"?t.accentLight:"none",color:activeBoard==="all"?t.accent:t.muted,border:`1px solid ${activeBoard==="all"?t.accent+"60":t.border}`,borderRadius:20,padding:"5px 16px",fontSize:13,cursor:"pointer",fontFamily:"'DM Mono',monospace"}}>All</button>
+      {boards.map(b=><div key={b.id} style={{display:"inline-flex",alignItems:"center",gap:0,position:"relative"}}>
+        <button onClick={()=>setActiveBoard(b.id)} style={{background:activeBoard===b.id?t.accentLight:"none",color:activeBoard===b.id?t.accent:t.muted,border:`1px solid ${activeBoard===b.id?t.accent+"60":t.border}`,borderRadius:20,padding:"5px 16px",paddingRight:24,fontSize:13,cursor:"pointer",fontFamily:"'DM Mono',monospace"}}>{b.name}</button>
+        <button onClick={e=>{e.stopPropagation();removeBoard(b.id);}} title="Remove board" style={{position:"absolute",right:6,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",fontSize:11,color:t.faint,padding:0,lineHeight:1}} onMouseEnter={e=>e.currentTarget.style.color=t.text} onMouseLeave={e=>e.currentTarget.style.color=t.faint}>×</button>
+      </div>)}
+      {addingBoard
+        ?<input autoFocus value={newBoardName} onChange={e=>setNewBoardName(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")addBoard();if(e.key==="Escape"){setAddingBoard(false);setNewBoardName("");}}} onBlur={()=>{if(newBoardName.trim())addBoard();else{setAddingBoard(false);setNewBoardName("");}}} placeholder="Board name..." style={{border:`1px solid ${t.border}`,borderRadius:20,padding:"5px 14px",fontSize:13,fontFamily:"'DM Mono',monospace",outline:"none",width:140,color:t.text,background:t.surface||"#fff"}}/>
+        :<button onClick={()=>setAddingBoard(true)} style={{background:"none",color:t.faint,border:`1px dashed ${t.border}`,borderRadius:20,padding:"5px 14px",fontSize:13,cursor:"pointer",fontFamily:"'DM Mono',monospace"}} onMouseEnter={e=>e.currentTarget.style.color=t.muted} onMouseLeave={e=>e.currentTarget.style.color=t.faint}>+ Board</button>}
       {inactive.length>0&&<button onClick={()=>setShowInactive(v=>!v)} style={{marginLeft:"auto",background:showInactive?t.accentLight:"none",color:showInactive?t.accentText:t.muted,border:`1px solid ${showInactive?t.accentMid:t.border}`,borderRadius:8,padding:"5px 14px",fontSize:12,cursor:"pointer",fontFamily:"'DM Mono',monospace"}}>{showInactive?"▾ ":"▸ "}{inactive.length} inactive</button>}
     </div>
 
@@ -12611,7 +12625,7 @@ useEffect(() => {
 
     // Build a clean row with only known Supabase columns
     const row = {};
-    const VALID_COLS = ["name","email","phone","credential","photo","plan","trial_ends_at","stripe_customer_id","billing_cycle","seat_count","lifetime_free","profile_data","bio","license_goal"];
+    const VALID_COLS = ["name","email","phone","credential","photo","plan","trial_ends_at","stripe_customer_id","billing_cycle","seat_count","lifetime_free","profile_data","bio","license_goal","boards"];
     for(const key of VALID_COLS){
       if(key in updates) row[key] = updates[key];
     }
