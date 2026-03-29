@@ -15,14 +15,14 @@ const THEMES = {
     bg:"#EEF2F0", surface:"#FAFDFB", surfaceAlt:"#E8F0EE", border:"#C8D8D4", borderLight:"#D8E4E0",
     text:"#102828", muted:"#608080", faint:"#A0B8B4",
     accent:"#1E4040", accentLight:"#E0EAE8", accentMid:"#C8D8D4", accentText:"#1E4040",
-    gold:"#C4A040",
+    gold:"#8AABA8",
     isGradient:false,
-    sidebarBg:"#1E4040", sidebarText:"#C8E8E0", sidebarMuted:"#7A9898", sidebarBorder:"#2A5050",
-    sidebarAccent:"#C4A040", sidebarAccentBg:"rgba(196,160,64,0.12)",
+    sidebarBg:"#E8F0EE", sidebarText:"#1E4040", sidebarMuted:"#608080", sidebarBorder:"#C8D8D4",
+    sidebarAccent:"#1E4040", sidebarAccentBg:"#FFFFFF",
     shades:["#E0EAE8","#C8D8D4","#7A9898","#1E4040","#102828","#0A1818"],
-    dark:{ bg:"#0A1414", surface:"#102020", surfaceAlt:"#182828", border:"#2A3C3C", borderLight:"#1E3030", text:"#D8E8E4", muted:"#7A9898", faint:"#2A3C3C", accent:"#C8E8E0", accentLight:"#102020", accentMid:"#2A3C3C", accentText:"#C8E8E0",
-      sidebarBg:"#0A1414", sidebarText:"#A0C0B8", sidebarMuted:"#5A7A74", sidebarBorder:"#1E3030",
-      sidebarAccent:"#C4A040", sidebarAccentBg:"rgba(196,160,64,0.1)" }},
+    dark:{ bg:"#0F1F1F", surface:"#162828", surfaceAlt:"#1C3030", border:"#2A4040", borderLight:"#223838", text:"#E0EEEC", muted:"#8AABA8", faint:"#2A4040", accent:"#1E4040", accentLight:"#162828", accentMid:"#2A4040", accentText:"#E0EEEC",
+      sidebarBg:"#162828", sidebarText:"#C8E0DC", sidebarMuted:"#6A9088", sidebarBorder:"#2A4040",
+      sidebarAccent:"#8AABA8", sidebarAccentBg:"rgba(138,171,168,0.1)" }},
 
 
   sunset:   { name:"Sunset",      swatch:"#C4607A",
@@ -11138,9 +11138,9 @@ useEffect(() => {
       <div style={{padding:"0 20px 18px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
         <div onClick={()=>{setPage("dashboard");setSelectedInternId_sv(null);setInternFilter(null);setConsultIntern(null);}}
           style={{cursor:"pointer",display:"flex",alignItems:"center",gap:8}}>
-          <span style={{color:t.sidebarAccent||t.gold||t.accent,fontSize:10,opacity:0.4}}>✦</span>
-          <span style={{fontFamily:"'Fraunces','DM Serif Display',Georgia,serif",fontSize:26,fontWeight:700,color:"#F0DECA",letterSpacing:-1,lineHeight:1}}>SupTrack</span>
-          <span style={{color:t.sidebarAccent||t.gold||t.accent,fontSize:7,opacity:0.3}}>✦</span>
+          <span style={{color:t.sidebarText||"#1E4040",fontSize:10,opacity:0.2}}>✦</span>
+          <span style={{fontFamily:"'Fraunces','DM Serif Display',Georgia,serif",fontSize:26,fontWeight:700,color:t.sidebarText||"#1E4040",letterSpacing:-1,lineHeight:1}}>SupTrack</span>
+          <span style={{color:t.sidebarText||"#1E4040",fontSize:7,opacity:0.2}}>✦</span>
         </div>
         <button onClick={()=>setEditingNav(e=>!e)} title="Customize sidebar"
           style={{background:editingNav?(t.sidebarAccentBg||t.accentLight):"none",border:`1px solid ${editingNav?(t.sidebarAccent||t.accentMid):(t.sidebarBorder||t.border)}`,borderRadius:6,padding:"4px 7px",cursor:"pointer",fontSize:12,color:editingNav?(t.sidebarAccent||t.accentText):(t.sidebarMuted||t.faint),lineHeight:1,flexShrink:0}}
@@ -11188,15 +11188,20 @@ useEffect(() => {
           </div>
 
         /* ── Normal nav ── */
-        : <nav style={{flex:1,overflowY:"auto"}}>{navItems.map((item,idx)=>{
+        : <nav style={{flex:1,overflowY:"auto",position:"relative"}}>
+            {/* Scattered sparkles */}
+            {[{top:28,left:14,size:8,op:0.2},{top:95,right:18,size:10,op:0.15},{top:180,left:10,size:9,op:0.25},{top:260,right:14,size:8,op:0.18},{top:340,left:16,size:11,op:0.2},{top:420,right:10,size:8,op:0.15}].map((s,i)=>
+              <span key={i} style={{position:"absolute",top:s.top,left:s.left,right:s.right,fontSize:s.size,color:t.sidebarText||t.accent,opacity:s.op,pointerEvents:"none"}}>✦</span>
+            )}
+            {navItems.map((item,idx)=>{
             const active=page===item.id||(page==="intern-profile"&&item.id==="interns");
             const isAI=item.id==="consult"||item.id==="lab";
             const rainbowColors=["#9B6FD4","#B880CC","#F4A0C0","#4DBDBD","#7AD4D4","#C88AC8","#F9C4DA","#4DBDBD","#9B6FD4","#B880CC","#F4A0C0","#4DBDBD","#7AD4D4","#C88AC8"];
             const rc = t.isRainbow ? rainbowColors[idx % rainbowColors.length] : null;
             const sAcc = t.sidebarAccent||t.accent;
-            const activeBg     = t.isRainbow ? `${rc}18` : t.sidebarBg ? (active?"rgba(255,255,255,0.08)":"none") : t.isGradient ? (t.gradientSubtle||t.accentLight) : isAI ? t.accentMid : t.accentLight;
+            const activeBg     = t.isRainbow ? `${rc}18` : t.sidebarAccentBg ? (active?t.sidebarAccentBg:"none") : t.isGradient ? (t.gradientSubtle||t.accentLight) : isAI ? t.accentMid : t.accentLight;
             const activeBorder = rc || sAcc;
-            const hoverBg = t.sidebarBg ? "rgba(255,255,255,0.04)" : t.surfaceAlt;
+            const hoverBg = t.sidebarBg ? "rgba(0,0,0,0.03)" : t.surfaceAlt;
             return <button key={item.id}
               onMouseEnter={()=>setNavHover(item.id)}
               onMouseLeave={()=>setNavHover(null)}
