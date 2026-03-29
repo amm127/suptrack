@@ -620,16 +620,6 @@ const dn    = (i) => i.preferredName || i.name.split(" ")[0]; // display name �
 
 // ── iCal / Google Calendar helpers ────────────────────────────────────────
 // ── AI API helper (routes through server to protect API key) ──────────────
-const callAI = async (messages, systemPrompt, maxTokens) => {
-  const res = await fetch("/api/ai-chat", {
-    method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ messages, systemPrompt, maxTokens }),
-  });
-  const data = await res.json();
-  if (data.error) throw new Error(data.error);
-  return data.text || "";
-};
-
 // ── Email notification helper ─────────────────────────────────────────────
 const sendEmail = async (to, type, data, notifPrefs) => {
   // Check notification preferences — skip if this type is disabled
@@ -6780,7 +6770,6 @@ const PLANS = {
   },
 };
 
-const PLAN_HEADLINE = "Track supervision hours, eliminate discrepancies, generate audit-ready reports, and get paid — all in one system.";
 
 
 const SEAT_PRICE_MONTHLY = 9.99;

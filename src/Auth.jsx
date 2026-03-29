@@ -36,8 +36,6 @@ export default function Auth() {
       .then(({ data }) => { if (data?.content) setPageContent(data.content) })
   }, [])
 
-  const LIFETIME_FREE_CODES = ['STfree1','STfree2','STfree3','STfree4','STfree5']
-
   const handleSubmit = async () => {
     setLoading(true)
     setMessage('')
@@ -55,18 +53,15 @@ export default function Auth() {
         setMessage('Account created! Check your email to confirm, then sign in.')
       } else {
         const code = inviteCode.trim();
-        const isLifetimeFree = LIFETIME_FREE_CODES.includes(code);
         let validInvite = null;
 
-        // Only validate invite code if one was entered (it's optional)
-        if (code && !isLifetimeFree) {
+        // Validate invite/referral code if entered (optional)
+        if (code) {
           const { data: invite } = await supabase
             .from('invites').select('*').eq('code', code).eq('used', false).single();
           if (invite && invite.type !== 'intern_portal') {
             validInvite = invite;
           }
-          // If code entered but invalid, just warn — don't block signup
-          if (!invite && code) { /* silently ignore invalid optional code */ }
         }
 
         // Create the account — no code required
@@ -75,13 +70,11 @@ export default function Auth() {
         else {
           // Mark invite as used if valid
           if (validInvite) await supabase.from('invites').update({ used: true }).eq('code', code);
-          // Handle lifetime free codes
-          if (isLifetimeFree && signUpData?.user) {
-            await supabase.from('supervisors').upsert({ user_id: signUpData.user.id, name: fullName.trim() || email, email, plan: 'starter', trial_ends_at: null, lifetime_free: true }, { onConflict: 'user_id' });
-          }
-          // Track referral if code looks like a referral code
-          if (code && !isLifetimeFree && !validInvite && signUpData?.user) {
-            supabase.from('referrals').insert({ referrer_id: null, referred_email: email, referred_user_id: signUpData.user.id, status: 'signed_up' }).then(()=>{});
+          // Validate special codes server-side (never expose codes in frontend)
+          if (code && signUpData?.user) {
+            try {
+              await fetch('/api/validate-signup-code', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code, userId: signUpData.user.id, name: fullName.trim() || email, email }) });
+            } catch (_) { /* non-blocking */ }
           }
           setMessage('Account created! Check your email to confirm, then sign in.');
         }
