@@ -8744,6 +8744,10 @@ function MessagesPage({T,session}) {
       }
       // Update conversation list
       setConversations(p=>p.map(c=>c.id===payload.new.conversation_id?{...c,last_message:payload.new.content,updated_at:payload.new.created_at,unread_count:payload.new.conversation_id===selected?0:(c.unread_count||0)+1}:c));
+      // Email notification for incoming messages (not from supervisor)
+      if(payload.new.sender_type!=="supervisor"&&session?.user?.email){
+        sendEmail(session.user.email,"NEW_MESSAGE",{name:payload.new.sender_name||"Someone",preview:(payload.new.content||"").slice(0,200)});
+      }
     }).subscribe();
     return ()=>supabase.removeChannel(channel);
   },[session,selected]);
@@ -11056,7 +11060,34 @@ useEffect(() => {
       const sessMap={};(sessRes.data||[]).forEach(s=>{if(!sessMap[s.intern_id])sessMap[s.intern_id]=[];sessMap[s.intern_id].push({date:s.date,type:s.session_type||"",duration:`${s.duration_minutes||60} min`,notes:s.notes||"",category:s.tag||"",author:"",_sid:s.id});});
       const hlRaw={};(hlRes.data||[]).forEach(h=>{const key=h.intern_id+"__"+h.category;if(!hlRaw[key])hlRaw[key]={intern_id:h.intern_id,category:h.category,type:h.type,hours:0,label:h.label};hlRaw[key].hours+=Number(h.hours)||0;});
       const hlMap={};Object.values(hlRaw).forEach(h=>{if(!hlMap[h.intern_id])hlMap[h.intern_id]=[];hlMap[h.intern_id].push({category:h.category,type:h.type,hours:Math.round(h.hours*10)/10,label:h.label});});
-      setInterns(allInterns.map(r=>({...r,preferredName:r.preferred_name||"",internType:r.intern_type||r.discipline||"",credentialBody:r.credential_body||"",licenseGoal:r.license_goal||"",supervisorRole:r.supervisor_role||"",startDate:r.start_date||"",proBono:r.pro_bono||false,groupIds:r.group_ids||[],listIds:r.list_ids||[],hoursCompleted:r.hours_completed||0,hoursTotal:r.hours_total||0,individualHours:r.individual_hours||0,groupHours:r.group_hours||0,billingRate:r.billing_rate||0,billingSchedule:r.billing_schedule||"monthly",initials:(r.name||"").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase(),sessions:sessMap[r.id]||[],cases:r.cases||[],documents:r.documents||[],evaluations:r.evaluations||[],hourLog:hlMap[r.id]||[],internHourLog:r.intern_hour_log||[],customHourCategories:r.custom_hour_categories||[],payments:r.payments||[],paymentStatus:r.payment_status||"current",sharedWith:r.shared_with||[],flags:r.flags||[],photo:r.photo||null,_sharedAccess:r._sharedAccess||false,_permissions:r._permissions||null})));
+      const mappedInterns = allInterns.map(r=>({...r,preferredName:r.preferred_name||"",internType:r.intern_type||r.discipline||"",credentialBody:r.credential_body||"",licenseGoal:r.license_goal||"",supervisorRole:r.supervisor_role||"",startDate:r.start_date||"",proBono:r.pro_bono||false,groupIds:r.group_ids||[],listIds:r.list_ids||[],hoursCompleted:r.hours_completed||0,hoursTotal:r.hours_total||0,individualHours:r.individual_hours||0,groupHours:r.group_hours||0,billingRate:r.billing_rate||0,billingSchedule:r.billing_schedule||"monthly",initials:(r.name||"").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase(),sessions:sessMap[r.id]||[],cases:r.cases||[],documents:r.documents||[],evaluations:r.evaluations||[],hourLog:hlMap[r.id]||[],internHourLog:r.intern_hour_log||[],customHourCategories:r.custom_hour_categories||[],payments:r.payments||[],paymentStatus:r.payment_status||"current",sharedWith:r.shared_with||[],flags:r.flags||[],photo:r.photo||null,_sharedAccess:r._sharedAccess||false,_permissions:r._permissions||null}));
+      setInterns(mappedInterns);
+      // Birthday email check (once per day)
+      const bdayKey="suptrack_bday_email_"+new Date().toISOString().slice(0,10);
+      if(!localStorage.getItem(bdayKey)&&session?.user?.email){
+        const today=new Date();
+        mappedInterns.filter(i=>i.status==="active"&&i.dob).forEach(i=>{
+          const d=new Date(i.dob+"T00:00:00");if(isNaN(d))return;
+          const next=new Date(today.getFullYear(),d.getMonth(),d.getDate());
+          if(next<today)next.setFullYear(today.getFullYear()+1);
+          const days=Math.ceil((next-today)/(1000*60*60*24));
+          if(days>=0&&days<=3) sendEmail(session.user.email,"INTERN_BIRTHDAY",{internName:i.name,daysUntil:days});
+        });
+        localStorage.setItem(bdayKey,"1");
+      }
+      // Payment overdue email check (once per day)
+      const payKey="suptrack_pay_email_"+new Date().toISOString().slice(0,10);
+      if(!localStorage.getItem(payKey)&&session?.user?.email){
+        mappedInterns.filter(i=>i.status==="active"&&!i.proBono&&!i.isPracticum).forEach(i=>{
+          const overdue=(i.payments||[]).find(p=>p.status==="overdue");
+          if(overdue){
+            const dt=overdue.date?new Date(overdue.date):null;
+            const days=dt&&!isNaN(dt)?Math.ceil((new Date()-dt)/(1000*60*60*24)):0;
+            if(days>=30) sendEmail(session.user.email,"PAYMENT_DUE",{internName:i.name,amount:overdue.amount,dueDate:overdue.date});
+          }
+        });
+        localStorage.setItem(payKey,"1");
+      }
     })();
   },[session]);
   const [groups,setGroups]=useState([]);
@@ -11214,6 +11245,27 @@ useEffect(() => {
         setSupervisorName(name);
         setSupervisorPhoto(data.photo||null);
         setSupervisorProfile(data);
+
+        // One-time login email checks: license expiry
+        const licExp = data.license_expiration_date || data.profile_data?.expires;
+        if(licExp && data.email){
+          const expDate=new Date(licExp);
+          if(!isNaN(expDate)){
+            const days=Math.ceil((expDate-new Date())/(1000*60*60*24));
+            const ceLeft=(data.ce_hours_required||0)-(data.ce_hours_completed||0);
+            const licType=data.credential||data.profile_data?.credential||"license";
+            const expStr=expDate.toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"});
+            // Only send once per threshold — use localStorage to track
+            const lastSent=localStorage.getItem("suptrack_lic_email_sent");
+            if(days<=30&&days>0&&lastSent!=="30d"){
+              sendEmail(data.email,"LICENSE_30_DAYS",{licenseType:licType,expirationDate:expStr,ceHoursLeft:ceLeft});
+              localStorage.setItem("suptrack_lic_email_sent","30d");
+            } else if(days<=90&&days>30&&lastSent!=="90d"){
+              sendEmail(data.email,"LICENSE_90_DAYS",{licenseType:licType,expirationDate:expStr,ceHoursLeft:ceLeft});
+              localStorage.setItem("suptrack_lic_email_sent","90d");
+            }
+          }
+        }
       } else {
         // No row — create one. Use full_name from auth metadata, fall back to email.
         console.log("[SupTrack] No supervisor row — creating");
@@ -11401,6 +11453,23 @@ useEffect(() => {
           console.log("[updateIntern] Inserting hour_log:",hlRow);
           supabase.from("hour_logs").insert(hlRow).then(({error})=>{if(error){console.error("Hour log insert error:",error);alert("Hour log save failed: "+error.message);}else{console.log("[updateIntern] Hour log saved OK");}});
         });
+      }
+      // Email triggers for document uploads and payment changes
+      if(old&&session?.user?.email){
+        // New intern document upload
+        const oldDocs=(old.documents||[]).length;
+        const newDocs=(updated.documents||[]).length;
+        if(newDocs>oldDocs){
+          const latest=(updated.documents||[])[newDocs-1];
+          if(latest?.uploadedBy==="intern") sendEmail(session.user.email,"DOCUMENT_UPLOADED",{internName:updated.name,docName:latest.name},notifPrefs);
+        }
+        // Payment marked paid
+        const oldPaid=(old.payments||[]).filter(p=>p.status==="paid").length;
+        const newPaid=(updated.payments||[]).filter(p=>p.status==="paid").length;
+        if(newPaid>oldPaid){
+          const latest=(updated.payments||[]).find(p=>p.status==="paid");
+          if(latest) sendEmail(session.user.email,"PAYMENT_RECEIVED",{internName:updated.name,amount:latest.amount,date:latest.date||TODAY()},notifPrefs);
+        }
       }
       // Sync all changed intern fields to Supabase
       if(old){

@@ -185,6 +185,17 @@ if (!slug) {
         });
       }
 
+      // Send email notification to supervisor
+      try {
+        const supEmail = match.email;
+        if (supEmail) {
+          await fetch('/api/send-email', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ to: supEmail, type: 'CONNECTION_REQUEST', data: { name, email, license, message: msg } }),
+          });
+        }
+      } catch (e) { console.error('Email notification error:', e); }
+
       document.getElementById('req-form').style.display = 'none';
       document.getElementById('req-success').style.display = 'block';
     };
