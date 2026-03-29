@@ -3182,7 +3182,13 @@ function Dashboard({interns,groups,lists,colleagues,onSelectIntern,onNavigate,on
         sos:       ()=>onNavigate("interns","sos"),
         flagged:   ()=>onNavigate("interns","flagged"),
       }[id];
-      return <StatCard key={id} T={t} label={opt.label} value={sv(id)} color={sc(id)} onClick={handleClick}/>;
+      const sub = id==="hours" ? (()=>{
+        const allLogs=active.flatMap(i=>i.hourLog||[]);
+        const d=Math.round(allLogs.filter(e=>e.type==="direct").reduce((s,e)=>s+e.hours,0)*10)/10;
+        const ind=Math.round(allLogs.filter(e=>e.type==="indirect").reduce((s,e)=>s+e.hours,0)*10)/10;
+        return d||ind?`${d} direct · ${ind} indirect`:null;
+      })() : null;
+      return <StatCard key={id} T={t} label={opt.label} value={sv(id)} color={sc(id)} onClick={handleClick} sub={sub}/>;
     })}</div>}
 
     {/* ── To-do list ── */}
@@ -11058,7 +11064,8 @@ useEffect(() => {
           const prev=oldLog.find(o=>o.category===h.category);
           const delta=h.hours-(prev?prev.hours:0);
           if(delta<=0)return;
-          const hlRow={intern_id:updated.id,supervisor_id:session.user.id,date:new Date().toISOString().slice(0,10),hours:delta,category:h.category||"",type:h.type||"",label:h.label||""};
+          const supType=h.category?.includes("secondary")?"secondary":"primary";
+          const hlRow={intern_id:updated.id,supervisor_id:session.user.id,date:new Date().toISOString().slice(0,10),hours:delta,category:h.category||"",type:h.type||"",label:h.label||"",supervision_type:supType,contact_type:h.type||"direct"};
           console.log("[updateIntern] Inserting hour_log:",hlRow);
           supabase.from("hour_logs").insert(hlRow).then(({error})=>{if(error){console.error("Hour log insert error:",error);alert("Hour log save failed: "+error.message);}else{console.log("[updateIntern] Hour log saved OK");}});
         });
