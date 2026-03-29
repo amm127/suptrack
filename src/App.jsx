@@ -12637,23 +12637,84 @@ useEffect(() => {
   return () => subscription.unsubscribe()
 }, [])
 
-  // Auto-logout after 1 hour of inactivity
-  React.useEffect(()=>{
-    if(!session) return;
-    let timer;
-    const TIMEOUT = 60*60*1000; // 1 hour
-    const resetTimer = () => {
-      clearTimeout(timer);
-      timer = setTimeout(()=>{ supabase.auth.signOut(); }, TIMEOUT);
+  // ── Session management: idle timeout + absolute session limits ──
+  const [idleWarning, setIdleWarning] = useState(false);
+  const [idleCountdown, setIdleCountdown] = useState(300);
+  const idleTimerRef = useRef(null);
+  const warningTimerRef = useRef(null);
+  const countdownRef = useRef(null);
+  const absoluteTimerRef = useRef(null);
+
+  const performLogout = useCallback((reason="timeout") => {
+    // Clear all local state and cache
+    const keysToKeep = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith("suptrack_")) keysToKeep.push(key);
+    }
+    keysToKeep.forEach(k => localStorage.removeItem(k));
+    supabase.auth.signOut().then(() => {
+      window.location.href = `/?reason=${reason}`;
+    });
+  }, []);
+
+  const resetIdleTimer = useCallback(() => {
+    if (!session) return;
+    setIdleWarning(false);
+    if (countdownRef.current) clearInterval(countdownRef.current);
+    if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    if (warningTimerRef.current) clearTimeout(warningTimerRef.current);
+
+    const IDLE_WARN = 25 * 60 * 1000;  // 25 minutes
+    const IDLE_LOGOUT = 30 * 60 * 1000; // 30 minutes
+
+    // At 25 min: show warning with 5 min countdown
+    warningTimerRef.current = setTimeout(() => {
+      setIdleWarning(true);
+      setIdleCountdown(300);
+      countdownRef.current = setInterval(() => {
+        setIdleCountdown(prev => {
+          if (prev <= 1) { clearInterval(countdownRef.current); return 0; }
+          return prev - 1;
+        });
+      }, 1000);
+    }, IDLE_WARN);
+
+    // At 30 min: auto logout
+    idleTimerRef.current = setTimeout(() => {
+      performLogout("timeout");
+    }, IDLE_LOGOUT);
+  }, [session, performLogout]);
+
+  React.useEffect(() => {
+    if (!session) return;
+    const events = ["mousedown", "mousemove", "keypress", "scroll", "touchstart", "click"];
+    const handler = () => { if (!idleWarning) resetIdleTimer(); };
+    events.forEach(e => window.addEventListener(e, handler, { passive: true }));
+    resetIdleTimer();
+
+    // Absolute session limit
+    const rememberMe = localStorage.getItem("suptrack_remember_me") === "true";
+    const sessionStart = parseInt(localStorage.getItem("suptrack_session_start") || "0");
+    const maxSession = rememberMe ? 30 * 24 * 60 * 60 * 1000 : 12 * 60 * 60 * 1000;
+    if (sessionStart) {
+      const elapsed = Date.now() - sessionStart;
+      const remaining = maxSession - elapsed;
+      if (remaining <= 0) { performLogout("expired"); return; }
+      absoluteTimerRef.current = setTimeout(() => performLogout("expired"), remaining);
+    } else {
+      localStorage.setItem("suptrack_session_start", Date.now().toString());
+      absoluteTimerRef.current = setTimeout(() => performLogout("expired"), maxSession);
+    }
+
+    return () => {
+      events.forEach(e => window.removeEventListener(e, handler));
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+      if (warningTimerRef.current) clearTimeout(warningTimerRef.current);
+      if (countdownRef.current) clearInterval(countdownRef.current);
+      if (absoluteTimerRef.current) clearTimeout(absoluteTimerRef.current);
     };
-    const events = ["mousedown","keydown","scroll","touchstart"];
-    events.forEach(e=>window.addEventListener(e,resetTimer));
-    resetTimer();
-    return ()=>{
-      clearTimeout(timer);
-      events.forEach(e=>window.removeEventListener(e,resetTimer));
-    };
-  },[session]);
+  }, [session, resetIdleTimer, performLogout]);
 
   const [theme,setTheme]=useState(()=>{try{return localStorage.getItem("suptrack_theme")||"suptrack";}catch{return "suptrack";}});
   const [darkMode,setDarkMode]=useState(()=>{try{return localStorage.getItem("suptrack_dark")==="true";}catch{return false;}});
@@ -13337,6 +13398,28 @@ useEffect(() => {
       {toast.message}
     </div>}
     <AutosaveIndicator status={autosaveStatus} isOffline={isOffline}/>
+
+    {/* Idle warning modal */}
+    {idleWarning&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:10000}}>
+      <div style={{background:"#FAFDFB",borderRadius:20,padding:"36px 40px",maxWidth:400,width:"90%",textAlign:"center",boxShadow:"0 20px 60px rgba(0,0,0,0.2)",border:"1px solid #C8D8D4"}}>
+        <div style={{fontSize:28,marginBottom:16}}>⏱</div>
+        <h2 style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:22,color:"#1E4040",margin:"0 0 8px",fontWeight:600}}>Still there?</h2>
+        <p style={{fontSize:14,color:"#608080",margin:"0 0 20px",lineHeight:1.6}}>You've been inactive for a while. For security, you'll be logged out automatically.</p>
+        <div style={{fontFamily:"'DM Mono',monospace",fontSize:28,color:idleCountdown<=60?"#A04040":"#1E4040",fontWeight:700,marginBottom:24}}>
+          {Math.floor(idleCountdown/60)}:{String(idleCountdown%60).padStart(2,"0")}
+        </div>
+        <div style={{display:"flex",gap:10,justifyContent:"center"}}>
+          <button onClick={resetIdleTimer}
+            style={{background:"#1E4040",color:"#C8E8E0",border:"none",borderRadius:12,padding:"12px 28px",fontSize:15,fontWeight:600,cursor:"pointer",fontFamily:"'Fraunces',Georgia,serif"}}>
+            Stay Logged In
+          </button>
+          <button onClick={()=>performLogout("manual")}
+            style={{background:"none",color:"#608080",border:"1px solid #C8D8D4",borderRadius:12,padding:"12px 28px",fontSize:15,cursor:"pointer",fontFamily:"inherit"}}>
+            Log Out Now
+          </button>
+        </div>
+      </div>
+    </div>}
     <link href={f.url} rel="stylesheet"/>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/fraunces@5/index.css"/>
     <style>{`

@@ -13,6 +13,13 @@ export default function Auth() {
   const [isInternInvite, setIsInternInvite] = useState(false)
   const [internInviteToken, setInternInviteToken] = useState('')
   const [pageContent, setPageContent] = useState(null)
+  const [rememberMe, setRememberMe] = useState(false)
+  const [showTimeout, setShowTimeout] = useState(false)
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('reason') === 'timeout') { setShowTimeout(true); window.history.replaceState({}, '', window.location.pathname) }
+  }, [])
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -82,6 +89,7 @@ export default function Auth() {
     } else {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) { setMessage(error.message); setIsError(true) }
+      else { localStorage.setItem('suptrack_remember_me', rememberMe ? 'true' : 'false'); localStorage.setItem('suptrack_session_start', Date.now().toString()); }
     }
     setLoading(false)
   }
@@ -163,7 +171,17 @@ export default function Auth() {
               <input className="st-auth-inp" type="email" name="email" autoComplete="email" placeholder="Email address" value={email} onChange={e=>setEmail(e.target.value)}/>
               <input className="st-auth-inp" type="password" name="password" autoComplete={isSignUp?'new-password':'current-password'} placeholder="Password" value={password} onChange={e=>setPassword(e.target.value)}/>
               {isSignUp && !isInternInvite && <input className="st-auth-inp" type="text" name="invite-code" autoComplete="off" placeholder="Referral code (optional)" value={inviteCode} onChange={e=>setInviteCode(e.target.value)} style={{opacity:0.7,fontSize:13}}/>}
+              {!isSignUp && <label style={{display:'flex',alignItems:'center',gap:10,cursor:'pointer',fontSize:13,color:'#608080',marginTop:2}}>
+                <input type="checkbox" checked={rememberMe} onChange={e=>setRememberMe(e.target.checked)} style={{width:16,height:16,accentColor:'#1E4040',cursor:'pointer'}}/>
+                Remember me for 30 days
+              </label>}
             </div>
+
+            {showTimeout && !message && (
+              <div style={{textAlign:'center',fontSize:14,color:'#B87D2A',marginBottom:16,lineHeight:1.5}}>
+                You were logged out due to inactivity.
+              </div>
+            )}
 
             {message && (
               <div style={{textAlign:'center',fontSize:14,color:isError?'#904040':'#2E6848',marginBottom:16,lineHeight:1.5}}>
