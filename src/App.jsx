@@ -6494,9 +6494,14 @@ function BillingPage({billing,setBilling,interns,T,F,colleagues=[],session,super
   };
 
   const activeInterns = interns.filter(i=>i.status==="active").length;
-  const currentPlan   = PLANS[billing.plan];
-  const extraSeats    = billing.seats.filter(s=>s.role!=="owner").length;
+  const currentPlan   = PLANS[billing.plan] || PLANS.starter;
+  const extraSeats    = (billing.seats||[]).filter(s=>s.role!=="owner").length;
   const seatPrice     = cycle==="annual" ? SEAT_PRICE_ANNUAL : SEAT_PRICE_MONTHLY * 12;
+  // Trial info from Supabase
+  const trialEnd = supervisorProfile?.trial_ends_at ? new Date(supervisorProfile.trial_ends_at) : null;
+  const isOnTrial = trialEnd && trialEnd > new Date() && !supervisorProfile?.stripe_customer_id && !supervisorProfile?.lifetime_free;
+  const trialDaysLeft = isOnTrial ? Math.ceil((trialEnd - new Date()) / (1000*60*60*24)) : 0;
+  const subStatus = supervisorProfile?.subscription_status || (isOnTrial ? "trial" : "active");
   const basePrice     = cycle==="annual" ? currentPlan.annual : currentPlan.monthly;
   const totalMonthly  = currentPlan.monthly + (extraSeats * SEAT_PRICE_MONTHLY);
   const totalAnnual   = currentPlan.annual  + (extraSeats * SEAT_PRICE_ANNUAL);
@@ -6516,7 +6521,7 @@ function BillingPage({billing,setBilling,interns,T,F,colleagues=[],session,super
 
   return <div>
     <div style={{marginBottom:26}}>
-      <h1 style={{fontFamily:"inherit",fontSize:28,fontWeight:400,color:t.text,margin:"0 0 4px",letterSpacing:"-0.02em"}}>Plan & Billing</h1>
+      <h1 style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:28,fontWeight:700,color:"#1E4040",margin:"0 0 4px",letterSpacing:"-0.02em"}}>Plan & Billing</h1>
       <p style={{color:t.muted,fontSize:14,margin:0}}>Manage your subscription, team seats, and referrals</p>
     </div>
 
@@ -6591,26 +6596,38 @@ function BillingPage({billing,setBilling,interns,T,F,colleagues=[],session,super
     {/* ── Plan tab ── */}
     {tab==="plan" && <div style={{display:"flex",flexDirection:"column",gap:18}}>
 
+      {/* Trial banner */}
+      {isOnTrial&&<div style={{background:"#E8F0EE",border:"1px solid #C8D8D4",borderRadius:14,padding:"20px 24px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <div>
+          <div style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:18,fontWeight:600,color:"#1E4040",marginBottom:4}}>You're on a 14-day free trial</div>
+          <div style={{fontSize:14,color:"#608080"}}>{trialDaysLeft} day{trialDaysLeft!==1?"s":""} remaining · Full access until {trialEnd.toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"})}</div>
+        </div>
+        <div style={{fontSize:13,color:"#1E4040",fontFamily:"'DM Mono',monospace",background:"#FAFDFB",border:"1px solid #C8D8D4",borderRadius:8,padding:"8px 16px",fontWeight:600}}>{trialDaysLeft}d left</div>
+      </div>}
+
       {/* Current plan summary */}
       <Card>
         <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:16}}>
           <div>
             <Label>Current plan</Label>
             <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:6}}>
-              <span style={{fontFamily:"inherit",fontSize:22,color:t.text}}>{currentPlan.name}</span>
-              <Badge color={currentPlan.color} bg={currentPlan.colorLight}>{currentPlan.internLimit}</Badge>
-              <Badge color={t.muted} bg={t.surfaceAlt}>{billing.cycle}</Badge>
+              <span style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:22,fontWeight:600,color:"#1E4040"}}>{currentPlan.name}</span>
+              {isOnTrial&&<Badge color="#C4A040" bg="#FAF2E0">Trial</Badge>}
+              {supervisorProfile?.lifetime_free&&<Badge color="#2E7A4E" bg="#E8F5EE">Lifetime Free</Badge>}
+              {!isOnTrial&&!supervisorProfile?.lifetime_free&&<Badge color={t.muted} bg={t.surfaceAlt}>{billing.cycle}</Badge>}
             </div>
-            <div style={{fontSize:13,color:t.muted}}>
-              {billing.trialDaysLeft > 0 ? "Free trial — " : "Next billing: "}{billing.trialDaysLeft > 0 ? `${billing.trialDaysLeft} days left` : billing.nextBilling}
+            <div style={{fontSize:13,color:"#608080"}}>
+              {isOnTrial ? `Free trial — ${trialDaysLeft} days left` : supervisorProfile?.lifetime_free ? "Lifetime free access" : billing.nextBilling ? `Next billing: ${billing.nextBilling}` : "No active subscription"}
             </div>
             {supervisorProfile?.stripe_customer_id && <button onClick={async()=>{
               try{const res=await fetch("/api/portal",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({userId:session.user.id})});const data=await res.json();if(data.url)window.location.href=data.url;else alert(data.error||"Failed to open billing portal");}catch{alert("Failed to connect to billing service");}
-            }} style={{marginTop:10,background:"none",border:`1px solid ${t.border}`,borderRadius:8,padding:"6px 14px",cursor:"pointer",fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace"}}>Manage subscription</button>}
+            }} style={{marginTop:10,background:"none",border:"1px solid #C8D8D4",borderRadius:8,padding:"6px 14px",cursor:"pointer",fontSize:12,color:"#608080",fontFamily:"'DM Mono',monospace"}}>Manage subscription</button>}
           </div>
           <div style={{textAlign:"right"}}>
-            <div style={{fontFamily:"inherit",fontSize:28,color:t.accent,lineHeight:1}}>${billing.cycle==="annual"?(currentPlan.annual/12).toFixed(2):currentPlan.monthly}<span style={{fontSize:14,color:t.muted}}>/mo</span></div>
-            {billing.cycle==="annual"&&<div style={{fontSize:12,color:t.muted,marginTop:2}}>${currentPlan.annual}/yr · 2 months free</div>}
+            {isOnTrial
+              ? <div style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:28,color:"#1E4040",lineHeight:1}}>Free<span style={{fontSize:14,color:"#608080",fontFamily:"'DM Sans',system-ui"}}> trial</span></div>
+              : <div style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:28,color:"#1E4040",lineHeight:1}}>${cycle==="annual"?(currentPlan.annual/12).toFixed(2):currentPlan.monthly}<span style={{fontSize:14,color:"#608080",fontFamily:"'DM Sans',system-ui"}}>/mo</span></div>}
+            {!isOnTrial&&cycle==="annual"&&<div style={{fontSize:12,color:"#608080",marginTop:2}}>${currentPlan.annual}/yr · 2 months free</div>}
           </div>
         </div>
 
@@ -11505,14 +11522,14 @@ useEffect(() => {
 
   // Billing state
   const BILLING_SEED = {
-    plan:"starter",cycle:"monthly",trialDaysLeft:8,
-    seats:[{id:"s1",name:"Alyson K.",email:"alyson@questcounseling.org",role:"owner"},{id:"s2",name:"Dr. Renee Faulkner",email:"rfaulkner@cbhc.org",role:"member",since:"Feb 2026"}],
-    referralCode:"SUPTRACK-AK2026",
-    referrals:[{name:"Marcus Webb",status:"trial",joined:"Mar 10, 2026",creditEarned:false,tier:1},{name:"Tanya Osei",status:"paid",joined:"Feb 1, 2026",creditEarned:true,tier:1}],
-    tierProgress:{1:{required:1,earned:1,referrals:["Tanya Osei"],unlocked:true},2:{required:3,earned:0,referrals:[],unlocked:false},3:{required:10,earned:0,referrals:[],unlocked:false},4:{required:25,earned:0,referrals:[],unlocked:false}},
-    credits:1,nextBilling:"Apr 21, 2026",
-    foundingSeats:[{id:"f1",name:"Dr. Renee Faulkner",email:"rfaulkner@cbhc.org",since:"Jan 2026"},{id:"f2",name:"Marcus Webb",email:"mwebb@questcounseling.org",since:"Feb 2026"}],
-    foundingSlotsTotal:5,
+    plan:"starter",cycle:"monthly",trialDaysLeft:0,
+    seats:[],
+    referralCode:"",
+    referrals:[],
+    tierProgress:{},
+    credits:0,nextBilling:"",
+    foundingSeats:[],
+    foundingSlotsTotal:0,
   };
   const [billing,setBilling]=useState(()=>{try{const s=localStorage.getItem("suptrack_billing");return s?JSON.parse(s):BILLING_SEED;}catch{return BILLING_SEED;}});
   React.useEffect(()=>{try{localStorage.setItem("suptrack_billing",JSON.stringify(billing));}catch{}},[billing]);
