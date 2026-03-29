@@ -11331,8 +11331,12 @@ function AdminPanelPage({T,session,tickets,setTickets}) {
   </div>;
 }
 
-function SettingsPage({theme,setTheme,setCustomTheme,font,setFont,darkMode,setDarkMode,highContrast,setHighContrast,supervisorName,setSupervisorName,onSaveProfile,T,notifPrefs,setNotifPrefs,session}) {
+function SettingsPage({theme,setTheme,setCustomTheme,font,setFont,darkMode,setDarkMode,highContrast,setHighContrast,supervisorName,setSupervisorName,onSaveProfile,T,notifPrefs,setNotifPrefs,session,supervisorProfile,setToast}) {
   const t=T||THEMES.sage;
+  const [exporting,setExporting]=useState(false);
+  const [deleteConfirm,setDeleteConfirm]=useState("");
+  const [deleting,setDeleting]=useState(false);
+  const [showDeleteModal,setShowDeleteModal]=useState(false);
 
   // ── Custom theme builder ──────────────────────────────────────────────────
   const [customAccent, setCustomAccent] = useState("#5B7B5E");
@@ -11584,6 +11588,119 @@ function SettingsPage({theme,setTheme,setCustomTheme,font,setFont,darkMode,setDa
       </div>
       <div style={{fontSize:12,color:"#A0B8B4",marginTop:10}}>Manage your email preferences at any time. Changes save automatically.</div>
     </div>
+
+    {/* Account */}
+    <div style={{marginTop:28}}>
+      <h2 style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:20,fontWeight:600,color:"#1E4040",margin:"0 0 14px"}}>Account</h2>
+      <div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:14,padding:"20px 24px",boxShadow:"0 2px 12px rgba(30,64,64,0.06)"}}>
+
+        {/* Export data */}
+        <div style={{marginBottom:20}}>
+          <div style={{fontSize:14,fontWeight:500,color:t.text,marginBottom:4}}>Export My Data</div>
+          <div style={{fontSize:12,color:"#608080",marginBottom:12}}>Download all your data as CSV files — supervisees, sessions, hours, CE entries, and profile.</div>
+          <button onClick={async()=>{
+            if(!session?.user)return;
+            setExporting(true);
+            try{
+              const key=Object.keys(localStorage).find(k=>k.startsWith("sb-")&&k.endsWith("-auth-token"));
+              const token=key?JSON.parse(localStorage.getItem(key))?.access_token:null;
+              if(!token){setToast?.({type:"error",message:"Session expired — please sign in again"});setExporting(false);return;}
+              const r=await fetch("/api/export-data",{method:"POST",headers:{"Content-Type":"application/json","Authorization":`Bearer ${token}`}});
+              if(!r.ok){setToast?.({type:"error",message:"Export failed"});setExporting(false);return;}
+              const data=await r.json();
+              // Download each CSV file
+              for(const f of data.files){
+                const blob=new Blob([f.content],{type:"text/csv"});
+                const url=URL.createObjectURL(blob);
+                const a=document.createElement("a");
+                a.href=url;a.download=`suptrack_${f.name}`;a.click();
+                URL.revokeObjectURL(url);
+              }
+              setToast?.({type:"success",message:"Data exported successfully ✦"});
+            }catch(e){setToast?.({type:"error",message:"Export failed: "+e.message});}
+            setExporting(false);
+          }} disabled={exporting}
+            style={{background:t.accent,color:"#fff",border:"none",borderRadius:10,padding:"10px 22px",cursor:"pointer",fontSize:13,fontWeight:600,fontFamily:"inherit"}}>
+            {exporting?"Exporting...":"📥 Export My Data"}
+          </button>
+        </div>
+
+        {/* Divider */}
+        <div style={{height:1,background:t.border,margin:"20px 0"}}/>
+
+        {/* Delete account */}
+        <div>
+          <div style={{fontSize:14,fontWeight:500,color:"#A0453E",marginBottom:4}}>Delete My Account</div>
+          <div style={{fontSize:12,color:"#608080",marginBottom:12}}>Permanently delete your account and all associated data. This action cannot be undone.</div>
+          <button onClick={()=>setShowDeleteModal(true)}
+            style={{background:"#FAE8E8",color:"#A0453E",border:"1px solid #E0C0C0",borderRadius:10,padding:"10px 22px",cursor:"pointer",fontSize:13,fontWeight:600,fontFamily:"inherit"}}>
+            Delete My Account
+          </button>
+        </div>
+      </div>
+    </div>
+
+    {/* Delete account modal */}
+    {showDeleteModal&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.45)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999}} onClick={()=>{setShowDeleteModal(false);setDeleteConfirm("");}}>
+      <div onClick={e=>e.stopPropagation()} style={{background:"#fff",borderRadius:18,padding:32,maxWidth:440,width:"90%",boxShadow:"0 20px 60px rgba(0,0,0,0.2)"}}>
+        <div style={{fontSize:32,textAlign:"center",marginBottom:12}}>⚠️</div>
+        <h3 style={{margin:"0 0 8px",fontSize:20,color:"#A0453E",textAlign:"center",fontFamily:"'Fraunces',Georgia,serif"}}>Delete your account?</h3>
+        <p style={{fontSize:14,color:"#666",lineHeight:1.6,textAlign:"center",marginBottom:20}}>This will permanently delete all your supervisees, sessions, hours, documents, agreements, and CE entries. Your support tickets and payment history will be preserved.</p>
+
+        <div style={{background:"#FAE8E8",borderRadius:10,padding:"14px 16px",marginBottom:20}}>
+          <div style={{fontSize:13,color:"#A0453E",fontWeight:500,marginBottom:8}}>Type DELETE to confirm:</div>
+          <input value={deleteConfirm} onChange={e=>setDeleteConfirm(e.target.value)} placeholder="DELETE"
+            style={{width:"100%",padding:"10px 14px",border:"1px solid #E0C0C0",borderRadius:8,fontSize:14,fontFamily:"'DM Mono',monospace",color:"#A0453E",background:"#fff",outline:"none",boxSizing:"border-box",letterSpacing:2,textAlign:"center"}}/>
+        </div>
+
+        <div style={{display:"flex",gap:10}}>
+          <button onClick={()=>{setShowDeleteModal(false);setDeleteConfirm("");}}
+            style={{flex:1,background:t.surfaceAlt,color:t.text,border:`1px solid ${t.border}`,borderRadius:10,padding:"12px",cursor:"pointer",fontSize:14,fontFamily:"inherit"}}>
+            Cancel
+          </button>
+          <button onClick={async()=>{
+            if(deleteConfirm!=="DELETE")return;
+            setDeleting(true);
+            try{
+              const userId=session?.user?.id;
+              if(!userId){setDeleting(false);return;}
+
+              // Cancel Stripe subscription if active
+              if(supervisorProfile?.stripe_subscription_id){
+                const key=Object.keys(localStorage).find(k=>k.startsWith("sb-")&&k.endsWith("-auth-token"));
+                const token=key?JSON.parse(localStorage.getItem(key))?.access_token:null;
+                if(token) await fetch("/api/admin/stripe-action",{method:"POST",headers:{"Content-Type":"application/json","Authorization":`Bearer ${token}`},body:JSON.stringify({action:"cancel_subscription",params:{subscriptionId:supervisorProfile.stripe_subscription_id,atPeriodEnd:false}})}).catch(()=>{});
+              }
+
+              // Soft delete interns
+              await supabase.from("interns").update({deleted_at:new Date().toISOString()}).eq("supervisor_id",userId);
+
+              // Soft delete supervisor
+              await supabase.from("supervisors").update({
+                deleted_at:new Date().toISOString(),
+                subscription_status:"deleted",
+              }).eq("user_id",userId);
+
+              // Send confirmation email
+              fetch("/api/send-email",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({to:session.user.email,type:"CUSTOM",subject:"Your SupTrack account has been deleted",body:"Hi,\\n\\nYour SupTrack account has been successfully deleted. All your data will be permanently removed within 30 days.\\n\\nIf this was a mistake, contact us at support@suptrack.com within 30 days and we can restore your data.\\n\\nThank you for using SupTrack.\\n\\nThe SupTrack Team"})}).catch(()=>{});
+
+              // Log
+              await supabase.from("error_logs").insert({message:`User self-deleted: ${session.user.email}`,source:"settings_delete_account",created_at:new Date().toISOString()});
+
+              // Sign out
+              await supabase.auth.signOut();
+              window.location.reload();
+            }catch(e){
+              setToast?.({type:"error",message:"Deletion failed: "+e.message});
+              setDeleting(false);
+            }
+          }} disabled={deleteConfirm!=="DELETE"||deleting}
+            style={{flex:1,background:deleteConfirm==="DELETE"?"#A0453E":"#ddd",color:deleteConfirm==="DELETE"?"#fff":"#999",border:"none",borderRadius:10,padding:"12px",cursor:deleteConfirm==="DELETE"?"pointer":"default",fontSize:14,fontWeight:600,fontFamily:"inherit"}}>
+            {deleting?"Deleting...":"Permanently Delete"}
+          </button>
+        </div>
+      </div>
+    </div>}
   </div>;
 }
 
@@ -12472,6 +12589,20 @@ useEffect(() => {
   const trialActive = trialEndsAt && trialEndsAt > new Date();
   const supervisorPlan = supervisorProfile?.plan || "starter";
   const trialExpired = trialEndsAt && !trialActive && supervisorPlan==="starter" && !supervisorProfile?.stripe_customer_id && !supervisorProfile?.lifetime_free;
+  const isReadOnly = supervisorProfile?.subscription_status==="expired" || trialExpired;
+  const scheduledDeletionAt = supervisorProfile?.scheduled_deletion_at ? new Date(supervisorProfile.scheduled_deletion_at) : null;
+  const deletionDaysLeft = scheduledDeletionAt ? Math.max(0, Math.ceil((scheduledDeletionAt.getTime() - Date.now()) / (1000*60*60*24))) : null;
+
+  // Reactivation detection
+  const prevStatusRef = React.useRef(supervisorProfile?.subscription_status);
+  React.useEffect(()=>{
+    const prev = prevStatusRef.current;
+    const curr = supervisorProfile?.subscription_status;
+    if(prev && (prev==="expired"||prev==="deleted") && curr==="active"){
+      setToast({type:"success",message:"Welcome back! Your data has been restored ✦"});
+    }
+    prevStatusRef.current = curr;
+  },[supervisorProfile?.subscription_status]);
 
   // Feature gating
   const PLAN_FEATURES = {
@@ -12680,23 +12811,6 @@ useEffect(() => {
   const [editingNav, setEditingNav] = useState(false);
   const [navDrag, setNavDrag] = useState(null);
 
-  const [trialCheckoutLoading, setTrialCheckoutLoading] = useState(null);
-
-  const handleTrialCheckout = async (planId) => {
-    if (!session?.user) return;
-    setTrialCheckoutLoading(planId);
-    try {
-      const res = await fetch("/api/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ planId: planId + "_monthly", userId: session.user.id, email: session.user.email }),
-      });
-      const data = await res.json();
-      if (data.url) window.location.href = data.url;
-      else { alert(data.error || "Failed to start checkout"); setTrialCheckoutLoading(null); }
-    } catch { alert("Failed to connect to billing service"); setTrialCheckoutLoading(null); }
-  };
-
   const navItems = navOrder
     .map(id => ALL_NAV_ITEMS.find(n=>n.id===id))
     .filter(n => n && !navHidden.has(n.id));
@@ -12729,31 +12843,7 @@ useEffect(() => {
     onSignOut={()=>supabase.auth.signOut()}
   />;
 
-  // Trial expired paywall
-  if(trialExpired) return <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:"100vh",background:"#FAF9F8",padding:40}}>
-    <div style={{background:"#fff",borderRadius:18,padding:"40px 44px",maxWidth:480,width:"100%",boxShadow:"0 8px 32px rgba(0,0,0,0.1)",textAlign:"center"}}>
-      <div style={{fontSize:36,marginBottom:16}}>⏰</div>
-      <h1 style={{fontSize:24,fontWeight:600,color:"#1A1A2E",marginBottom:8}}>Your free trial has ended</h1>
-      <p style={{fontSize:14,color:"#666",lineHeight:1.6,marginBottom:24}}>Your 14-day trial expired on {trialEndsAt?.toLocaleDateString()}. Choose a plan to continue using SupTrack.</p>
-      <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:24,textAlign:"left"}}>
-        {[
-          {id:"starter",name:"Starter",price:"$24.99/mo",desc:"Up to 10 supervisees · Hour tracking & session logging",border:"#5B7B5E",bg:"#EEF4EE"},
-          {id:"growth",name:"Growth",price:"$39.99/mo",desc:"Up to 20 supervisees · AI session notes & audit reports",border:"#7B9FD4",bg:"#F0F5FF"},
-          {id:"practice",name:"Practice",price:"$69.99/mo",desc:"Unlimited supervisees · Multi-supervisor & dedicated support",border:"#6B3FA0",bg:"#F2EDFB"},
-        ].map(p=><div key={p.id} style={{border:`1px solid ${p.border}`,borderRadius:12,padding:"16px 20px",background:p.bg,cursor:"pointer",opacity:trialCheckoutLoading&&trialCheckoutLoading!==p.id?0.5:1}} onClick={()=>handleTrialCheckout(p.id)}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-            <div>
-              <div style={{fontWeight:600,fontSize:15}}>{p.name} — {p.price}</div>
-              <div style={{fontSize:13,color:"#888",marginTop:4}}>{p.desc}</div>
-            </div>
-            {trialCheckoutLoading===p.id&&<span style={{fontSize:12,color:p.border}}>Loading...</span>}
-          </div>
-        </div>)}
-      </div>
-      <button onClick={()=>handleTrialCheckout("starter")} style={{width:"100%",padding:"12px",background:"#7B9FD4",color:"#fff",border:"none",borderRadius:8,fontSize:15,fontWeight:600,cursor:"pointer",marginBottom:10}}>{trialCheckoutLoading==="starter"?"Redirecting...":"Start Starter plan"}</button>
-      <button onClick={()=>supabase.auth.signOut()} style={{width:"100%",padding:"10px",background:"none",border:"1px solid #E2DDD8",borderRadius:8,fontSize:14,cursor:"pointer",color:"#666"}}>Sign out</button>
-    </div>
-  </div>;
+  // Read-only mode: expired trials can still view data (no full paywall)
 
   if(portalIntern) return <InternPortal T={t} F={f} intern={portalIntern} groups={groups} onExit={()=>{
     setPortalInternId(null);
@@ -12935,9 +13025,26 @@ useEffect(() => {
           <button onClick={()=>setPage("billing")} style={{background:bannerColor,color:"#fff",border:"none",borderRadius:8,padding:"6px 16px",cursor:"pointer",fontSize:12,fontWeight:600,fontFamily:"inherit"}}>Upgrade now</button>
         </div>;
       })()}
+      {/* Expired trial banner — read-only mode */}
+      {isReadOnly&&<div style={{background:"#FAE8E8",border:"1px solid #E0C0C0",borderRadius:12,padding:"14px 20px",marginBottom:20}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:deletionDaysLeft!==null?8:0}}>
+          <div style={{display:"flex",alignItems:"center",gap:10}}>
+            <span style={{fontSize:20}}>⏰</span>
+            <div>
+              <div style={{fontSize:14,fontWeight:600,color:"#A0453E"}}>Your trial has ended — read-only mode</div>
+              <div style={{fontSize:12,color:"#888",marginTop:2}}>Your data is visible but you cannot make changes.</div>
+            </div>
+          </div>
+          <button onClick={()=>setPage("billing")} style={{background:"#A0453E",color:"#fff",border:"none",borderRadius:8,padding:"8px 18px",cursor:"pointer",fontSize:13,fontWeight:600,fontFamily:"inherit",flexShrink:0}}>Upgrade now</button>
+        </div>
+        {deletionDaysLeft!==null&&<div style={{background:"rgba(160,69,62,0.08)",borderRadius:8,padding:"8px 12px",fontSize:12,color:"#A0453E",fontWeight:500}}>
+          ⚠ Your data will be permanently deleted{deletionDaysLeft>0?` in ${deletionDaysLeft} day${deletionDaysLeft!==1?"s":""}`:' soon'}{scheduledDeletionAt?` (${scheduledDeletionAt.toLocaleDateString()})`:""}.{" "}
+          <button onClick={()=>setPage("settings")} style={{background:"none",border:"none",color:"#A0453E",textDecoration:"underline",cursor:"pointer",fontSize:12,fontFamily:"inherit",padding:0}}>Export your data</button>
+        </div>}
+      </div>}
       {page==="dashboard"&&<Dashboard T={t} interns={interns} groups={groups} lists={lists} colleagues={colleagues} supervisorName={supervisorName} ceData={ceData} todos={todos} setTodos={setTodos} session={session} supervisorProfile={supervisorProfile}
-        onAddIntern={()=>{if(activeInternCount>=internLimit){setUpgradePrompt("intern");return;}setAddInternOpen(true);}}
-        onQuickAction={setQuickActionOpen}
+        onAddIntern={()=>{if(isReadOnly){setToast({type:"error",message:"Upgrade your plan to add supervisees"});return;}if(activeInternCount>=internLimit){setUpgradePrompt("intern");return;}setAddInternOpen(true);}}
+        onQuickAction={a=>{if(isReadOnly){setToast({type:"error",message:"Upgrade your plan to make changes"});return;}setQuickActionOpen(a);}}
         onSelectIntern={i=>{setSelectedInternId_sv(i.id);setPage("intern-profile");}}
         onNavigate={navigate}
         onOpenOnboarding={()=>setOnboardingOpen(true)}
@@ -12952,7 +13059,7 @@ useEffect(() => {
       />}
       {page==="intern-profile"&&!selectedIntern&&(()=>{setTimeout(()=>setPage("interns"),0);return null;})()}
       {page==="intern-profile"&&selectedIntern&&<InternProfile T={t} plan={effectivePlan} session={session} intern={selectedIntern} groups={groups} lists={lists} setLists={setLists} colleagues={colleagues} setColleagues={setColleagues} onBack={()=>{setSelectedInternId_sv(null);setPage("interns");}} onUpdateIntern={updateIntern} onDelete={(id)=>{supabase.from("interns").delete().eq("id",id).then(({error})=>{if(error)console.error("Intern delete error:",error);});supabase.from("sessions").delete().eq("intern_id",id).then(({error})=>{if(error)console.error("Sessions delete error:",error);});supabase.from("hour_logs").delete().eq("intern_id",id).then(({error})=>{if(error)console.error("Hour logs delete error:",error);});setInterns(p=>p.filter(i=>i.id!==id));setSelectedInternId_sv(null);setPage("interns");}} onConsult={i=>{setConsultIntern(i);setPage("resources");}} onOpenLab={()=>setPage("lab")} onGroupClick={(gid)=>{setSelectedGroupId(gid);setPage("groups");}}/>}
-      {page==="interns"&&<InterneesPage T={t} interns={interns} groups={groups} lists={lists} colleagues={colleagues} internFilter={internFilter} setInternFilter={setInternFilter} internSort={internSort} setInternSort={setInternSort} internViewMode={internViewMode} setInternViewMode={setInternViewMode} onSelectIntern={i=>{setSelectedInternId_sv(i.id);setPage("intern-profile");}} onGroupClick={(gid)=>{setSelectedGroupId(gid);setPage("groups");}} onAddIntern={()=>{if(activeInternCount>=internLimit){setUpgradePrompt("intern");return;}setAddInternOpen(true);}} onOpenOnboarding={()=>setOnboardingOpen(true)}/>}
+      {page==="interns"&&<InterneesPage T={t} interns={interns} groups={groups} lists={lists} colleagues={colleagues} internFilter={internFilter} setInternFilter={setInternFilter} internSort={internSort} setInternSort={setInternSort} internViewMode={internViewMode} setInternViewMode={setInternViewMode} onSelectIntern={i=>{setSelectedInternId_sv(i.id);setPage("intern-profile");}} onGroupClick={(gid)=>{setSelectedGroupId(gid);setPage("groups");}} onAddIntern={()=>{if(isReadOnly){setToast({type:"error",message:"Upgrade your plan to add supervisees"});return;}if(activeInternCount>=internLimit){setUpgradePrompt("intern");return;}setAddInternOpen(true);}} onOpenOnboarding={()=>setOnboardingOpen(true)}/>}
       {page==="groups"&&<GroupsPage T={t} groups={groups} interns={interns} colleagues={colleagues} setColleagues={setColleagues} setGroups={setGroups} initialGroupId={selectedGroupId} updateInterns={addSessionCharge} updateIntern={updateIntern} onSelectIntern={i=>{setSelectedInternId_sv(i.id);setPage("intern-profile");}}/>}
 
       {page==="payments"&&<PaymentsPage T={t} interns={interns} groups={groups} onSelectIntern={i=>{setSelectedInternId_sv(i.id);setPage("intern-profile");}}/>}
@@ -12972,7 +13079,7 @@ useEffect(() => {
       {page==="admin"&&isAdmin&&<AdminPanelPage T={t} session={session} tickets={tickets} setTickets={setTickets}/>}
       {page==="admin"&&!isAdmin&&(()=>{setTimeout(()=>setPage("dashboard"),0);return null;})()}
       {page==="profile"&&<PublicProfilePage T={t} supervisorPhoto={supervisorPhoto} setSupervisorPhoto={setSupervisorPhoto} supervisorName={supervisorName} setSupervisorName={setSupervisorName} supervisorInitials={supervisorInitials} supervisorProfile={supervisorProfile} onSaveProfile={saveSupervisorProfile}/>}
-      {page==="settings"&&<SettingsPage T={t} theme={theme} setTheme={setTheme} setCustomTheme={setCustomTheme} font={fontKey} setFont={setFontKey} darkMode={darkMode} setDarkMode={setDarkMode} highContrast={highContrast} setHighContrast={setHighContrast} supervisorName={supervisorName} setSupervisorName={setSupervisorName} onSaveProfile={saveSupervisorProfile} notifPrefs={notifPrefs} setNotifPrefs={setNotifPrefs} session={session}/>}
+      {page==="settings"&&<SettingsPage T={t} theme={theme} setTheme={setTheme} setCustomTheme={setCustomTheme} font={fontKey} setFont={setFontKey} darkMode={darkMode} setDarkMode={setDarkMode} highContrast={highContrast} setHighContrast={setHighContrast} supervisorName={supervisorName} setSupervisorName={setSupervisorName} onSaveProfile={saveSupervisorProfile} notifPrefs={notifPrefs} setNotifPrefs={setNotifPrefs} session={session} supervisorProfile={supervisorProfile} setToast={setToast}/>}
       {!["dashboard","interns","intern-profile","groups","payments","billing","ce","calendar","consult","lab","resources","discover","agreements","reminders","messages","support","admin","profile","settings"].includes(page)&&<Dashboard T={t} interns={interns} groups={groups} lists={lists} colleagues={colleagues} supervisorName={supervisorName} onAddIntern={()=>{if(activeInternCount>=internLimit){setUpgradePrompt("intern");return;}setAddInternOpen(true);}} onQuickAction={setQuickActionOpen} onSelectIntern={i=>{setSelectedInternId_sv(i.id);setPage("intern-profile");}} onNavigate={navigate} onOpenOnboarding={()=>setOnboardingOpen(true)} quickActionOrder={quickActionOrder} quickActionHidden={quickActionHidden} allQuickActions={ALL_QUICK_ACTIONS} onQuickActionReorder={setQuickActionOrder} onQuickActionToggle={(id)=>{setQuickActionHidden(prev=>{const s=new Set(prev);s.has(id)?s.delete(id):s.add(id);return s;});}}/>}
       {quickActionOpen&&<QuickActionModal T={t} action={quickActionOpen} interns={interns} groups={groups} onUpdateIntern={updateIntern} onClose={()=>setQuickActionOpen(null)}/>}
       {onboardingOpen&&<OnboardingModal T={t} supervisorName={supervisorName} onClose={()=>setOnboardingOpen(false)}/>}

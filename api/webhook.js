@@ -42,15 +42,32 @@ export default async function handler(req, res) {
         ];
         const seatItem = sub.items?.data?.find(item => seatPriceIds.includes(item.price.id));
         const seatCount = seatItem ? seatItem.quantity : 0;
+        const newStatus = sub.status === 'active' ? 'active' : sub.status === 'trialing' ? 'trial' : sub.status;
+
+        // Check if this is a reactivation (user had expired/deleted status)
+        const { data: existing } = await supabase.from('supervisors').select('subscription_status, deleted_at').eq('user_id', userId).single();
+        const isReactivation = existing && (existing.subscription_status === 'expired' || existing.subscription_status === 'deleted' || existing.deleted_at);
 
         await supabase.from('supervisors').update({
           plan: planName,
           billing_cycle: cycle,
           stripe_customer_id: sub.customer,
           seat_count: seatCount,
-          subscription_status: sub.status === 'active' ? 'active' : sub.status === 'trialing' ? 'trial' : sub.status,
+          subscription_status: newStatus,
           stripe_subscription_id: sub.id,
+          // Clear deletion fields on reactivation
+          ...(isReactivation ? { deleted_at: null, trial_expired_at: null, scheduled_deletion_at: null } : {}),
         }).eq('user_id', userId);
+
+        // Restore soft-deleted interns if reactivating
+        if (isReactivation) {
+          await supabase.from('interns').update({ deleted_at: null }).eq('supervisor_id', userId).not('deleted_at', 'is', null);
+          await supabase.from('error_logs').insert({
+            message: `Account reactivated: user_id=${userId}, plan=${planName}`,
+            source: 'stripe_webhook_reactivation',
+            created_at: new Date().toISOString(),
+          });
+        }
       }
       break;
     }
