@@ -2944,7 +2944,7 @@ function InternProfile({intern,groups,lists,setLists,colleagues,setColleagues,on
 
 // ── Dashboard ──────────────────────────────────────────────────────────────
 // ── AlertsSection — extracted so hooks are at proper component top level ────
-function AlertsSection({visible,interns,t,onNavigate,onSelectIntern,todos,setTodos,dismissedAlerts,setDismissedAlerts,snoozedAlerts,setSnoozedAlerts}) {
+function AlertsSection({visible,interns,t,onNavigate,onSelectIntern,todos,setTodos,dismissedAlerts,setDismissedAlerts,snoozedAlerts,setSnoozedAlerts,onDismiss}) {
   const [openMenuId,setOpenMenuId]=useState(null);
 
   // Close menu on outside click
@@ -2978,7 +2978,7 @@ function AlertsSection({visible,interns,t,onNavigate,onSelectIntern,todos,setTod
                 style={{background:"none",border:`1px solid ${as.border}`,borderRadius:6,padding:"4px 8px",cursor:"pointer",fontSize:13,color:as.labelColor,lineHeight:1}}>···</button>
               {menuOpen&&<div onClick={e=>e.stopPropagation()} style={{position:"absolute",right:0,top:"calc(100% + 4px)",background:t.surface,border:`1px solid ${t.border}`,borderRadius:10,boxShadow:"0 8px 24px rgba(0,0,0,0.12)",zIndex:100,minWidth:170,padding:"5px 0"}}>
                 {[
-                  {label:"📋 Add to to-do", action:()=>{setTodos(p=>[...p,{id:Date.now(),text:alert.message,done:false,link:"none"}]);setDismissedAlerts(s=>new Set([...s,alert.id]));setOpenMenuId(null);}},
+                  {label:"📋 Add to to-do", action:()=>{setTodos(p=>[...p,{id:Date.now(),text:alert.message,done:false,link:"none"}]);(onDismiss||setDismissedAlerts)(alert.id);setOpenMenuId(null);}},
                   {label:"⏰ Remind me in 24h", action:()=>{setSnoozedAlerts(s=>({...s,[alert.id]:Date.now()+24*60*60*1000}));setOpenMenuId(null);}},
                   {label:"⏰ Remind me in 48h", action:()=>{setSnoozedAlerts(s=>({...s,[alert.id]:Date.now()+48*60*60*1000}));setOpenMenuId(null);}},
                 ].map(item=><button key={item.label} onClick={item.action}
@@ -2986,7 +2986,7 @@ function AlertsSection({visible,interns,t,onNavigate,onSelectIntern,todos,setTod
                   onMouseEnter={e=>e.currentTarget.style.background=t.surfaceAlt}
                   onMouseLeave={e=>e.currentTarget.style.background="none"}>{item.label}</button>)}
                 <div style={{height:1,background:t.borderLight,margin:"4px 0"}}/>
-                <button onClick={()=>{setDismissedAlerts(s=>new Set([...s,alert.id]));setOpenMenuId(null);}}
+                <button onClick={()=>{(onDismiss||setDismissedAlerts)(alert.id);setOpenMenuId(null);}}
                   style={{display:"block",width:"100%",background:"none",border:"none",padding:"8px 14px",cursor:"pointer",fontSize:13,color:S.red,textAlign:"left",fontFamily:"inherit"}}
                   onMouseEnter={e=>e.currentTarget.style.background=t.surfaceAlt}
                   onMouseLeave={e=>e.currentTarget.style.background="none"}>✕ Dismiss</button>
@@ -3014,8 +3014,22 @@ function Dashboard({interns,groups,lists,colleagues,onSelectIntern,onNavigate,on
   const [showNewTodo,setShowNewTodo]=useState(false);
   const [dismissedAlerts,setDismissedAlerts]=useState(()=>{try{const s=localStorage.getItem("suptrack_dismissed_alerts");return s?new Set(JSON.parse(s)):new Set();}catch{return new Set();}});
   const [snoozedAlerts,setSnoozedAlerts]=useState(()=>{try{const s=localStorage.getItem("suptrack_snoozed_alerts");return s?JSON.parse(s):{};}catch{return {};}});
+  // Persist to localStorage
   React.useEffect(()=>{try{localStorage.setItem("suptrack_dismissed_alerts",JSON.stringify([...dismissedAlerts]));}catch{}},[dismissedAlerts]);
   React.useEffect(()=>{try{localStorage.setItem("suptrack_snoozed_alerts",JSON.stringify(snoozedAlerts));}catch{}},[snoozedAlerts]);
+  // Also sync dismissed alerts to Supabase for cross-device persistence
+  const dismissAlert = (alertId) => {
+    setDismissedAlerts(prev=>{
+      const next=new Set([...prev,alertId]);
+      // Save to Supabase
+      if(session?.user){
+        supabase.from("supervisors").update({dismissed_alerts:[...next]}).eq("user_id",session.user.id).then(({error})=>{
+          if(error)console.error("Dismissed alerts save error:",error);
+        });
+      }
+      return next;
+    });
+  };
 
   // Live clock
   const [now,setNow]=useState(new Date());
@@ -3264,6 +3278,7 @@ function Dashboard({interns,groups,lists,colleagues,onSelectIntern,onNavigate,on
         todos={todos} setTodos={setTodos}
         dismissedAlerts={dismissedAlerts} setDismissedAlerts={setDismissedAlerts}
         snoozedAlerts={snoozedAlerts} setSnoozedAlerts={setSnoozedAlerts}
+        onDismiss={dismissAlert}
       />;
     })()}
 
