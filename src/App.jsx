@@ -3099,6 +3099,110 @@ function AlertsSection({visible,interns,t,onNavigate,onSelectIntern,todos,setTod
   </div>;
 }
 
+// ── Platform Overview (Founder dashboard widget) ────────────────────────────
+function PlatformOverview({T,session,onNavigate}) {
+  const t=T||THEMES.sage;
+  const gold="#C4A040";const goldLight="#FAF2E0";const goldBorder="#E8DFC0";
+  const [stats,setStats]=useState(null);
+  const [drill,setDrill]=useState(null);
+  const [drillData,setDrillData]=useState([]);
+  const [drillLoading,setDrillLoading]=useState(false);
+
+  React.useEffect(()=>{
+    if(!session?.user)return;
+    (async()=>{
+      const now=new Date();
+      const weekAgo=new Date(now-7*24*60*60*1000);
+      const dayAgo=new Date(now-24*60*60*1000).toISOString();
+      const [r1,r2,r3,r4,r5]=await Promise.all([
+        supabase.from("supervisors").select("created_at",{count:"exact",head:false}),
+        supabase.from("interns").select("*",{count:"exact",head:true}),
+        supabase.from("messages").select("*",{count:"exact",head:true}),
+        supabase.from("support_tickets").select("*",{count:"exact",head:true}).eq("status","open"),
+        supabase.from("error_logs").select("*",{count:"exact",head:true}).gte("created_at",dayAgo),
+      ]);
+      const sups=r1.data||[];
+      setStats({
+        supervisors:r1.count||sups.length,
+        newThisWeek:sups.filter(s=>new Date(s.created_at)>=weekAgo).length,
+        totalInterns:r2.count||0,
+        totalMessages:r3.count||0,
+        openTickets:r4.count||0,
+        recentErrors:r5.count||0,
+      });
+    })();
+  },[session]);
+
+  const drillInto=async(key)=>{
+    if(drill===key){setDrill(null);return;}
+    setDrill(key);setDrillLoading(true);
+    let data=[];
+    if(key==="supervisors"||key==="newThisWeek"){
+      const weekAgo=new Date(Date.now()-7*24*60*60*1000);
+      const {data:sups}=await supabase.from("supervisors").select("name,email,plan,created_at,lifetime_free").order("created_at",{ascending:false}).limit(50);
+      const list=key==="newThisWeek"?(sups||[]).filter(s=>new Date(s.created_at)>=weekAgo):(sups||[]);
+      data=list.map(s=>({name:s.name||s.email,plan:s.lifetime_free?"Founder":s.plan||"starter",signed_up:new Date(s.created_at).toLocaleDateString()}));
+    } else if(key==="totalInterns"){
+      const {data:interns}=await supabase.from("interns").select("name,status,created_at").order("created_at",{ascending:false}).limit(50);
+      data=(interns||[]).map(i=>({name:i.name,status:i.status,added:new Date(i.created_at).toLocaleDateString()}));
+    } else if(key==="openTickets"){
+      const {data:tix}=await supabase.from("support_tickets").select("subject,user_email,status,created_at").eq("status","open").limit(20);
+      data=(tix||[]).map(t=>({subject:t.subject||"No subject",from:t.user_email,date:new Date(t.created_at).toLocaleDateString()}));
+    } else if(key==="recentErrors"){
+      const dayAgo=new Date(Date.now()-24*60*60*1000).toISOString();
+      const {data:errs}=await supabase.from("error_logs").select("message,source,created_at").gte("created_at",dayAgo).limit(20);
+      data=(errs||[]).map(e=>({error:e.message||"Unknown",source:e.source||"app",time:new Date(e.created_at).toLocaleTimeString()}));
+    }
+    setDrillData(data);setDrillLoading(false);
+  };
+
+  if(!stats) return null;
+
+  const items=[
+    {key:"supervisors",label:"Supervisors",value:stats.supervisors,icon:"👤"},
+    {key:"newThisWeek",label:"New This Week",value:stats.newThisWeek,icon:"📈"},
+    {key:"totalInterns",label:"Active Interns",value:stats.totalInterns,icon:"🎓"},
+    {key:"totalMessages",label:"Messages",value:stats.totalMessages,icon:"💬"},
+    {key:"openTickets",label:"Open Tickets",value:stats.openTickets,icon:"🎫"},
+    {key:"recentErrors",label:"Errors (24h)",value:stats.recentErrors,icon:"⚠️"},
+  ];
+
+  return <div style={{background:`linear-gradient(135deg, ${goldLight}, #FFF8E8)`,border:`1px solid ${goldBorder}`,borderRadius:16,padding:"20px 24px",marginBottom:24}}>
+    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
+      <div style={{display:"flex",alignItems:"center",gap:10}}>
+        <span style={{color:gold,fontSize:16}}>✦</span>
+        <span style={{fontSize:14,fontWeight:600,color:"#8A7A50",fontFamily:"'DM Mono',monospace",letterSpacing:1}}>PLATFORM OVERVIEW</span>
+      </div>
+      <button onClick={()=>onNavigate("admin")} style={{background:gold,color:"#fff",border:"none",borderRadius:8,padding:"5px 14px",cursor:"pointer",fontSize:11,fontFamily:"'DM Mono',monospace",fontWeight:500}}>Admin Panel →</button>
+    </div>
+    <div style={{display:"flex",flexWrap:"wrap",gap:10}}>
+      {items.map(it=>(
+        <div key={it.key} onClick={()=>drillInto(it.key)}
+          style={{flex:"1 1 120px",background:drill===it.key?"#fff":"rgba(255,255,255,0.7)",border:`1px solid ${drill===it.key?gold:goldBorder}`,borderRadius:12,padding:"14px 14px 12px",cursor:"pointer",transition:"all 0.15s",minWidth:120}}>
+          <div style={{fontSize:10,color:"#8A7A50",fontFamily:"'DM Mono',monospace",marginBottom:6}}>{it.icon} {it.label}</div>
+          <div style={{fontSize:24,fontWeight:700,color:it.key==="recentErrors"&&it.value>0?"#A04040":"#1E4040",fontFamily:"'Fraunces',Georgia,serif"}}>{it.value}</div>
+        </div>
+      ))}
+    </div>
+    {drill&&<div style={{background:"#fff",border:`1px solid ${goldBorder}`,borderRadius:12,padding:16,marginTop:12}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+        <span style={{fontSize:13,fontWeight:600,color:t.text}}>{items.find(i=>i.key===drill)?.label} — Detail</span>
+        <button onClick={()=>setDrill(null)} style={{background:"none",border:"none",cursor:"pointer",fontSize:16,color:t.muted}}>×</button>
+      </div>
+      {drillLoading?<div style={{textAlign:"center",padding:16,color:t.muted,fontSize:13}}>Loading...</div>:
+       drillData.length===0?<div style={{textAlign:"center",padding:16,color:t.faint,fontSize:13}}>No data</div>:
+       <div style={{maxHeight:200,overflowY:"auto"}}>
+         <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+           <thead><tr>{Object.keys(drillData[0]).map(k=><th key={k} style={{textAlign:"left",padding:"4px 8px",borderBottom:`1px solid ${t.border}`,color:t.muted,fontFamily:"'DM Mono',monospace",fontSize:10,textTransform:"uppercase"}}>{k}</th>)}</tr></thead>
+           <tbody>{drillData.slice(0,20).map((row,i)=><tr key={i}>
+             {Object.values(row).map((v,j)=><td key={j} style={{padding:"6px 8px",borderBottom:`1px solid ${t.borderLight||t.border}`,color:t.text}}>{String(v||"—")}</td>)}
+           </tr>)}</tbody>
+         </table>
+       </div>}
+    </div>}
+  </div>;
+}
+
 function Dashboard({interns,groups,lists,colleagues,onSelectIntern,onNavigate,onOpenOnboarding,onAddIntern,onQuickAction,supervisorName,quickActionOrder,quickActionHidden,allQuickActions,onQuickActionReorder,onQuickActionToggle,T,ceData,todos,setTodos,session,supervisorProfile:sp}) {
   const t=T||THEMES.sage;
   const alerts = useMemo(()=>generateAlerts(interns,ceData,sp),[interns,ceData,sp]);
@@ -3193,6 +3297,9 @@ function Dashboard({interns,groups,lists,colleagues,onSelectIntern,onNavigate,on
         <span style={{fontSize:18}}>+</span> Add Supervisee
       </button>
     </div>
+
+    {/* ── Platform Overview (Founder only) ── */}
+    {sp?.lifetime_free&&<PlatformOverview T={t} session={session} onNavigate={onNavigate}/>}
 
     {customizing&&<div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:14,padding:"20px 24px",marginBottom:24,boxShadow:"0 2px 8px rgba(0,0,0,0.05)"}}>
       <div style={{fontSize:14,fontWeight:500,color:t.text,marginBottom:12}}>Stat cards</div>
@@ -10215,6 +10322,680 @@ function AdminInboxPage({tickets, setTickets, T}) {
   </div>;
 }
 
+// ── Admin Panel (Founder-only) ──────────────────────────────────────────────
+function AdminPanelPage({T,session,tickets,setTickets}) {
+  const t=T||THEMES.sage;
+  const gold="#C4A040";
+  const goldLight="#FAF2E0";
+  const goldBorder="#E8DFC0";
+
+  const [tab,setTab]=useState("overview");
+  const [loading,setLoading]=useState(true);
+
+  // Platform stats
+  const [stats,setStats]=useState({supervisors:0,newThisWeek:0,totalInterns:0,totalMessages:0,openTickets:0,recentErrors:0});
+  const [supervisors,setSupervisors]=useState([]);
+  const [invites,setInvites]=useState([]);
+  const [allTickets,setAllTickets]=useState([]);
+  const [announcements,setAnnouncements]=useState([]);
+
+  // Search & filter
+  const [userSearch,setUserSearch]=useState("");
+  const [userPlanFilter,setUserPlanFilter]=useState("all");
+  const [selectedUser,setSelectedUser]=useState(null);
+
+  // Invite code generation
+  const [newCodeType,setNewCodeType]=useState("general");
+  const [newCodeExpiry,setNewCodeExpiry]=useState("");
+  const [generatingCode,setGeneratingCode]=useState(false);
+
+  // Ticket reply
+  const [ticketReply,setTicketReply]=useState("");
+  const [ticketSending,setTicketSending]=useState(false);
+  const [selectedTicket,setSelectedTicket]=useState(null);
+  const [ticketFilter,setTicketFilter]=useState("all");
+
+  // Announcement form
+  const [annTitle,setAnnTitle]=useState("");
+  const [annBody,setAnnBody]=useState("");
+  const [annTarget,setAnnTarget]=useState("all");
+  const [annSending,setAnnSending]=useState(false);
+
+  // User detail modal
+  const [detailUser,setDetailUser]=useState(null);
+  const [actionLoading,setActionLoading]=useState(null);
+
+  // Stats drill-down
+  const [statDrill,setStatDrill]=useState(null);
+  const [drillData,setDrillData]=useState([]);
+  const [drillLoading,setDrillLoading]=useState(false);
+
+  // Weekly signups for chart
+  const [weeklySignups,setWeeklySignups]=useState([]);
+
+  // Load all data on mount
+  React.useEffect(()=>{
+    if(!session?.user)return;
+    const load=async()=>{
+      setLoading(true);
+      const now=new Date();
+      const weekAgo=new Date(now-7*24*60*60*1000);
+
+      // Supervisors
+      const {data:sups}=await supabase.from("supervisors").select("*").order("created_at",{ascending:false});
+      const supList=sups||[];
+      setSupervisors(supList);
+
+      // Interns count
+      const {count:internCount}=await supabase.from("interns").select("*",{count:"exact",head:true});
+
+      // Messages count
+      const {count:msgCount}=await supabase.from("messages").select("*",{count:"exact",head:true});
+
+      // Support tickets
+      const {data:tix}=await supabase.from("support_tickets").select("*").order("created_at",{ascending:false});
+      setAllTickets(tix||[]);
+
+      // Invites
+      const {data:inv}=await supabase.from("invites").select("*").order("created_at",{ascending:false});
+      setInvites(inv||[]);
+
+      // Error logs (last 24h)
+      const dayAgo=new Date(now-24*60*60*1000).toISOString();
+      const {count:errCount}=await supabase.from("error_logs").select("*",{count:"exact",head:true}).gte("created_at",dayAgo);
+
+      // Announcements
+      const {data:anns}=await supabase.from("announcements").select("*").order("created_at",{ascending:false});
+      setAnnouncements(anns||[]);
+
+      // Weekly signups (last 12 weeks)
+      const weeks=[];
+      for(let w=11;w>=0;w--){
+        const wStart=new Date(now-w*7*24*60*60*1000);
+        wStart.setHours(0,0,0,0);
+        wStart.setDate(wStart.getDate()-wStart.getDay());
+        const wEnd=new Date(wStart);
+        wEnd.setDate(wEnd.getDate()+7);
+        const count=supList.filter(s=>{const d=new Date(s.created_at);return d>=wStart&&d<wEnd;}).length;
+        weeks.push({label:`W${12-w}`,start:wStart.toLocaleDateString("en-US",{month:"short",day:"numeric"}),count});
+      }
+      setWeeklySignups(weeks);
+
+      setStats({
+        supervisors:supList.length,
+        newThisWeek:supList.filter(s=>new Date(s.created_at)>=weekAgo).length,
+        totalInterns:internCount||0,
+        totalMessages:msgCount||0,
+        openTickets:(tix||[]).filter(t=>t.status==="open").length,
+        recentErrors:errCount||0,
+      });
+      setLoading(false);
+    };
+    load();
+  },[session]);
+
+  // Drill into a stat
+  const drillInto=async(statKey)=>{
+    setStatDrill(statKey);
+    setDrillLoading(true);
+    const now=new Date();
+    let data=[];
+    if(statKey==="supervisors"){
+      data=supervisors.map(s=>({name:s.name||s.email,email:s.email,plan:s.plan||"starter",created:new Date(s.created_at).toLocaleDateString()}));
+    } else if(statKey==="newThisWeek"){
+      const weekAgo=new Date(now-7*24*60*60*1000);
+      data=supervisors.filter(s=>new Date(s.created_at)>=weekAgo).map(s=>({name:s.name||s.email,email:s.email,plan:s.plan||"starter",created:new Date(s.created_at).toLocaleDateString()}));
+    } else if(statKey==="totalInterns"){
+      const {data:interns}=await supabase.from("interns").select("id,name,supervisor_id,status,created_at").order("created_at",{ascending:false}).limit(100);
+      data=(interns||[]).map(i=>({name:i.name,status:i.status,supervisor:supervisors.find(s=>s.user_id===i.supervisor_id)?.name||"Unknown",created:new Date(i.created_at).toLocaleDateString()}));
+    } else if(statKey==="totalMessages"){
+      const {data:msgs}=await supabase.from("messages").select("id,sender_id,content,created_at").order("created_at",{ascending:false}).limit(50);
+      data=(msgs||[]).map(m=>({from:supervisors.find(s=>s.user_id===m.sender_id)?.name||m.sender_id,preview:(m.content||"").slice(0,80),date:new Date(m.created_at).toLocaleDateString()}));
+    } else if(statKey==="openTickets"){
+      data=allTickets.filter(t=>t.status==="open").map(t=>({subject:t.subject||"No subject",from:t.user_email||t.from_name||"Unknown",status:t.status,date:new Date(t.created_at).toLocaleDateString()}));
+    } else if(statKey==="recentErrors"){
+      const dayAgo=new Date(now-24*60*60*1000).toISOString();
+      const {data:errs}=await supabase.from("error_logs").select("*").gte("created_at",dayAgo).order("created_at",{ascending:false}).limit(50);
+      data=(errs||[]).map(e=>({message:e.message||e.error||"Unknown error",source:e.source||"app",date:new Date(e.created_at).toLocaleString()}));
+    }
+    setDrillData(data);
+    setDrillLoading(false);
+  };
+
+  // Admin actions on users
+  const extendTrial=async(userId,days)=>{
+    setActionLoading("trial");
+    const user=supervisors.find(s=>s.user_id===userId);
+    const currentEnd=user?.trial_ends_at?new Date(user.trial_ends_at):new Date();
+    const newEnd=new Date(currentEnd.getTime()+days*24*60*60*1000);
+    await supabase.from("supervisors").update({trial_ends_at:newEnd.toISOString()}).eq("user_id",userId);
+    setSupervisors(p=>p.map(s=>s.user_id===userId?{...s,trial_ends_at:newEnd.toISOString()}:s));
+    if(detailUser?.user_id===userId) setDetailUser(prev=>({...prev,trial_ends_at:newEnd.toISOString()}));
+    setActionLoading(null);
+  };
+
+  const changePlan=async(userId,plan)=>{
+    setActionLoading("plan");
+    await supabase.from("supervisors").update({plan}).eq("user_id",userId);
+    setSupervisors(p=>p.map(s=>s.user_id===userId?{...s,plan}:s));
+    if(detailUser?.user_id===userId) setDetailUser(prev=>({...prev,plan}));
+    setActionLoading(null);
+  };
+
+  const toggleLifetimeFree=async(userId,current)=>{
+    setActionLoading("lifetime");
+    await supabase.from("supervisors").update({lifetime_free:!current}).eq("user_id",userId);
+    setSupervisors(p=>p.map(s=>s.user_id===userId?{...s,lifetime_free:!current}:s));
+    if(detailUser?.user_id===userId) setDetailUser(prev=>({...prev,lifetime_free:!current}));
+    setActionLoading(null);
+  };
+
+  const toggleDisabled=async(userId,current)=>{
+    setActionLoading("disable");
+    const newStatus=current==="disabled"?"active":"disabled";
+    await supabase.from("supervisors").update({subscription_status:newStatus}).eq("user_id",userId);
+    setSupervisors(p=>p.map(s=>s.user_id===userId?{...s,subscription_status:newStatus}:s));
+    if(detailUser?.user_id===userId) setDetailUser(prev=>({...prev,subscription_status:newStatus}));
+    setActionLoading(null);
+  };
+
+  const sendUserEmail=async(email,subject,body)=>{
+    setActionLoading("email");
+    await fetch("/api/send-email",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({to:email,type:"CUSTOM",subject,body})});
+    setActionLoading(null);
+  };
+
+  // Generate invite code
+  const generateInviteCode=async()=>{
+    setGeneratingCode(true);
+    const code="ST-"+Math.random().toString(36).substring(2,8).toUpperCase();
+    const row={code,type:newCodeType,used:false,created_at:new Date().toISOString()};
+    if(newCodeExpiry) row.expires_at=new Date(newCodeExpiry).toISOString();
+    await supabase.from("invites").insert(row);
+    setInvites(p=>[row,...p]);
+    setGeneratingCode(false);
+    setNewCodeExpiry("");
+  };
+
+  const toggleInviteUsed=async(code,currentUsed)=>{
+    await supabase.from("invites").update({used:!currentUsed}).eq("code",code);
+    setInvites(p=>p.map(i=>i.code===code?{...i,used:!currentUsed}:i));
+  };
+
+  // Reply to ticket
+  const replyToTicket=async()=>{
+    if(!ticketReply.trim()||!selectedTicket) return;
+    setTicketSending(true);
+    await supabase.from("support_tickets").update({admin_reply:ticketReply.trim(),status:"resolved"}).eq("id",selectedTicket.id);
+    // Send email notification
+    if(selectedTicket.user_email){
+      fetch("/api/send-email",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({to:selectedTicket.user_email,type:"CUSTOM",subject:`Re: ${selectedTicket.subject||"Your support request"}`,body:ticketReply.trim()})});
+    }
+    setAllTickets(p=>p.map(t=>t.id===selectedTicket.id?{...t,admin_reply:ticketReply.trim(),status:"resolved"}:t));
+    setSelectedTicket(prev=>({...prev,admin_reply:ticketReply.trim(),status:"resolved"}));
+    setTicketReply("");
+    setTicketSending(false);
+  };
+
+  const updateTicketStatus=async(id,status)=>{
+    await supabase.from("support_tickets").update({status}).eq("id",id);
+    setAllTickets(p=>p.map(t=>t.id===id?{...t,status}:t));
+    if(selectedTicket?.id===id) setSelectedTicket(prev=>({...prev,status}));
+  };
+
+  // Send announcement
+  const sendAnnouncement=async()=>{
+    if(!annTitle.trim()||!annBody.trim()) return;
+    setAnnSending(true);
+    const ann={title:annTitle.trim(),body:annBody.trim(),target:annTarget,sent_by:session.user.id,created_at:new Date().toISOString()};
+    await supabase.from("announcements").insert(ann);
+    setAnnouncements(p=>[ann,...p]);
+    setAnnTitle("");setAnnBody("");setAnnTarget("all");
+    setAnnSending(false);
+  };
+
+  const TABS=[
+    {id:"overview",label:"Overview"},
+    {id:"users",label:"Users"},
+    {id:"invites",label:"Invite Codes"},
+    {id:"tickets",label:"Tickets"},
+    {id:"stats",label:"Stats"},
+    {id:"announcements",label:"Announcements"},
+  ];
+
+  const card=(label,value,key,icon)=>(
+    <div onClick={()=>drillInto(key)} style={{flex:"1 1 140px",background:"#fff",border:`1px solid ${goldBorder}`,borderRadius:14,padding:"20px 18px",cursor:"pointer",transition:"all 0.15s",boxShadow:"0 2px 8px rgba(196,160,64,0.08)"}}>
+      <div style={{fontSize:11,color:"#8A7A50",fontFamily:"'DM Mono',monospace",letterSpacing:1,marginBottom:8,textTransform:"uppercase"}}>{icon} {label}</div>
+      <div style={{fontSize:32,fontWeight:700,color:"#1E4040",fontFamily:"'Fraunces',Georgia,serif"}}>{loading?"—":value}</div>
+    </div>
+  );
+
+  const filteredSupervisors=supervisors.filter(s=>{
+    const q=userSearch.toLowerCase();
+    const matchSearch=!q||(s.name||"").toLowerCase().includes(q)||(s.email||"").toLowerCase().includes(q);
+    const matchPlan=userPlanFilter==="all"||s.plan===userPlanFilter||(userPlanFilter==="lifetime"&&s.lifetime_free);
+    return matchSearch&&matchPlan;
+  });
+
+  const shownTickets=ticketFilter==="all"?allTickets:allTickets.filter(t=>t.status===ticketFilter);
+
+  const inp={width:"100%",padding:"11px 14px",border:`1px solid ${t.border}`,borderRadius:10,fontSize:14,fontFamily:"inherit",color:t.text,background:t.bg,outline:"none",boxSizing:"border-box"};
+
+  // Max bar for chart
+  const maxSignup=Math.max(...weeklySignups.map(w=>w.count),1);
+
+  return <div>
+    {/* Header */}
+    <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:28}}>
+      <div style={{width:40,height:40,borderRadius:10,background:goldLight,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,color:gold}}>✦</div>
+      <div>
+        <h1 style={{margin:0,fontSize:24,fontWeight:600,color:t.text,fontFamily:"'Fraunces',Georgia,serif"}}>Admin Panel</h1>
+        <div style={{fontSize:12,color:"#8A7A50",fontFamily:"'DM Mono',monospace"}}>Founder access · Platform management</div>
+      </div>
+    </div>
+
+    {/* Tab bar */}
+    <div style={{display:"flex",gap:4,marginBottom:28,borderBottom:`1px solid ${goldBorder}`,paddingBottom:0}}>
+      {TABS.map(tb=>(
+        <button key={tb.id} onClick={()=>{setTab(tb.id);setStatDrill(null);setSelectedUser(null);setSelectedTicket(null);setDetailUser(null);}}
+          style={{background:tab===tb.id?goldLight:"transparent",color:tab===tb.id?gold:t.muted,border:"none",borderBottom:tab===tb.id?`2px solid ${gold}`:"2px solid transparent",padding:"10px 18px",cursor:"pointer",fontSize:13,fontFamily:"'DM Mono',monospace",fontWeight:tab===tb.id?600:400,transition:"all 0.15s",borderRadius:"8px 8px 0 0"}}>
+          {tb.label}{tb.id==="tickets"&&stats.openTickets>0?` (${stats.openTickets})`:""}
+        </button>
+      ))}
+    </div>
+
+    {/* ─── OVERVIEW TAB ─── */}
+    {tab==="overview"&&<div>
+      <div style={{display:"flex",flexWrap:"wrap",gap:14,marginBottom:28}}>
+        {card("Total Supervisors",stats.supervisors,"supervisors","👤")}
+        {card("New This Week",stats.newThisWeek,"newThisWeek","📈")}
+        {card("Active Interns",stats.totalInterns,"totalInterns","🎓")}
+        {card("Messages Sent",stats.totalMessages,"totalMessages","💬")}
+        {card("Open Tickets",stats.openTickets,"openTickets","🎫")}
+        {card("Errors (24h)",stats.recentErrors,"recentErrors","⚠️")}
+      </div>
+
+      {/* Drill-down panel */}
+      {statDrill&&<div style={{background:"#fff",border:`1px solid ${goldBorder}`,borderRadius:14,padding:24,marginBottom:24}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+          <h3 style={{margin:0,fontSize:16,color:t.text,fontFamily:"'Fraunces',Georgia,serif"}}>{statDrill.replace(/([A-Z])/g," $1").replace(/^./,s=>s.toUpperCase())} — Detail</h3>
+          <button onClick={()=>setStatDrill(null)} style={{background:"none",border:"none",cursor:"pointer",fontSize:18,color:t.muted}}>×</button>
+        </div>
+        {drillLoading?<div style={{textAlign:"center",padding:20,color:t.muted}}>Loading...</div>:
+        drillData.length===0?<div style={{textAlign:"center",padding:20,color:t.faint}}>No data</div>:
+        <div style={{maxHeight:300,overflowY:"auto"}}>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+            <thead><tr>{Object.keys(drillData[0]).map(k=><th key={k} style={{textAlign:"left",padding:"6px 10px",borderBottom:`1px solid ${t.border}`,color:t.muted,fontFamily:"'DM Mono',monospace",fontSize:11,textTransform:"uppercase"}}>{k}</th>)}</tr></thead>
+            <tbody>{drillData.map((row,i)=><tr key={i} style={{background:i%2===0?"transparent":t.surfaceAlt}}>
+              {Object.values(row).map((v,j)=><td key={j} style={{padding:"8px 10px",borderBottom:`1px solid ${t.borderLight||t.border}`,color:t.text}}>{String(v||"—")}</td>)}
+            </tr>)}</tbody>
+          </table>
+        </div>}
+      </div>}
+
+      {/* Quick chart - signups per week */}
+      <div style={{background:"#fff",border:`1px solid ${goldBorder}`,borderRadius:14,padding:24}}>
+        <h3 style={{margin:"0 0 16px",fontSize:16,color:t.text,fontFamily:"'Fraunces',Georgia,serif"}}>Signups — Last 12 Weeks</h3>
+        <div style={{display:"flex",alignItems:"flex-end",gap:6,height:120}}>
+          {weeklySignups.map((w,i)=>(
+            <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
+              <div style={{fontSize:10,color:t.muted,fontFamily:"'DM Mono',monospace"}}>{w.count||""}</div>
+              <div style={{width:"100%",height:Math.max(4,w.count/maxSignup*100),background:`linear-gradient(180deg, ${gold}, #D4B860)`,borderRadius:4,transition:"height 0.3s"}}/>
+              <div style={{fontSize:8,color:t.faint,fontFamily:"'DM Mono',monospace",whiteSpace:"nowrap"}}>{w.start}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>}
+
+    {/* ─── USERS TAB ─── */}
+    {tab==="users"&&<div>
+      {/* Detail modal */}
+      {detailUser&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999}} onClick={()=>setDetailUser(null)}>
+        <div onClick={e=>e.stopPropagation()} style={{background:"#fff",borderRadius:18,padding:32,maxWidth:560,width:"90%",maxHeight:"80vh",overflowY:"auto",boxShadow:"0 20px 60px rgba(0,0,0,0.2)"}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+            <h3 style={{margin:0,fontSize:20,color:t.text,fontFamily:"'Fraunces',Georgia,serif"}}>{detailUser.name||detailUser.email}</h3>
+            <button onClick={()=>setDetailUser(null)} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:t.muted}}>×</button>
+          </div>
+
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:24}}>
+            <div style={{background:t.surfaceAlt,borderRadius:10,padding:12}}>
+              <div style={{fontSize:10,color:t.muted,fontFamily:"'DM Mono',monospace",marginBottom:4}}>EMAIL</div>
+              <div style={{fontSize:13,color:t.text}}>{detailUser.email}</div>
+            </div>
+            <div style={{background:t.surfaceAlt,borderRadius:10,padding:12}}>
+              <div style={{fontSize:10,color:t.muted,fontFamily:"'DM Mono',monospace",marginBottom:4}}>PLAN</div>
+              <div style={{fontSize:13,color:t.text}}>{detailUser.lifetime_free?"Founder ✦":detailUser.plan||"starter"}</div>
+            </div>
+            <div style={{background:t.surfaceAlt,borderRadius:10,padding:12}}>
+              <div style={{fontSize:10,color:t.muted,fontFamily:"'DM Mono',monospace",marginBottom:4}}>STATUS</div>
+              <div style={{fontSize:13,color:detailUser.subscription_status==="disabled"?"#A04040":t.text}}>{detailUser.subscription_status||"active"}</div>
+            </div>
+            <div style={{background:t.surfaceAlt,borderRadius:10,padding:12}}>
+              <div style={{fontSize:10,color:t.muted,fontFamily:"'DM Mono',monospace",marginBottom:4}}>SIGNED UP</div>
+              <div style={{fontSize:13,color:t.text}}>{detailUser.created_at?new Date(detailUser.created_at).toLocaleDateString():"-"}</div>
+            </div>
+            <div style={{background:t.surfaceAlt,borderRadius:10,padding:12}}>
+              <div style={{fontSize:10,color:t.muted,fontFamily:"'DM Mono',monospace",marginBottom:4}}>TRIAL ENDS</div>
+              <div style={{fontSize:13,color:t.text}}>{detailUser.trial_ends_at?new Date(detailUser.trial_ends_at).toLocaleDateString():"N/A"}</div>
+            </div>
+            <div style={{background:t.surfaceAlt,borderRadius:10,padding:12}}>
+              <div style={{fontSize:10,color:t.muted,fontFamily:"'DM Mono',monospace",marginBottom:4}}>STRIPE ID</div>
+              <div style={{fontSize:13,color:t.text}}>{detailUser.stripe_customer_id||"None"}</div>
+            </div>
+          </div>
+
+          <div style={{fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace",marginBottom:12,textTransform:"uppercase",letterSpacing:1}}>Actions</div>
+
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {/* Extend trial */}
+            <div style={{display:"flex",gap:8}}>
+              <button onClick={()=>extendTrial(detailUser.user_id,7)} disabled={actionLoading==="trial"}
+                style={{flex:1,background:goldLight,color:gold,border:`1px solid ${goldBorder}`,borderRadius:8,padding:"10px 14px",cursor:"pointer",fontSize:12,fontFamily:"'DM Mono',monospace",fontWeight:500}}>
+                {actionLoading==="trial"?"...":"+ 7 days trial"}
+              </button>
+              <button onClick={()=>extendTrial(detailUser.user_id,30)} disabled={actionLoading==="trial"}
+                style={{flex:1,background:goldLight,color:gold,border:`1px solid ${goldBorder}`,borderRadius:8,padding:"10px 14px",cursor:"pointer",fontSize:12,fontFamily:"'DM Mono',monospace",fontWeight:500}}>
+                {actionLoading==="trial"?"...":"+ 30 days trial"}
+              </button>
+            </div>
+
+            {/* Change plan */}
+            <div style={{display:"flex",gap:8}}>
+              {["starter","growth","practice"].map(p=>(
+                <button key={p} onClick={()=>changePlan(detailUser.user_id,p)} disabled={actionLoading==="plan"||detailUser.plan===p}
+                  style={{flex:1,background:detailUser.plan===p?t.accentLight:"#fff",color:detailUser.plan===p?t.accentText:t.muted,border:`1px solid ${detailUser.plan===p?t.accentMid:t.border}`,borderRadius:8,padding:"10px 14px",cursor:detailUser.plan===p?"default":"pointer",fontSize:12,fontFamily:"'DM Mono',monospace",fontWeight:detailUser.plan===p?600:400,textTransform:"capitalize"}}>
+                  {p}
+                </button>
+              ))}
+            </div>
+
+            {/* Toggle lifetime free */}
+            <button onClick={()=>toggleLifetimeFree(detailUser.user_id,detailUser.lifetime_free)} disabled={actionLoading==="lifetime"}
+              style={{background:detailUser.lifetime_free?gold:goldLight,color:detailUser.lifetime_free?"#fff":gold,border:`1px solid ${gold}`,borderRadius:8,padding:"10px 14px",cursor:"pointer",fontSize:12,fontFamily:"'DM Mono',monospace",fontWeight:500}}>
+              {actionLoading==="lifetime"?"...":`${detailUser.lifetime_free?"Remove":"Grant"} Founder Access`}
+            </button>
+
+            {/* Disable account */}
+            <button onClick={()=>toggleDisabled(detailUser.user_id,detailUser.subscription_status)} disabled={actionLoading==="disable"}
+              style={{background:detailUser.subscription_status==="disabled"?"#E8F5EE":"#FAE8E8",color:detailUser.subscription_status==="disabled"?"#2E7A4E":"#A04040",border:`1px solid ${detailUser.subscription_status==="disabled"?"#C0E0D0":"#E0C0C0"}`,borderRadius:8,padding:"10px 14px",cursor:"pointer",fontSize:12,fontFamily:"'DM Mono',monospace",fontWeight:500}}>
+              {actionLoading==="disable"?"...":`${detailUser.subscription_status==="disabled"?"Re-enable":"Disable"} Account`}
+            </button>
+
+            {/* Send email */}
+            <button onClick={()=>{const subj=prompt("Email subject:");if(!subj)return;const body=prompt("Email body:");if(!body)return;sendUserEmail(detailUser.email,subj,body);}} disabled={actionLoading==="email"}
+              style={{background:t.surfaceAlt,color:t.text,border:`1px solid ${t.border}`,borderRadius:8,padding:"10px 14px",cursor:"pointer",fontSize:12,fontFamily:"'DM Mono',monospace"}}>
+              {actionLoading==="email"?"Sending...":"📧 Send Email"}
+            </button>
+          </div>
+        </div>
+      </div>}
+
+      {/* Search & filter bar */}
+      <div style={{display:"flex",gap:12,marginBottom:20}}>
+        <input value={userSearch} onChange={e=>setUserSearch(e.target.value)} placeholder="Search by name or email..." style={{...inp,flex:1}}/>
+        <select value={userPlanFilter} onChange={e=>setUserPlanFilter(e.target.value)} style={{...inp,width:160}}>
+          <option value="all">All plans</option>
+          <option value="starter">Starter</option>
+          <option value="growth">Growth</option>
+          <option value="practice">Practice</option>
+          <option value="lifetime">Founder</option>
+        </select>
+      </div>
+
+      <div style={{fontSize:12,color:t.faint,fontFamily:"'DM Mono',monospace",marginBottom:12}}>{filteredSupervisors.length} supervisor{filteredSupervisors.length!==1?"s":""}</div>
+
+      {/* Supervisor table */}
+      <div style={{background:"#fff",border:`1px solid ${t.border}`,borderRadius:14,overflow:"hidden"}}>
+        <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+          <thead><tr style={{background:t.surfaceAlt}}>
+            {["Name","Email","Plan","Status","Trial Left","Interns","Signed Up"].map(h=>
+              <th key={h} style={{textAlign:"left",padding:"10px 14px",fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:0.5,borderBottom:`1px solid ${t.border}`}}>{h}</th>
+            )}
+          </tr></thead>
+          <tbody>{filteredSupervisors.slice(0,100).map(s=>{
+            const trialEnd=s.trial_ends_at?new Date(s.trial_ends_at):null;
+            const trialDays=trialEnd?Math.max(0,Math.ceil((trialEnd-new Date())/(1000*60*60*24))):0;
+            return <tr key={s.user_id||s.id} onClick={()=>setDetailUser(s)} style={{cursor:"pointer",transition:"background 0.1s"}}
+              onMouseEnter={e=>e.currentTarget.style.background=goldLight}
+              onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+              <td style={{padding:"10px 14px",borderBottom:`1px solid ${t.borderLight||t.border}`,fontWeight:500,color:t.text}}>{s.name||"—"}{s.lifetime_free&&<span style={{color:gold,fontSize:10,marginLeft:6}}>✦</span>}</td>
+              <td style={{padding:"10px 14px",borderBottom:`1px solid ${t.borderLight||t.border}`,color:t.muted,fontSize:12}}>{s.email}</td>
+              <td style={{padding:"10px 14px",borderBottom:`1px solid ${t.borderLight||t.border}`}}>
+                <span style={{background:s.lifetime_free?goldLight:s.plan==="practice"?"#E8F0EE":s.plan==="growth"?"#E8EEF5":"#F5F5F0",
+                  color:s.lifetime_free?gold:s.plan==="practice"?"#1E4040":s.plan==="growth"?"#2A4080":"#888",
+                  padding:"2px 8px",borderRadius:6,fontSize:11,fontFamily:"'DM Mono',monospace"}}>{s.lifetime_free?"Founder":s.plan||"starter"}</span>
+              </td>
+              <td style={{padding:"10px 14px",borderBottom:`1px solid ${t.borderLight||t.border}`,fontSize:12,color:s.subscription_status==="disabled"?"#A04040":s.subscription_status==="active"?"#2E7A4E":"#888"}}>{s.subscription_status||"active"}</td>
+              <td style={{padding:"10px 14px",borderBottom:`1px solid ${t.borderLight||t.border}`,fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace"}}>{s.lifetime_free?"∞":trialDays>0?`${trialDays}d`:"—"}</td>
+              <td style={{padding:"10px 14px",borderBottom:`1px solid ${t.borderLight||t.border}`,fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace"}}>{s.intern_count||"—"}</td>
+              <td style={{padding:"10px 14px",borderBottom:`1px solid ${t.borderLight||t.border}`,fontSize:12,color:t.faint,fontFamily:"'DM Mono',monospace"}}>{s.created_at?new Date(s.created_at).toLocaleDateString():"-"}</td>
+            </tr>;
+          })}</tbody>
+        </table>
+      </div>
+    </div>}
+
+    {/* ─── INVITE CODES TAB ─── */}
+    {tab==="invites"&&<div>
+      {/* Generate new */}
+      <div style={{background:"#fff",border:`1px solid ${goldBorder}`,borderRadius:14,padding:24,marginBottom:24}}>
+        <h3 style={{margin:"0 0 16px",fontSize:16,color:t.text,fontFamily:"'Fraunces',Georgia,serif"}}>Generate New Code</h3>
+        <div style={{display:"flex",gap:12,alignItems:"flex-end",flexWrap:"wrap"}}>
+          <div>
+            <label style={{display:"block",fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",marginBottom:4}}>TYPE</label>
+            <select value={newCodeType} onChange={e=>setNewCodeType(e.target.value)} style={{...inp,width:180}}>
+              <option value="general">General</option>
+              <option value="intern_portal">Intern Portal</option>
+              <option value="referral">Referral</option>
+            </select>
+          </div>
+          <div>
+            <label style={{display:"block",fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",marginBottom:4}}>EXPIRES</label>
+            <input type="date" value={newCodeExpiry} onChange={e=>setNewCodeExpiry(e.target.value)} style={{...inp,width:180}}/>
+          </div>
+          <button onClick={generateInviteCode} disabled={generatingCode}
+            style={{background:gold,color:"#fff",border:"none",borderRadius:10,padding:"11px 24px",cursor:"pointer",fontSize:13,fontWeight:600,fontFamily:"inherit"}}>
+            {generatingCode?"Generating...":"Generate Code"}
+          </button>
+        </div>
+      </div>
+
+      {/* Code list */}
+      <div style={{background:"#fff",border:`1px solid ${t.border}`,borderRadius:14,overflow:"hidden"}}>
+        <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+          <thead><tr style={{background:t.surfaceAlt}}>
+            {["Code","Type","Used","Expires","Created"].map(h=>
+              <th key={h} style={{textAlign:"left",padding:"10px 14px",fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",borderBottom:`1px solid ${t.border}`}}>{h}</th>
+            )}
+            <th style={{padding:"10px 14px",borderBottom:`1px solid ${t.border}`}}/>
+          </tr></thead>
+          <tbody>{invites.slice(0,100).map((inv,i)=>(
+            <tr key={inv.code||i}>
+              <td style={{padding:"10px 14px",borderBottom:`1px solid ${t.borderLight||t.border}`,fontFamily:"'DM Mono',monospace",fontWeight:600,color:t.text}}>{inv.code}</td>
+              <td style={{padding:"10px 14px",borderBottom:`1px solid ${t.borderLight||t.border}`,fontSize:12,color:t.muted}}>{inv.type||"general"}</td>
+              <td style={{padding:"10px 14px",borderBottom:`1px solid ${t.borderLight||t.border}`}}>
+                <span style={{background:inv.used?"#FAE8E8":"#E8F5EE",color:inv.used?"#A04040":"#2E7A4E",padding:"2px 8px",borderRadius:6,fontSize:11,fontFamily:"'DM Mono',monospace"}}>{inv.used?"Used":"Active"}</span>
+              </td>
+              <td style={{padding:"10px 14px",borderBottom:`1px solid ${t.borderLight||t.border}`,fontSize:12,color:t.faint}}>{inv.expires_at?new Date(inv.expires_at).toLocaleDateString():"Never"}</td>
+              <td style={{padding:"10px 14px",borderBottom:`1px solid ${t.borderLight||t.border}`,fontSize:12,color:t.faint}}>{inv.created_at?new Date(inv.created_at).toLocaleDateString():"-"}</td>
+              <td style={{padding:"10px 14px",borderBottom:`1px solid ${t.borderLight||t.border}`}}>
+                <button onClick={()=>toggleInviteUsed(inv.code,inv.used)} style={{background:"none",border:`1px solid ${t.border}`,borderRadius:6,padding:"4px 10px",cursor:"pointer",fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace"}}>
+                  {inv.used?"Mark unused":"Mark used"}
+                </button>
+              </td>
+            </tr>
+          ))}</tbody>
+        </table>
+        {invites.length===0&&<div style={{padding:30,textAlign:"center",color:t.faint,fontSize:13}}>No invite codes yet</div>}
+      </div>
+    </div>}
+
+    {/* ─── TICKETS TAB ─── */}
+    {tab==="tickets"&&<div style={{display:"flex",gap:0,height:"calc(100vh - 220px)"}}>
+      {/* Left panel */}
+      <div style={{width:320,flexShrink:0,borderRight:`1px solid ${t.border}`,overflowY:"auto",paddingRight:16}}>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:16}}>
+          {["all","open","in-progress","resolved"].map(f=>(
+            <button key={f} onClick={()=>setTicketFilter(f)}
+              style={{background:ticketFilter===f?goldLight:"none",color:ticketFilter===f?gold:t.muted,border:`1px solid ${ticketFilter===f?gold:t.border}`,borderRadius:20,padding:"3px 10px",cursor:"pointer",fontSize:11,fontFamily:"'DM Mono',monospace"}}>
+              {f} ({f==="all"?allTickets.length:allTickets.filter(t=>t.status===f).length})
+            </button>
+          ))}
+        </div>
+        {shownTickets.length===0&&<div style={{padding:30,textAlign:"center",color:t.faint,fontSize:13}}>No tickets</div>}
+        {shownTickets.map(tk=>{
+          const ss={open:{color:"#B87D2A",bg:"#FAF2E0"},"in-progress":{color:t.accentText,bg:t.accentLight},resolved:{color:"#2E7A4E",bg:"#E8F5EE"}}[tk.status]||{color:t.muted,bg:t.surfaceAlt};
+          return <div key={tk.id} onClick={()=>{setSelectedTicket(tk);setTicketReply("");}}
+            style={{padding:"12px 14px",borderRadius:10,cursor:"pointer",marginBottom:4,background:selectedTicket?.id===tk.id?goldLight:"none",border:`1px solid ${selectedTicket?.id===tk.id?goldBorder:"transparent"}`,transition:"all 0.1s"}}>
+            <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
+              <span style={{fontSize:10,color:ss.color,background:ss.bg,borderRadius:4,padding:"1px 6px",fontFamily:"'DM Mono',monospace"}}>{tk.status}</span>
+            </div>
+            <div style={{fontSize:13,color:t.text,fontWeight:500,marginBottom:2}}>{tk.subject||"No subject"}</div>
+            <div style={{fontSize:11,color:t.faint}}>{tk.user_email||tk.from_name||"Unknown"} · {tk.created_at?new Date(tk.created_at).toLocaleDateString():""}</div>
+          </div>;
+        })}
+      </div>
+
+      {/* Right panel */}
+      <div style={{flex:1,paddingLeft:24,overflowY:"auto"}}>
+        {!selectedTicket
+          ?<div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100%",color:t.faint,fontSize:14}}>Select a ticket</div>
+          :<div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20,paddingBottom:16,borderBottom:`1px solid ${t.border}`}}>
+              <div>
+                <div style={{fontSize:20,color:t.text,fontWeight:500,marginBottom:6}}>{selectedTicket.subject||"No subject"}</div>
+                <div style={{fontSize:12,color:t.faint,fontFamily:"'DM Mono',monospace"}}>from {selectedTicket.user_email||selectedTicket.from_name||"Unknown"} · {selectedTicket.created_at?new Date(selectedTicket.created_at).toLocaleString():""}</div>
+              </div>
+              <div style={{display:"flex",gap:6}}>
+                {["open","in-progress","resolved"].map(s=>(
+                  <button key={s} onClick={()=>updateTicketStatus(selectedTicket.id,s)}
+                    style={{background:selectedTicket.status===s?goldLight:t.surfaceAlt,color:selectedTicket.status===s?gold:t.muted,border:`1px solid ${selectedTicket.status===s?gold:t.border}`,borderRadius:7,padding:"5px 10px",cursor:"pointer",fontSize:11,fontFamily:"'DM Mono',monospace"}}>
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{background:t.surfaceAlt,borderRadius:12,padding:"16px 18px",marginBottom:16}}>
+              <div style={{fontSize:11,color:t.faint,fontFamily:"'DM Mono',monospace",marginBottom:8}}>MESSAGE</div>
+              <div style={{fontSize:14,color:t.text,lineHeight:1.8,whiteSpace:"pre-wrap"}}>{selectedTicket.message||selectedTicket.body||"No message"}</div>
+            </div>
+
+            {selectedTicket.admin_reply&&<div style={{background:goldLight,border:`1px solid ${goldBorder}`,borderRadius:12,padding:"16px 18px",marginBottom:16}}>
+              <div style={{fontSize:11,color:gold,fontFamily:"'DM Mono',monospace",marginBottom:8}}>ADMIN REPLY (sent)</div>
+              <div style={{fontSize:14,color:t.text,lineHeight:1.8}}>{selectedTicket.admin_reply}</div>
+            </div>}
+
+            <div style={{background:t.surface||"#fff",border:`1px solid ${t.border}`,borderRadius:14,padding:"18px 20px"}}>
+              <div style={{fontSize:14,color:t.text,fontWeight:500,marginBottom:10}}>Reply</div>
+              <textarea value={ticketReply} onChange={e=>setTicketReply(e.target.value)} rows={4} placeholder="Write a reply..."
+                style={{...inp,resize:"vertical",lineHeight:1.6,marginBottom:12}}/>
+              <div style={{display:"flex",gap:8}}>
+                <button onClick={replyToTicket} disabled={!ticketReply.trim()||ticketSending}
+                  style={{background:ticketReply.trim()?gold:"#ddd",color:ticketReply.trim()?"#fff":"#999",border:"none",borderRadius:9,padding:"10px 22px",cursor:ticketReply.trim()?"pointer":"default",fontSize:14,fontWeight:500,fontFamily:"inherit"}}>
+                  {ticketSending?"Sending...":"Send & Resolve"}
+                </button>
+              </div>
+            </div>
+          </div>}
+      </div>
+    </div>}
+
+    {/* ─── STATS TAB ─── */}
+    {tab==="stats"&&<div>
+      {/* Signups chart */}
+      <div style={{background:"#fff",border:`1px solid ${goldBorder}`,borderRadius:14,padding:24,marginBottom:24}}>
+        <h3 style={{margin:"0 0 16px",fontSize:16,color:t.text,fontFamily:"'Fraunces',Georgia,serif"}}>Signups per Week (Last 12 Weeks)</h3>
+        <div style={{display:"flex",alignItems:"flex-end",gap:8,height:140}}>
+          {weeklySignups.map((w,i)=>(
+            <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
+              <div style={{fontSize:11,color:t.text,fontFamily:"'DM Mono',monospace",fontWeight:600}}>{w.count}</div>
+              <div style={{width:"100%",height:Math.max(4,w.count/maxSignup*120),background:`linear-gradient(180deg, ${gold}, #D4B860)`,borderRadius:4,transition:"height 0.3s"}}/>
+              <div style={{fontSize:9,color:t.faint,fontFamily:"'DM Mono',monospace",whiteSpace:"nowrap"}}>{w.start}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Plan distribution */}
+      <div style={{display:"flex",gap:14,marginBottom:24}}>
+        {[{label:"Starter",filter:s=>s.plan==="starter"&&!s.lifetime_free},{label:"Growth",filter:s=>s.plan==="growth"},{label:"Practice",filter:s=>s.plan==="practice"&&!s.lifetime_free},{label:"Founder",filter:s=>s.lifetime_free}].map(p=>(
+          <div key={p.label} style={{flex:1,background:"#fff",border:`1px solid ${goldBorder}`,borderRadius:14,padding:20,textAlign:"center"}}>
+            <div style={{fontSize:28,fontWeight:700,color:t.text,fontFamily:"'Fraunces',Georgia,serif",marginBottom:4}}>{supervisors.filter(p.filter).length}</div>
+            <div style={{fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace"}}>{p.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Active users */}
+      <div style={{background:"#fff",border:`1px solid ${goldBorder}`,borderRadius:14,padding:24}}>
+        <h3 style={{margin:"0 0 12px",fontSize:16,color:t.text,fontFamily:"'Fraunces',Georgia,serif"}}>Quick Stats</h3>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+          <div style={{background:t.surfaceAlt,borderRadius:10,padding:"14px 16px"}}>
+            <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",marginBottom:4}}>TOTAL SUPERVISORS</div>
+            <div style={{fontSize:22,fontWeight:700,color:t.text}}>{stats.supervisors}</div>
+          </div>
+          <div style={{background:t.surfaceAlt,borderRadius:10,padding:"14px 16px"}}>
+            <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",marginBottom:4}}>TOTAL INTERNS</div>
+            <div style={{fontSize:22,fontWeight:700,color:t.text}}>{stats.totalInterns}</div>
+          </div>
+          <div style={{background:t.surfaceAlt,borderRadius:10,padding:"14px 16px"}}>
+            <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",marginBottom:4}}>MESSAGES SENT</div>
+            <div style={{fontSize:22,fontWeight:700,color:t.text}}>{stats.totalMessages}</div>
+          </div>
+          <div style={{background:t.surfaceAlt,borderRadius:10,padding:"14px 16px"}}>
+            <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",marginBottom:4}}>ERRORS (24H)</div>
+            <div style={{fontSize:22,fontWeight:700,color:stats.recentErrors>0?"#A04040":t.text}}>{stats.recentErrors}</div>
+          </div>
+        </div>
+      </div>
+    </div>}
+
+    {/* ─── ANNOUNCEMENTS TAB ─── */}
+    {tab==="announcements"&&<div>
+      {/* Compose */}
+      <div style={{background:"#fff",border:`1px solid ${goldBorder}`,borderRadius:14,padding:24,marginBottom:24}}>
+        <h3 style={{margin:"0 0 16px",fontSize:16,color:t.text,fontFamily:"'Fraunces',Georgia,serif"}}>Send Announcement</h3>
+        <div style={{display:"flex",flexDirection:"column",gap:12}}>
+          <input value={annTitle} onChange={e=>setAnnTitle(e.target.value)} placeholder="Announcement title" style={inp}/>
+          <textarea value={annBody} onChange={e=>setAnnBody(e.target.value)} rows={4} placeholder="Message body..." style={{...inp,resize:"vertical",lineHeight:1.6}}/>
+          <div style={{display:"flex",gap:12,alignItems:"center"}}>
+            <label style={{fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace"}}>Target:</label>
+            <select value={annTarget} onChange={e=>setAnnTarget(e.target.value)} style={{...inp,width:180}}>
+              <option value="all">All Users</option>
+              <option value="starter">Starter Only</option>
+              <option value="growth">Growth Only</option>
+              <option value="practice">Practice Only</option>
+              <option value="trial">Trial Users</option>
+            </select>
+            <button onClick={sendAnnouncement} disabled={!annTitle.trim()||!annBody.trim()||annSending}
+              style={{marginLeft:"auto",background:annTitle.trim()&&annBody.trim()?gold:"#ddd",color:annTitle.trim()&&annBody.trim()?"#fff":"#999",border:"none",borderRadius:10,padding:"10px 24px",cursor:annTitle.trim()&&annBody.trim()?"pointer":"default",fontSize:13,fontWeight:600,fontFamily:"inherit"}}>
+              {annSending?"Sending...":"Send Announcement"}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Sent announcements */}
+      <div style={{fontSize:12,color:t.faint,fontFamily:"'DM Mono',monospace",marginBottom:12}}>{announcements.length} announcement{announcements.length!==1?"s":""} sent</div>
+      {announcements.map((ann,i)=>(
+        <div key={i} style={{background:"#fff",border:`1px solid ${t.border}`,borderRadius:12,padding:"16px 20px",marginBottom:8}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+            <div style={{fontSize:15,fontWeight:500,color:t.text}}>{ann.title}</div>
+            <div style={{display:"flex",gap:8,alignItems:"center"}}>
+              <span style={{background:goldLight,color:gold,padding:"2px 8px",borderRadius:6,fontSize:10,fontFamily:"'DM Mono',monospace"}}>{ann.target||"all"}</span>
+              <span style={{fontSize:11,color:t.faint,fontFamily:"'DM Mono',monospace"}}>{ann.created_at?new Date(ann.created_at).toLocaleDateString():""}</span>
+            </div>
+          </div>
+          <div style={{fontSize:13,color:t.muted,lineHeight:1.6}}>{ann.body}</div>
+        </div>
+      ))}
+      {announcements.length===0&&<div style={{textAlign:"center",padding:40,color:t.faint,fontSize:13}}>No announcements yet</div>}
+    </div>}
+  </div>;
+}
+
 function SettingsPage({theme,setTheme,setCustomTheme,font,setFont,darkMode,setDarkMode,highContrast,setHighContrast,supervisorName,setSupervisorName,onSaveProfile,T,notifPrefs,setNotifPrefs,session}) {
   const t=T||THEMES.sage;
 
@@ -11508,7 +12289,7 @@ useEffect(() => {
   const [billing,setBilling]=useState(()=>{try{const s=localStorage.getItem("suptrack_billing");return s?JSON.parse(s):BILLING_SEED;}catch{return BILLING_SEED;}});
   React.useEffect(()=>{try{localStorage.setItem("suptrack_billing",JSON.stringify(billing));}catch{}},[billing]);
 
-  const isAdmin = billing.seats.some(s => s.role==="owner" || s.role==="admin");
+  const isAdmin = supervisorProfile?.lifetime_free === true;
   const TICKETS_SEED = [];
   const [tickets,setTickets]=useState(()=>{try{const s=localStorage.getItem("suptrack_tickets");return s?JSON.parse(s):TICKETS_SEED;}catch{return TICKETS_SEED;}});
   React.useEffect(()=>{try{localStorage.setItem("suptrack_tickets",JSON.stringify(tickets));}catch{}},[tickets]);
@@ -11797,12 +12578,12 @@ useEffect(() => {
           <Avatar initials={supervisorInitials} size={36} T={t} photo={supervisorPhoto}/>
           <div style={{textAlign:"center"}}>
             <div style={{fontSize:13,color:t.sidebarText||t.text,fontWeight:500}}>{supervisorName?(supervisorName.includes("@")?supervisorName.split("@")[0]:supervisorName.split(" ")[0]):"Supervisor"}</div>
-            <div style={{fontSize:11,color:t.sidebarMuted||t.muted,fontFamily:"'DM Mono',monospace"}}>{supervisorProfile?.lifetime_free?"Practice ✦":trialActive&&!supervisorProfile?.stripe_customer_id?`Trial · ${Math.ceil((trialEndsAt-new Date())/(1000*60*60*24))}d left`:supervisorPlan==="starter"?"Starter":supervisorPlan==="growth"?"Growth":"Practice"}</div>
+            {supervisorProfile?.lifetime_free?<div style={{fontSize:11,color:"#C4A040",fontFamily:"'DM Mono',monospace",fontWeight:600}}>Founder ✦</div>:<div style={{fontSize:11,color:t.sidebarMuted||t.muted,fontFamily:"'DM Mono',monospace"}}>{trialActive&&!supervisorProfile?.stripe_customer_id?`Trial · ${Math.ceil((trialEndsAt-new Date())/(1000*60*60*24))}d left`:supervisorPlan==="starter"?"Starter":supervisorPlan==="growth"?"Growth":"Practice"}</div>}
           </div>
         </div>
         {isAdmin&&<button onClick={()=>setPage("admin")}
-          style={{marginTop:8,background:"none",border:"none",cursor:"pointer",fontSize:10,color:page==="admin"?(t.sidebarAccent||t.accent):(t.sidebarMuted||t.faint),fontFamily:"'DM Mono',monospace",padding:0,display:"flex",alignItems:"center",gap:4}}>
-          🔒 Admin inbox{tickets.filter(tk=>tk.status==="open").length>0&&<span style={{background:t.sidebarAccent||t.accent,color:"#fff",borderRadius:20,fontSize:9,padding:"1px 5px"}}>{tickets.filter(tk=>tk.status==="open").length}</span>}
+          style={{marginTop:8,background:page==="admin"?"rgba(196,160,64,0.10)":"none",border:"none",cursor:"pointer",fontSize:11,color:page==="admin"?"#C4A040":"#B0A070",fontFamily:"'DM Mono',monospace",padding:"5px 8px",borderRadius:6,display:"flex",alignItems:"center",gap:5,fontWeight:page==="admin"?600:400,transition:"all 0.15s"}}>
+          ✦ Admin Panel{tickets.filter(tk=>tk.status==="open").length>0&&<span style={{background:"#C4A040",color:"#fff",borderRadius:20,fontSize:9,padding:"1px 5px"}}>{tickets.filter(tk=>tk.status==="open").length}</span>}
         </button>}
       </div>
     </div>
@@ -11853,8 +12634,8 @@ useEffect(() => {
       {page==="support"&&<SupportPage T={t} supervisorName={supervisorName} supervisorEmail={session?.user?.email||""} tickets={tickets} setTickets={setTickets} session={session}/>}
       {page==="reminders"&&<RemindersPanel T={t} interns={interns} groups={groups} onNavigate={(dest,ctx)=>{setPage(dest);if(ctx)setSelectedGroupId(ctx);}} onSelectIntern={i=>{setSelectedInternId_sv(i.id);setPage("intern-profile");}}/>}
       {page==="messages"&&<MessagesPage T={t} session={session}/>}
-      {page==="admin"&&isAdmin&&<AdminInboxPage T={t} tickets={tickets} setTickets={setTickets}/>}
-      {page==="admin"&&!isAdmin&&<div style={{padding:40,color:t.muted,fontSize:14}}>Access restricted.</div>}
+      {page==="admin"&&isAdmin&&<AdminPanelPage T={t} session={session} tickets={tickets} setTickets={setTickets}/>}
+      {page==="admin"&&!isAdmin&&(()=>{setTimeout(()=>setPage("dashboard"),0);return null;})()}
       {page==="profile"&&<PublicProfilePage T={t} supervisorPhoto={supervisorPhoto} setSupervisorPhoto={setSupervisorPhoto} supervisorName={supervisorName} setSupervisorName={setSupervisorName} supervisorInitials={supervisorInitials} supervisorProfile={supervisorProfile} onSaveProfile={saveSupervisorProfile}/>}
       {page==="settings"&&<SettingsPage T={t} theme={theme} setTheme={setTheme} setCustomTheme={setCustomTheme} font={fontKey} setFont={setFontKey} darkMode={darkMode} setDarkMode={setDarkMode} highContrast={highContrast} setHighContrast={setHighContrast} supervisorName={supervisorName} setSupervisorName={setSupervisorName} onSaveProfile={saveSupervisorProfile} notifPrefs={notifPrefs} setNotifPrefs={setNotifPrefs} session={session}/>}
       {!["dashboard","interns","intern-profile","groups","payments","billing","ce","calendar","consult","lab","resources","discover","agreements","reminders","messages","support","admin","profile","settings"].includes(page)&&<Dashboard T={t} interns={interns} groups={groups} lists={lists} colleagues={colleagues} supervisorName={supervisorName} onAddIntern={()=>{if(activeInternCount>=internLimit){setUpgradePrompt("intern");return;}setAddInternOpen(true);}} onQuickAction={setQuickActionOpen} onSelectIntern={i=>{setSelectedInternId_sv(i.id);setPage("intern-profile");}} onNavigate={navigate} onOpenOnboarding={()=>setOnboardingOpen(true)} quickActionOrder={quickActionOrder} quickActionHidden={quickActionHidden} allQuickActions={ALL_QUICK_ACTIONS} onQuickActionReorder={setQuickActionOrder} onQuickActionToggle={(id)=>{setQuickActionHidden(prev=>{const s=new Set(prev);s.has(id)?s.delete(id):s.add(id);return s;});}}/>}

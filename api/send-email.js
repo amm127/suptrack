@@ -109,6 +109,12 @@ const TEMPLATES = {
     subject: "You're in. Let's make supervision feel different. ✦",
     html: welcomeEmail(name || 'there', trialEndDate || ''),
   }),
+  CUSTOM: ({ subject, body }) => ({
+    subject: subject || 'Message from SupTrack',
+    html: wrap(`
+      <div style="font-size:15px;color:#102828;line-height:1.8;white-space:pre-wrap">${body || ''}</div>
+    `),
+  }),
 };
 
 function welcomeEmail(name, trialEndDate) {
@@ -199,14 +205,15 @@ export default async function handler(req, res) {
   rateMap[ip].push(now);
 
   try {
-    const { to, type, data } = req.body;
+    const { to, type, data, subject: customSubject, body: customBody } = req.body;
     if (!to || !type) return res.status(400).json({ error: 'Missing to or type' });
     if (!RESEND_API_KEY) return res.status(500).json({ error: 'RESEND_API_KEY not configured' });
 
     const template = TEMPLATES[type];
     if (!template) return res.status(400).json({ error: `Unknown email type: ${type}` });
 
-    const { subject, html } = template(data || {});
+    const templateData = type === 'CUSTOM' ? { subject: customSubject, body: customBody, ...(data || {}) } : (data || {});
+    const { subject, html } = template(templateData);
 
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
