@@ -12513,6 +12513,7 @@ useEffect(() => {
   const [supervisorPhoto, setSupervisorPhoto] = useState(null);
   const [toast, setToast] = useState(null);
   React.useEffect(()=>{if(toast)setTimeout(()=>setToast(null),3000);},[toast]);
+  const [founderConfetti, setFounderConfetti] = useState(false);
   const [supervisorName, setSupervisorName] = useState("");
   const [supervisorProfile, setSupervisorProfile] = useState(null);
   const [internUser, setInternUser] = useState(null); // non-null if logged-in user is an intern
@@ -12957,6 +12958,7 @@ useEffect(() => {
     <link href={f.url} rel="stylesheet"/>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/fraunces@5/index.css"/>
     <style>{`
+    @keyframes founderPulse { 0%,100%{opacity:1} 50%{opacity:0.7} }
     *, *::before, *::after { box-sizing: border-box; }
     body, button, input, select, textarea { font-family: ${f.body} !important; }
     h1, h2, h3 { font-family: 'Fraunces', ${f.display} !important; }
@@ -13062,7 +13064,7 @@ useEffect(() => {
             const rc = t.isRainbow ? rainbowColors[idx % rainbowColors.length] : null;
             const sAcc = t.sidebarAccent||t.accent;
             const activeBg     = t.isRainbow ? `${rc}18` : t.sidebarAccentBg ? (active?t.sidebarAccentBg:"none") : t.isGradient ? (t.gradientSubtle||t.accentLight) : isAI ? t.accentMid : t.accentLight;
-            const activeBorder = rc || sAcc;
+            const activeBorder = isAdmin ? "#C4A040" : (rc || sAcc);
             const hoverBg = t.sidebarBg ? "rgba(0,0,0,0.03)" : t.surfaceAlt;
             return <button key={item.id}
               onMouseEnter={()=>setNavHover(item.id)}
@@ -13098,14 +13100,20 @@ useEffect(() => {
         </button>)}
       </div>
 
-      <div style={{padding:"14px 24px",borderTop:`1px solid ${t.sidebarBorder||t.borderLight}`}}>
+      <div style={{padding:"14px 24px",borderTop:`1px solid ${t.sidebarBorder||t.borderLight}`,borderLeft:isAdmin?"3px solid #C4A040":"3px solid transparent"}}>
         <div onClick={()=>setPage("profile")} style={{display:"flex",flexDirection:"column",alignItems:"center",cursor:"pointer",borderRadius:8,padding:"4px 0",gap:6}} title="My profile">
           <Avatar initials={supervisorInitials} size={36} T={t} photo={supervisorPhoto}/>
           <div style={{textAlign:"center"}}>
             <div style={{fontSize:13,color:t.sidebarText||t.text,fontWeight:500}}>{supervisorName?(supervisorName.includes("@")?supervisorName.split("@")[0]:supervisorName.split(" ")[0]):"Supervisor"}</div>
-            {supervisorProfile?.lifetime_free?<div style={{fontSize:11,color:"#C4A040",fontFamily:"'DM Mono',monospace",fontWeight:600}}>Founder ✦</div>:<div style={{fontSize:11,color:t.sidebarMuted||t.muted,fontFamily:"'DM Mono',monospace"}}>{trialActive&&!supervisorProfile?.stripe_customer_id?`Trial · ${Math.ceil((trialEndsAt-new Date())/(1000*60*60*24))}d left`:supervisorPlan==="starter"?"Starter":supervisorPlan==="growth"?"Growth":"Practice"}</div>}
+            {supervisorProfile?.lifetime_free
+              ?<div onClick={e=>{e.stopPropagation();setFounderConfetti(true);setToast({type:"success",message:"You built this. \ud83c\udf89"});setTimeout(()=>setFounderConfetti(false),2500);}}
+                style={{display:"inline-block",background:"rgba(196,160,64,0.15)",border:"1px solid rgba(196,160,64,0.4)",borderRadius:20,padding:"3px 12px",marginTop:3,cursor:"pointer",animation:"founderPulse 3s ease-in-out infinite"}}>
+                <span style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:12,color:"#C4A040",fontWeight:600}}>Founder ✦</span>
+              </div>
+              :<div style={{fontSize:11,color:t.sidebarMuted||t.muted,fontFamily:"'DM Mono',monospace"}}>{trialActive&&!supervisorProfile?.stripe_customer_id?`Trial · ${Math.ceil((trialEndsAt-new Date())/(1000*60*60*24))}d left`:supervisorPlan==="starter"?"Starter":supervisorPlan==="growth"?"Growth":"Practice"}</div>}
           </div>
         </div>
+        <Confetti active={founderConfetti}/>
         {isAdmin&&<button onClick={()=>setPage("admin")}
           style={{marginTop:8,background:page==="admin"?"rgba(196,160,64,0.10)":"none",border:"none",cursor:"pointer",fontSize:11,color:page==="admin"?"#C4A040":"#B0A070",fontFamily:"'DM Mono',monospace",padding:"5px 8px",borderRadius:6,display:"flex",alignItems:"center",gap:5,fontWeight:page==="admin"?600:400,transition:"all 0.15s"}}>
           ✦ Admin Panel{tickets.filter(tk=>tk.status==="open").length>0&&<span style={{background:"#C4A040",color:"#fff",borderRadius:20,fontSize:9,padding:"1px 5px"}}>{tickets.filter(tk=>tk.status==="open").length}</span>}
