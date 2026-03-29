@@ -11120,6 +11120,10 @@ useEffect(() => {
       .st-main{padding:20px 16px !important;max-width:100% !important;}
       .st-mobile-menu{display:flex !important;}
     }
+    @media(prefers-color-scheme:dark){
+      .st-logo-light{color:#F0DECA !important;}
+      .st-logo-dark{color:#1E4040 !important;}
+    }
     `}</style>
 
     {/* Mobile menu button */}
@@ -11135,7 +11139,7 @@ useEffect(() => {
         <div onClick={()=>{setPage("dashboard");setSelectedInternId_sv(null);setInternFilter(null);setConsultIntern(null);}}
           style={{cursor:"pointer",display:"flex",alignItems:"center",gap:8}}>
           <span style={{color:t.sidebarAccent||t.gold||t.accent,fontSize:10,opacity:0.4}}>✦</span>
-          <span style={{fontFamily:"'Fraunces','DM Serif Display',Georgia,serif",fontSize:26,fontWeight:700,color:t.sidebarText||"#F0DECA",letterSpacing:-1,lineHeight:1}}>SupTrack</span>
+          <span style={{fontFamily:"'Fraunces','DM Serif Display',Georgia,serif",fontSize:26,fontWeight:700,color:"#F0DECA",letterSpacing:-1,lineHeight:1}}>SupTrack</span>
           <span style={{color:t.sidebarAccent||t.gold||t.accent,fontSize:7,opacity:0.3}}>✦</span>
         </div>
         <button onClick={()=>setEditingNav(e=>!e)} title="Customize sidebar"
