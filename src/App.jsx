@@ -10965,16 +10965,42 @@ useEffect(() => {
   const updateIntern=React.useCallback((updated)=>{
     setInterns(p=>{
       const old=p.find(i=>i.id===updated.id);
-      // Sync new sessions to Supabase
+      // Sync new sessions to Supabase + auto-create payment records
       if(old&&updated.sessions&&updated.sessions.length>(old.sessions||[]).length){
         const newSessions=updated.sessions.slice(0,updated.sessions.length-(old.sessions||[]).length);
         newSessions.forEach(s=>{
           const {_hourLog,_newTotal,...fields}=s;
           const isoDate=(()=>{const d=new Date(fields.date);return isNaN(d)?fields.date:d.toISOString().slice(0,10);})();
           const row={intern_id:updated.id,supervisor_id:session.user.id,date:isoDate,duration_minutes:parseInt(fields.duration)||60,session_type:fields.type||"",notes:fields.notes||""};
-          console.log("[updateIntern] Inserting session:",row);
-          supabase.from("sessions").insert(row).then(({error})=>{if(error){console.error("Session insert error:",error);alert("Session save failed: "+error.message);}else{console.log("[updateIntern] Session saved OK");}});
+          supabase.from("sessions").insert(row).then(({error})=>{if(error)console.error("Session insert error:",error);});
         });
+
+        // Auto-create payment records if intern has a billing rate
+        const rate = updated.billingRate||0;
+        if(rate > 0 && !updated.proBono){
+          // Check if this intern is shared with another supervisor
+          supabase.from("supervisor_intern_access").select("supervisor_id,supervisor_name,permissions").eq("intern_id",updated.id).then(async({data:accessRows})=>{
+            const otherSupervisors = (accessRows||[]).filter(r=>r.supervisor_id!==session.user.id);
+            const internName = updated.preferredName||updated.name?.split(" ")[0]||"Intern";
+            const today = new Date().toLocaleDateString("en-US",{month:"short",year:"numeric"});
+
+            if(otherSupervisors.length===0){
+              // Single supervisor — one charge at full rate
+              const charge = {month:today,amount:rate,status:"overdue",date:new Date().toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}),description:`Session fee — ${newSessions[0]?.type||"Supervision"}`};
+              setInterns(prev=>prev.map(i=>i.id!==updated.id?i:{...i,payments:[charge,...(i.payments||[])],paymentStatus:"overdue"}));
+              console.log(`[SupTrack] Payment created for ${internName}: $${rate}`);
+            } else {
+              // Shared intern — split between supervisors
+              const totalSupervisors = otherSupervisors.length + 1;
+              const myPortion = Math.round(rate/totalSupervisors*100)/100;
+              const myCharge = {month:today,amount:myPortion,status:"overdue",date:new Date().toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}),description:`Session fee — your portion ($${myPortion} of $${rate} split ${totalSupervisors} ways)`};
+              setInterns(prev=>prev.map(i=>i.id!==updated.id?i:{...i,payments:[myCharge,...(i.payments||[])],paymentStatus:"overdue"}));
+              console.log(`[SupTrack] Split payment for ${internName}: $${myPortion} (your share of $${rate} split ${totalSupervisors} ways with ${otherSupervisors.map(s=>s.supervisor_name||"colleague").join(", ")})`);
+            }
+          });
+        } else if(rate===0 && !updated.proBono && newSessions.length>0){
+          console.log(`[SupTrack] No rate configured for ${updated.name||"intern"} — skipping auto-charge`);
+        }
       }
       // Sync hour_logs to Supabase — insert incremental hours for changed categories
       if(old&&updated.hourLog&&JSON.stringify(updated.hourLog)!==JSON.stringify(old.hourLog||[])){
