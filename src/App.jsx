@@ -10554,9 +10554,56 @@ function AdminPanelPage({T,session,tickets,setTickets}) {
     setAnnSending(false);
   };
 
+  // ── Stripe billing state ──
+  const [stripeData,setStripeData]=useState(null);
+  const [stripeLoading,setStripeLoading]=useState(false);
+  const [stripeCustomer,setStripeCustomer]=useState(null);
+  const [stripeCustomerLoading,setStripeCustomerLoading]=useState(false);
+  const [billingSearch,setBillingSearch]=useState("");
+  const [billingStatusFilter,setBillingStatusFilter]=useState("all");
+  const [selectedCharge,setSelectedCharge]=useState(null);
+  const [stripeActionLoading,setStripeActionLoading]=useState(null);
+  const [billingDetailUser,setBillingDetailUser]=useState(null);
+
+  const getAuthHeader=()=>{
+    const key=Object.keys(localStorage).find(k=>k.startsWith("sb-")&&k.endsWith("-auth-token"));
+    if(!key)return{};
+    try{const d=JSON.parse(localStorage.getItem(key));return d?.access_token?{Authorization:`Bearer ${d.access_token}`}:{};}catch{return{};}
+  };
+
+  const loadStripeOverview=async()=>{
+    setStripeLoading(true);
+    try{
+      const r=await fetch("/api/admin/stripe-overview",{headers:getAuthHeader()});
+      if(r.ok){const d=await r.json();setStripeData(d);}
+    }catch(e){console.error("Stripe overview error:",e);}
+    setStripeLoading(false);
+  };
+
+  const loadStripeCustomer=async(email,customerId)=>{
+    setStripeCustomerLoading(true);
+    try{
+      const r=await fetch("/api/admin/stripe-customer",{method:"POST",headers:{"Content-Type":"application/json",...getAuthHeader()},body:JSON.stringify({email,customerId})});
+      if(r.ok){const d=await r.json();setStripeCustomer(d);}else{setStripeCustomer(null);}
+    }catch(e){console.error("Stripe customer error:",e);setStripeCustomer(null);}
+    setStripeCustomerLoading(false);
+  };
+
+  const stripeAction=async(action,customerId,params)=>{
+    setStripeActionLoading(action);
+    try{
+      const r=await fetch("/api/admin/stripe-action",{method:"POST",headers:{"Content-Type":"application/json",...getAuthHeader()},body:JSON.stringify({action,customerId,params})});
+      const d=await r.json();
+      if(!r.ok)alert("Action failed: "+(d.error||"Unknown error"));
+      else{alert("Action completed successfully");loadStripeOverview();}
+    }catch(e){alert("Action error: "+e.message);}
+    setStripeActionLoading(null);
+  };
+
   const TABS=[
     {id:"overview",label:"Overview"},
     {id:"users",label:"Users"},
+    {id:"billing",label:"Billing"},
     {id:"invites",label:"Invite Codes"},
     {id:"tickets",label:"Tickets"},
     {id:"stats",label:"Stats"},
@@ -10597,7 +10644,7 @@ function AdminPanelPage({T,session,tickets,setTickets}) {
     {/* Tab bar */}
     <div style={{display:"flex",gap:4,marginBottom:28,borderBottom:`1px solid ${goldBorder}`,paddingBottom:0}}>
       {TABS.map(tb=>(
-        <button key={tb.id} onClick={()=>{setTab(tb.id);setStatDrill(null);setSelectedUser(null);setSelectedTicket(null);setDetailUser(null);}}
+        <button key={tb.id} onClick={()=>{setTab(tb.id);setStatDrill(null);setSelectedUser(null);setSelectedTicket(null);setDetailUser(null);setBillingDetailUser(null);setStripeCustomer(null);if(tb.id==="billing"&&!stripeData)loadStripeOverview();}}
           style={{background:tab===tb.id?goldLight:"transparent",color:tab===tb.id?gold:t.muted,border:"none",borderBottom:tab===tb.id?`2px solid ${gold}`:"2px solid transparent",padding:"10px 18px",cursor:"pointer",fontSize:13,fontFamily:"'DM Mono',monospace",fontWeight:tab===tb.id?600:400,transition:"all 0.15s",borderRadius:"8px 8px 0 0"}}>
           {tb.label}{tb.id==="tickets"&&stats.openTickets>0?` (${stats.openTickets})`:""}
         </button>
@@ -10950,6 +10997,294 @@ function AdminPanelPage({T,session,tickets,setTickets}) {
           </div>
         </div>
       </div>
+    </div>}
+
+    {/* ─── BILLING TAB ─── */}
+    {tab==="billing"&&<div>
+      {/* Billing detail modal */}
+      {billingDetailUser&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.45)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999}} onClick={()=>{setBillingDetailUser(null);setStripeCustomer(null);}}>
+        <div onClick={e=>e.stopPropagation()} style={{background:"#fff",borderRadius:18,padding:32,maxWidth:640,width:"90%",maxHeight:"85vh",overflowY:"auto",boxShadow:"0 20px 60px rgba(0,0,0,0.2)"}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+            <h3 style={{margin:0,fontSize:20,color:t.text,fontFamily:"'Fraunces',Georgia,serif"}}>{billingDetailUser.name||billingDetailUser.email}</h3>
+            <button onClick={()=>{setBillingDetailUser(null);setStripeCustomer(null);}} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:t.muted}}>×</button>
+          </div>
+
+          {stripeCustomerLoading&&<div style={{textAlign:"center",padding:30,color:t.muted}}>Loading Stripe data...</div>}
+
+          {stripeCustomer&&<div>
+            {/* Subscription info */}
+            <div style={{marginBottom:20}}>
+              <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",marginBottom:8,letterSpacing:1}}>SUBSCRIPTIONS</div>
+              {stripeCustomer.subscriptions.length===0&&<div style={{color:t.faint,fontSize:13}}>No subscriptions</div>}
+              {stripeCustomer.subscriptions.map(sub=>(
+                <div key={sub.id} style={{background:t.surfaceAlt,borderRadius:10,padding:"14px 16px",marginBottom:8}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                    <span style={{fontSize:14,fontWeight:500,color:t.text,textTransform:"capitalize"}}>{sub.plan} — {sub.cycle}</span>
+                    <span style={{fontSize:11,padding:"2px 8px",borderRadius:6,fontFamily:"'DM Mono',monospace",
+                      background:sub.status==="active"?"#E8F5EE":sub.status==="past_due"?"#FAE8E8":goldLight,
+                      color:sub.status==="active"?"#2E7A4E":sub.status==="past_due"?"#A04040":gold}}>{sub.status}</span>
+                  </div>
+                  <div style={{fontSize:12,color:t.muted,fontFamily:"'DM Mono',monospace"}}>
+                    ${(sub.amount/100).toFixed(2)}/{sub.cycle} · Next: {new Date(sub.currentPeriodEnd).toLocaleDateString()}
+                    {sub.cancelAtPeriodEnd&&<span style={{color:"#A04040",marginLeft:8}}>· Cancels at period end</span>}
+                  </div>
+                  <div style={{display:"flex",gap:6,marginTop:10}}>
+                    <button onClick={()=>{if(confirm("Cancel at period end?"))stripeAction("cancel_subscription",null,{subscriptionId:sub.id,atPeriodEnd:true});}}
+                      disabled={stripeActionLoading==="cancel_subscription"}
+                      style={{background:"#FAE8E8",color:"#A04040",border:"1px solid #E0C0C0",borderRadius:6,padding:"5px 12px",cursor:"pointer",fontSize:11,fontFamily:"'DM Mono',monospace"}}>
+                      {stripeActionLoading==="cancel_subscription"?"...":"Cancel"}
+                    </button>
+                    <button onClick={()=>{if(confirm("Cancel immediately? This cannot be undone."))stripeAction("cancel_subscription",null,{subscriptionId:sub.id,atPeriodEnd:false});}}
+                      disabled={stripeActionLoading==="cancel_subscription"}
+                      style={{background:"#fff",color:"#A04040",border:"1px solid #E0C0C0",borderRadius:6,padding:"5px 12px",cursor:"pointer",fontSize:11,fontFamily:"'DM Mono',monospace"}}>
+                      Cancel now
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Payment methods */}
+            <div style={{marginBottom:20}}>
+              <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",marginBottom:8,letterSpacing:1}}>PAYMENT METHODS</div>
+              {stripeCustomer.paymentMethods.length===0&&<div style={{color:t.faint,fontSize:13}}>No payment methods</div>}
+              {stripeCustomer.paymentMethods.map(pm=>(
+                <div key={pm.id} style={{display:"flex",alignItems:"center",gap:10,fontSize:13,color:t.text,marginBottom:6}}>
+                  <span style={{textTransform:"capitalize",fontWeight:500}}>{pm.brand}</span>
+                  <span style={{fontFamily:"'DM Mono',monospace"}}>•••• {pm.last4}</span>
+                  <span style={{color:t.faint,fontSize:11}}>{pm.expMonth}/{pm.expYear}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Upcoming invoice */}
+            {stripeCustomer.upcomingInvoice&&<div style={{marginBottom:20}}>
+              <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",marginBottom:8,letterSpacing:1}}>NEXT PAYMENT</div>
+              <div style={{background:goldLight,borderRadius:10,padding:"12px 16px"}}>
+                <span style={{fontSize:18,fontWeight:700,color:t.text,fontFamily:"'Fraunces',Georgia,serif"}}>${(stripeCustomer.upcomingInvoice.amount/100).toFixed(2)}</span>
+                <span style={{fontSize:12,color:t.muted,marginLeft:10}}>{stripeCustomer.upcomingInvoice.nextPaymentAttempt?`on ${new Date(stripeCustomer.upcomingInvoice.nextPaymentAttempt).toLocaleDateString()}`:""}</span>
+              </div>
+            </div>}
+
+            {/* Apply coupon */}
+            <div style={{marginBottom:20}}>
+              <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",marginBottom:8,letterSpacing:1}}>ACTIONS</div>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                {[10,25,50,100].map(pct=>(
+                  <button key={pct} onClick={()=>{if(confirm(`Apply ${pct}% discount to ${stripeCustomer.customer.email}?`))stripeAction("create_coupon",stripeCustomer.customer.id,{percentOff:pct,duration:"once",name:`Admin ${pct}% off`});}}
+                    disabled={stripeActionLoading==="create_coupon"}
+                    style={{background:goldLight,color:gold,border:`1px solid ${goldBorder}`,borderRadius:8,padding:"7px 14px",cursor:"pointer",fontSize:12,fontFamily:"'DM Mono',monospace",fontWeight:500}}>
+                    {pct}% off
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Invoice history */}
+            <div>
+              <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",marginBottom:8,letterSpacing:1}}>INVOICE HISTORY</div>
+              {stripeCustomer.invoices.length===0&&<div style={{color:t.faint,fontSize:13}}>No invoices</div>}
+              <div style={{maxHeight:250,overflowY:"auto"}}>
+                {stripeCustomer.invoices.map(inv=>(
+                  <div key={inv.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 0",borderBottom:`1px solid ${t.borderLight||t.border}`}}>
+                    <div>
+                      <span style={{fontSize:13,color:t.text,fontWeight:500}}>${(inv.amount/100).toFixed(2)}</span>
+                      <span style={{fontSize:11,color:t.faint,marginLeft:8}}>{inv.number}</span>
+                    </div>
+                    <div style={{display:"flex",alignItems:"center",gap:8}}>
+                      <span style={{fontSize:11,padding:"1px 6px",borderRadius:4,fontFamily:"'DM Mono',monospace",
+                        background:inv.paid?"#E8F5EE":"#FAE8E8",color:inv.paid?"#2E7A4E":"#A04040"}}>{inv.status}</span>
+                      <span style={{fontSize:11,color:t.faint}}>{new Date(inv.created).toLocaleDateString()}</span>
+                      {inv.paid&&<button onClick={()=>{
+                        const chargeId=prompt("Enter charge ID to refund (from Stripe dashboard):");
+                        if(chargeId&&confirm(`Refund charge ${chargeId}?`))stripeAction("refund_payment",null,{chargeId});
+                      }} style={{background:"none",border:`1px solid ${t.border}`,borderRadius:4,padding:"2px 8px",cursor:"pointer",fontSize:10,color:t.muted,fontFamily:"'DM Mono',monospace"}}>Refund</button>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>}
+
+          {!stripeCustomerLoading&&!stripeCustomer&&<div style={{textAlign:"center",padding:20,color:t.faint}}>No Stripe data found for this customer</div>}
+        </div>
+      </div>}
+
+      {/* Header with refresh */}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:24}}>
+        <div>
+          <h3 style={{margin:0,fontSize:18,color:t.text,fontFamily:"'Fraunces',Georgia,serif"}}>Stripe Billing</h3>
+          <div style={{fontSize:12,color:t.faint,fontFamily:"'DM Mono',monospace",marginTop:2}}>Revenue, subscriptions & payments</div>
+        </div>
+        <button onClick={loadStripeOverview} disabled={stripeLoading}
+          style={{background:gold,color:"#fff",border:"none",borderRadius:8,padding:"8px 18px",cursor:"pointer",fontSize:12,fontWeight:600,fontFamily:"inherit",display:"flex",alignItems:"center",gap:6}}>
+          {stripeLoading?"Loading...":"↻ Refresh"}
+        </button>
+      </div>
+
+      {stripeLoading&&!stripeData&&<div style={{textAlign:"center",padding:60,color:t.muted}}>
+        <div style={{fontSize:24,marginBottom:12}}>💳</div>
+        <div>Loading Stripe data...</div>
+      </div>}
+
+      {stripeData&&<div>
+        {/* Revenue overview cards */}
+        <div style={{display:"flex",flexWrap:"wrap",gap:14,marginBottom:28}}>
+          <div style={{flex:"1 1 180px",background:"#fff",border:`1px solid ${goldBorder}`,borderRadius:14,padding:"22px 20px",boxShadow:"0 2px 8px rgba(196,160,64,0.08)"}}>
+            <div style={{fontSize:11,color:"#8A7A50",fontFamily:"'DM Mono',monospace",letterSpacing:1,marginBottom:8}}>MONTHLY RECURRING REVENUE</div>
+            <div style={{fontSize:36,fontWeight:700,color:"#1E4040",fontFamily:"'Fraunces',Georgia,serif"}}>${(stripeData.mrr/100).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
+          </div>
+          <div style={{flex:"1 1 180px",background:"#fff",border:`1px solid ${goldBorder}`,borderRadius:14,padding:"22px 20px",boxShadow:"0 2px 8px rgba(196,160,64,0.08)"}}>
+            <div style={{fontSize:11,color:"#8A7A50",fontFamily:"'DM Mono',monospace",letterSpacing:1,marginBottom:8}}>TOTAL REVENUE</div>
+            <div style={{fontSize:36,fontWeight:700,color:"#1E4040",fontFamily:"'Fraunces',Georgia,serif"}}>${(stripeData.totalRevenue/100).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
+          </div>
+          <div style={{flex:"1 1 120px",background:"#fff",border:`1px solid ${goldBorder}`,borderRadius:14,padding:"22px 20px"}}>
+            <div style={{fontSize:11,color:"#8A7A50",fontFamily:"'DM Mono',monospace",letterSpacing:1,marginBottom:8}}>ACTIVE SUBS</div>
+            <div style={{fontSize:28,fontWeight:700,color:"#2E7A4E",fontFamily:"'Fraunces',Georgia,serif"}}>{stripeData.activeSubscriptions}</div>
+          </div>
+          <div style={{flex:"1 1 120px",background:"#fff",border:`1px solid ${goldBorder}`,borderRadius:14,padding:"22px 20px"}}>
+            <div style={{fontSize:11,color:"#8A7A50",fontFamily:"'DM Mono',monospace",letterSpacing:1,marginBottom:8}}>CHURNED</div>
+            <div style={{fontSize:28,fontWeight:700,color:stripeData.canceledThisMonth>0?"#A04040":t.text,fontFamily:"'Fraunces',Georgia,serif"}}>{stripeData.canceledThisMonth}</div>
+          </div>
+          <div style={{flex:"1 1 120px",background:stripeData.failedPaymentsCount>0?"#FAE8E8":"#fff",border:`1px solid ${stripeData.failedPaymentsCount>0?"#E0C0C0":goldBorder}`,borderRadius:14,padding:"22px 20px"}}>
+            <div style={{fontSize:11,color:stripeData.failedPaymentsCount>0?"#A04040":"#8A7A50",fontFamily:"'DM Mono',monospace",letterSpacing:1,marginBottom:8}}>FAILED</div>
+            <div style={{fontSize:28,fontWeight:700,color:stripeData.failedPaymentsCount>0?"#A04040":"#2E7A4E",fontFamily:"'Fraunces',Georgia,serif"}}>{stripeData.failedPaymentsCount}</div>
+          </div>
+          <div style={{flex:"1 1 120px",background:"#fff",border:`1px solid ${goldBorder}`,borderRadius:14,padding:"22px 20px"}}>
+            <div style={{fontSize:11,color:"#8A7A50",fontFamily:"'DM Mono',monospace",letterSpacing:1,marginBottom:8}}>NET NEW (7D)</div>
+            <div style={{fontSize:28,fontWeight:700,color:"#1E4040",fontFamily:"'Fraunces',Georgia,serif"}}>{stripeData.netNewThisWeek}</div>
+          </div>
+        </div>
+
+        {/* Failed payments section */}
+        {stripeData.failedPayments.length>0&&<div style={{background:"#FDF6F6",border:"1px solid #E0C0C0",borderRadius:14,padding:24,marginBottom:28}}>
+          <h4 style={{margin:"0 0 14px",fontSize:16,color:"#A04040",fontFamily:"'Fraunces',Georgia,serif"}}>⚠ Failed Payments</h4>
+          <div style={{overflowX:"auto"}}>
+            <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+              <thead><tr>
+                {["Customer","Plan","Amount","Days Overdue","Actions"].map(h=>
+                  <th key={h} style={{textAlign:"left",padding:"8px 12px",fontSize:11,color:"#A04040",fontFamily:"'DM Mono',monospace",textTransform:"uppercase",borderBottom:"1px solid #E0C0C0"}}>{h}</th>
+                )}
+              </tr></thead>
+              <tbody>{stripeData.failedPayments.sort((a,b)=>b.daysOverdue-a.daysOverdue).map(fp=>(
+                <tr key={fp.id}>
+                  <td style={{padding:"10px 12px",borderBottom:"1px solid #F0D0D0",color:t.text,fontWeight:500}}>{fp.customerEmail||fp.customer}</td>
+                  <td style={{padding:"10px 12px",borderBottom:"1px solid #F0D0D0",fontSize:12,textTransform:"capitalize"}}>{fp.plan}</td>
+                  <td style={{padding:"10px 12px",borderBottom:"1px solid #F0D0D0",fontFamily:"'DM Mono',monospace"}}>${(fp.amount/100).toFixed(2)}</td>
+                  <td style={{padding:"10px 12px",borderBottom:"1px solid #F0D0D0"}}>
+                    <span style={{background:"#FAE8E8",color:"#A04040",padding:"2px 8px",borderRadius:6,fontSize:11,fontFamily:"'DM Mono',monospace",fontWeight:600}}>{fp.daysOverdue}d</span>
+                  </td>
+                  <td style={{padding:"10px 12px",borderBottom:"1px solid #F0D0D0"}}>
+                    <div style={{display:"flex",gap:6}}>
+                      <button onClick={()=>{
+                        const inv=prompt("Enter invoice ID to retry (from Stripe):");
+                        if(inv)stripeAction("retry_charge",fp.customer,{invoiceId:inv});
+                      }} style={{background:"#fff",color:t.text,border:"1px solid #E0C0C0",borderRadius:6,padding:"4px 10px",cursor:"pointer",fontSize:11,fontFamily:"'DM Mono',monospace"}}>Retry</button>
+                      {fp.customerEmail&&<button onClick={()=>{
+                        fetch("/api/send-email",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({to:fp.customerEmail,type:"CUSTOM",subject:"Payment issue — SupTrack",body:`Hi,\n\nWe noticed your recent payment for SupTrack didn't go through. Please update your payment method to continue using your account.\n\nIf you need help, just reply to this email.\n\nBest,\nThe SupTrack Team`})});
+                        alert("Reminder sent to "+fp.customerEmail);
+                      }} style={{background:"#fff",color:t.text,border:"1px solid #E0C0C0",borderRadius:6,padding:"4px 10px",cursor:"pointer",fontSize:11,fontFamily:"'DM Mono',monospace"}}>Email</button>}
+                      <button onClick={()=>{if(confirm("Cancel this subscription?"))stripeAction("cancel_subscription",fp.customer,{subscriptionId:fp.id,atPeriodEnd:false});}}
+                        style={{background:"#FAE8E8",color:"#A04040",border:"1px solid #E0C0C0",borderRadius:6,padding:"4px 10px",cursor:"pointer",fontSize:11,fontFamily:"'DM Mono',monospace"}}>Cancel</button>
+                    </div>
+                  </td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
+        </div>}
+
+        {/* Subscribers from Supabase cross-referenced */}
+        <div style={{marginBottom:28}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+            <h4 style={{margin:0,fontSize:16,color:t.text,fontFamily:"'Fraunces',Georgia,serif"}}>Subscribers</h4>
+            <div style={{display:"flex",gap:8}}>
+              <input value={billingSearch} onChange={e=>setBillingSearch(e.target.value)} placeholder="Search name or email..." style={{padding:"7px 12px",border:`1px solid ${t.border}`,borderRadius:8,fontSize:12,fontFamily:"inherit",color:t.text,background:t.bg,outline:"none",width:220}}/>
+              <select value={billingStatusFilter} onChange={e=>setBillingStatusFilter(e.target.value)} style={{padding:"7px 12px",border:`1px solid ${t.border}`,borderRadius:8,fontSize:12,fontFamily:"inherit",color:t.text,background:t.bg}}>
+                <option value="all">All</option>
+                <option value="active">Active</option>
+                <option value="trial">Trial</option>
+                <option value="cancelled">Cancelled</option>
+                <option value="past_due">Past Due</option>
+              </select>
+            </div>
+          </div>
+
+          <div style={{background:"#fff",border:`1px solid ${t.border}`,borderRadius:14,overflow:"hidden"}}>
+            <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+              <thead><tr style={{background:t.surfaceAlt}}>
+                {["Name","Email","Plan","Status","Stripe ID","Next Billing"].map(h=>
+                  <th key={h} style={{textAlign:"left",padding:"10px 14px",fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",borderBottom:`1px solid ${t.border}`}}>{h}</th>
+                )}
+              </tr></thead>
+              <tbody>{supervisors.filter(s=>{
+                if(!s.stripe_customer_id&&billingStatusFilter!=="all")return false;
+                const q=billingSearch.toLowerCase();
+                const matchSearch=!q||(s.name||"").toLowerCase().includes(q)||(s.email||"").toLowerCase().includes(q);
+                const matchStatus=billingStatusFilter==="all"||s.subscription_status===billingStatusFilter||(billingStatusFilter==="trial"&&!s.stripe_customer_id&&s.trial_ends_at&&new Date(s.trial_ends_at)>new Date());
+                return matchSearch&&matchStatus&&(billingStatusFilter==="all"||s.stripe_customer_id||billingStatusFilter==="trial");
+              }).slice(0,50).map(s=>{
+                const statusColor=s.subscription_status==="active"?"#2E7A4E":s.subscription_status==="cancelled"||s.subscription_status==="canceled"?"#A04040":s.subscription_status==="past_due"?"#B87D2A":"#888";
+                return <tr key={s.user_id||s.id}
+                  onClick={()=>{setBillingDetailUser(s);if(s.stripe_customer_id)loadStripeCustomer(null,s.stripe_customer_id);else if(s.email)loadStripeCustomer(s.email);}}
+                  style={{cursor:"pointer",transition:"background 0.1s"}}
+                  onMouseEnter={e=>e.currentTarget.style.background=goldLight}
+                  onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                  <td style={{padding:"10px 14px",borderBottom:`1px solid ${t.borderLight||t.border}`,fontWeight:500,color:t.text}}>{s.name||"—"}{s.lifetime_free&&<span style={{color:gold,fontSize:10,marginLeft:6}}>✦</span>}</td>
+                  <td style={{padding:"10px 14px",borderBottom:`1px solid ${t.borderLight||t.border}`,color:t.muted,fontSize:12}}>{s.email}</td>
+                  <td style={{padding:"10px 14px",borderBottom:`1px solid ${t.borderLight||t.border}`}}>
+                    <span style={{background:s.lifetime_free?goldLight:s.plan==="practice"?"#E8F0EE":"#F5F5F0",color:s.lifetime_free?gold:s.plan==="practice"?"#1E4040":"#888",padding:"2px 8px",borderRadius:6,fontSize:11,fontFamily:"'DM Mono',monospace",textTransform:"capitalize"}}>{s.lifetime_free?"Founder":s.plan||"starter"}</span>
+                  </td>
+                  <td style={{padding:"10px 14px",borderBottom:`1px solid ${t.borderLight||t.border}`,fontSize:12,color:statusColor,fontFamily:"'DM Mono',monospace"}}>{s.subscription_status||"—"}</td>
+                  <td style={{padding:"10px 14px",borderBottom:`1px solid ${t.borderLight||t.border}`,fontSize:11,color:t.faint,fontFamily:"'DM Mono',monospace"}}>{s.stripe_customer_id||"—"}</td>
+                  <td style={{padding:"10px 14px",borderBottom:`1px solid ${t.borderLight||t.border}`,fontSize:11,color:t.faint,fontFamily:"'DM Mono',monospace"}}>{s.billing_cycle||"—"}</td>
+                </tr>;
+              })}</tbody>
+            </table>
+            {supervisors.filter(s=>s.stripe_customer_id).length===0&&<div style={{padding:30,textAlign:"center",color:t.faint,fontSize:13}}>No paying subscribers yet</div>}
+          </div>
+        </div>
+
+        {/* Recent charges */}
+        <div>
+          <h4 style={{margin:"0 0 14px",fontSize:16,color:t.text,fontFamily:"'Fraunces',Georgia,serif"}}>Recent Charges</h4>
+          <div style={{background:"#fff",border:`1px solid ${t.border}`,borderRadius:14,overflow:"hidden"}}>
+            <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+              <thead><tr style={{background:t.surfaceAlt}}>
+                {["Amount","Customer","Status","Date","Action"].map(h=>
+                  <th key={h} style={{textAlign:"left",padding:"10px 14px",fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",borderBottom:`1px solid ${t.border}`}}>{h}</th>
+                )}
+              </tr></thead>
+              <tbody>{stripeData.recentCharges.map(ch=>(
+                <tr key={ch.id}>
+                  <td style={{padding:"10px 14px",borderBottom:`1px solid ${t.borderLight||t.border}`,fontWeight:600,color:t.text,fontFamily:"'DM Mono',monospace"}}>${(ch.amount/100).toFixed(2)}</td>
+                  <td style={{padding:"10px 14px",borderBottom:`1px solid ${t.borderLight||t.border}`,fontSize:12,color:t.muted}}>{ch.customerEmail||ch.customer}</td>
+                  <td style={{padding:"10px 14px",borderBottom:`1px solid ${t.borderLight||t.border}`}}>
+                    <span style={{fontSize:11,padding:"2px 8px",borderRadius:6,fontFamily:"'DM Mono',monospace",
+                      background:ch.paid&&!ch.refunded?"#E8F5EE":ch.refunded?"#FAE8E8":"#FAF2E0",
+                      color:ch.paid&&!ch.refunded?"#2E7A4E":ch.refunded?"#A04040":"#B87D2A"}}>{ch.refunded?"refunded":ch.paid?"paid":ch.status}</span>
+                  </td>
+                  <td style={{padding:"10px 14px",borderBottom:`1px solid ${t.borderLight||t.border}`,fontSize:12,color:t.faint,fontFamily:"'DM Mono',monospace"}}>{new Date(ch.created).toLocaleDateString()}</td>
+                  <td style={{padding:"10px 14px",borderBottom:`1px solid ${t.borderLight||t.border}`}}>
+                    {ch.paid&&!ch.refunded&&<button onClick={()=>{if(confirm(`Refund $${(ch.amount/100).toFixed(2)} to ${ch.customerEmail||ch.customer}?`))stripeAction("refund_payment",null,{chargeId:ch.id});}}
+                      disabled={stripeActionLoading==="refund_payment"}
+                      style={{background:"none",border:`1px solid ${t.border}`,borderRadius:6,padding:"4px 10px",cursor:"pointer",fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace"}}>
+                      {stripeActionLoading==="refund_payment"?"...":"Refund"}
+                    </button>}
+                  </td>
+                </tr>
+              ))}</tbody>
+            </table>
+            {stripeData.recentCharges.length===0&&<div style={{padding:30,textAlign:"center",color:t.faint,fontSize:13}}>No charges yet</div>}
+          </div>
+        </div>
+      </div>}
+
+      {!stripeLoading&&!stripeData&&<div style={{textAlign:"center",padding:60}}>
+        <div style={{fontSize:32,marginBottom:12}}>💳</div>
+        <div style={{fontSize:14,color:t.muted,marginBottom:16}}>Load Stripe billing data to see revenue and subscribers</div>
+        <button onClick={loadStripeOverview} style={{background:gold,color:"#fff",border:"none",borderRadius:10,padding:"10px 24px",cursor:"pointer",fontSize:14,fontWeight:600,fontFamily:"inherit"}}>Load Billing Data</button>
+      </div>}
     </div>}
 
     {/* ─── ANNOUNCEMENTS TAB ─── */}
