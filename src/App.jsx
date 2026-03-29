@@ -3098,54 +3098,92 @@ function AlertsSection({visible,interns,t,onNavigate,onSelectIntern,todos,setTod
 }
 
 // ── Platform Overview (Founder dashboard widget) ────────────────────────────
-function PlatformOverview({T,session,onNavigate}) {
+function PlatformOverview({T,session,onNavigate,interns,groups,sp}) {
   const t=T||THEMES.sage;
-  const gold="#C4A040";const goldLight="#FAF2E0";const goldBorder="#E8DFC0";
+  const gold="#C4A040";
   const [stats,setStats]=useState(null);
+  const [activity,setActivity]=useState([]);
   const [drill,setDrill]=useState(null);
   const [drillData,setDrillData]=useState([]);
   const [drillLoading,setDrillLoading]=useState(false);
 
+  // Load stats
   React.useEffect(()=>{
     if(!session?.user)return;
-    (async()=>{
+    const load=async()=>{
       const now=new Date();
-      const weekAgo=new Date(now-7*24*60*60*1000);
+      const todayStart=new Date(now.getFullYear(),now.getMonth(),now.getDate()).toISOString();
+      const weekAgo=new Date(now-7*24*60*60*1000).toISOString();
+      const monthAgo=new Date(now-30*24*60*60*1000).toISOString();
       const dayAgo=new Date(now-24*60*60*1000).toISOString();
-      const [r1,r2,r3,r4,r5]=await Promise.all([
-        supabase.from("supervisors").select("created_at",{count:"exact",head:false}),
+      const sevenDaysOut=new Date(now.getTime()+7*24*60*60*1000).toISOString();
+      const [r1,r2,r3,r4,r5,r6]=await Promise.all([
+        supabase.from("supervisors").select("created_at,plan,subscription_status,trial_ends_at,stripe_customer_id,lifetime_free",{count:"exact",head:false}),
         supabase.from("interns").select("*",{count:"exact",head:true}),
-        supabase.from("messages").select("*",{count:"exact",head:true}),
+        supabase.from("sessions").select("*",{count:"exact",head:true}),
         supabase.from("support_tickets").select("*",{count:"exact",head:true}).eq("status","open"),
         supabase.from("error_logs").select("*",{count:"exact",head:true}).gte("created_at",dayAgo),
+        supabase.from("supervisors").select("created_at,name,email,plan").order("created_at",{ascending:false}).limit(10),
       ]);
       const sups=r1.data||[];
+      const newToday=sups.filter(s=>s.created_at>=todayStart).length;
+      const newWeek=sups.filter(s=>s.created_at>=weekAgo).length;
+      const newMonth=sups.filter(s=>s.created_at>=monthAgo).length;
+      const activeTrial=sups.filter(s=>!s.stripe_customer_id&&!s.lifetime_free&&s.trial_ends_at&&new Date(s.trial_ends_at)>now).length;
+      const expiring7d=sups.filter(s=>!s.stripe_customer_id&&!s.lifetime_free&&s.trial_ends_at&&new Date(s.trial_ends_at)>now&&new Date(s.trial_ends_at)<=new Date(sevenDaysOut)).length;
+      const paidUsers=sups.filter(s=>s.stripe_customer_id||s.lifetime_free).length;
       setStats({
         supervisors:r1.count||sups.length,
-        newThisWeek:sups.filter(s=>new Date(s.created_at)>=weekAgo).length,
+        newToday,newWeek,newMonth,
         totalInterns:r2.count||0,
-        totalMessages:r3.count||0,
+        totalSessions:r3.count||0,
+        activeTrial,expiring7d,paidUsers,
         openTickets:r4.count||0,
         recentErrors:r5.count||0,
       });
-    })();
+      // Build activity feed from recent signups
+      const recentSups=(r6.data||[]).map(s=>({type:"signup",desc:`${s.name||s.email} signed up`,time:s.created_at}));
+      setActivity(recentSups.slice(0,10));
+    };
+    load();
+    // Real-time subscription
+    const channel=supabase.channel("admin-overview")
+      .on("postgres_changes",{event:"INSERT",schema:"public",table:"supervisors"},payload=>{
+        const s=payload.new;
+        setActivity(prev=>[{type:"signup",desc:`${s.name||s.email} signed up`,time:s.created_at},...prev].slice(0,10));
+        setStats(prev=>prev?{...prev,supervisors:prev.supervisors+1,newToday:prev.newToday+1,newWeek:prev.newWeek+1,newMonth:prev.newMonth+1}:prev);
+      })
+      .on("postgres_changes",{event:"INSERT",schema:"public",table:"interns"},payload=>{
+        const i=payload.new;
+        setActivity(prev=>[{type:"intern",desc:`${i.name||"New supervisee"} added`,time:i.created_at},...prev].slice(0,10));
+        setStats(prev=>prev?{...prev,totalInterns:prev.totalInterns+1}:prev);
+      })
+      .on("postgres_changes",{event:"UPDATE",schema:"public",table:"supervisors"},payload=>{
+        const s=payload.new;const o=payload.old;
+        if(s.plan!==o.plan||s.stripe_customer_id!==o.stripe_customer_id){
+          setActivity(prev=>[{type:"upgrade",desc:`${s.name||s.email} upgraded to ${s.plan}`,time:new Date().toISOString()},...prev].slice(0,10));
+        }
+      })
+      .subscribe();
+    return ()=>{supabase.removeChannel(channel);};
   },[session]);
 
   const drillInto=async(key)=>{
     if(drill===key){setDrill(null);return;}
     setDrill(key);setDrillLoading(true);
     let data=[];
-    if(key==="supervisors"||key==="newThisWeek"){
-      const weekAgo=new Date(Date.now()-7*24*60*60*1000);
+    if(key==="supervisors"||key==="newToday"||key==="newWeek"||key==="newMonth"){
       const {data:sups}=await supabase.from("supervisors").select("name,email,plan,created_at,lifetime_free").order("created_at",{ascending:false}).limit(50);
-      const list=key==="newThisWeek"?(sups||[]).filter(s=>new Date(s.created_at)>=weekAgo):(sups||[]);
+      const now=new Date();const filterMap={newToday:new Date(now.getFullYear(),now.getMonth(),now.getDate()),newWeek:new Date(now-7*24*60*60*1000),newMonth:new Date(now-30*24*60*60*1000)};
+      const cutoff=filterMap[key];
+      const list=cutoff?(sups||[]).filter(s=>new Date(s.created_at)>=cutoff):(sups||[]);
       data=list.map(s=>({name:s.name||s.email,plan:s.lifetime_free?"Founder":s.plan||"starter",signed_up:new Date(s.created_at).toLocaleDateString()}));
     } else if(key==="totalInterns"){
       const {data:interns}=await supabase.from("interns").select("name,status,created_at").order("created_at",{ascending:false}).limit(50);
       data=(interns||[]).map(i=>({name:i.name,status:i.status,added:new Date(i.created_at).toLocaleDateString()}));
     } else if(key==="openTickets"){
       const {data:tix}=await supabase.from("support_tickets").select("subject,user_email,status,created_at").eq("status","open").limit(20);
-      data=(tix||[]).map(t=>({subject:t.subject||"No subject",from:t.user_email,date:new Date(t.created_at).toLocaleDateString()}));
+      data=(tix||[]).map(tk=>({subject:tk.subject||"No subject",from:tk.user_email,date:new Date(tk.created_at).toLocaleDateString()}));
     } else if(key==="recentErrors"){
       const dayAgo=new Date(Date.now()-24*60*60*1000).toISOString();
       const {data:errs}=await supabase.from("error_logs").select("message,source,created_at").gte("created_at",dayAgo).limit(20);
@@ -3156,35 +3194,73 @@ function PlatformOverview({T,session,onNavigate}) {
 
   if(!stats) return null;
 
+  const daysLive=sp?.created_at?Math.max(1,Math.ceil((Date.now()-new Date(sp.created_at).getTime())/(1000*60*60*24))):1;
+  const supCount=(interns||[]).filter(i=>i.status==="active").length;
+  const grpCount=(groups||[]).length;
+  const cardBg="#FAFDFB";const cardBorder="#C8D8D4";const labelColor="#608080";
+  const statCard=(label,value,color)=>({key:label,label,value,color:color||"#1E4040"});
   const items=[
-    {key:"supervisors",label:"Supervisors",value:stats.supervisors,icon:"👤"},
-    {key:"newThisWeek",label:"New This Week",value:stats.newThisWeek,icon:"📈"},
-    {key:"totalInterns",label:"Active Interns",value:stats.totalInterns,icon:"🎓"},
-    {key:"totalMessages",label:"Messages",value:stats.totalMessages,icon:"💬"},
-    {key:"openTickets",label:"Open Tickets",value:stats.openTickets,icon:"🎫"},
-    {key:"recentErrors",label:"Errors (24h)",value:stats.recentErrors,icon:"⚠️"},
+    statCard("Supervisors",stats.supervisors),
+    statCard("New Today",stats.newToday),
+    statCard("This Week",stats.newWeek),
+    statCard("This Month",stats.newMonth),
+    statCard("Interns",stats.totalInterns),
+    statCard("Sessions",stats.totalSessions),
+    statCard("Active Trials",stats.activeTrial,gold),
+    statCard("Expiring 7D",stats.expiring7d),
+    statCard("Paid Users",stats.paidUsers),
+    statCard("Open Tickets",stats.openTickets),
+    statCard("Errors 24H",stats.recentErrors,stats.recentErrors>0?"#A83A3A":undefined),
   ];
+  const actDotColor={signup:"#2E7A4E",intern:"#2A4E8A",upgrade:gold};
+  const relTime=(iso)=>{if(!iso)return"";const d=Math.floor((Date.now()-new Date(iso).getTime())/60000);if(d<1)return"just now";if(d<60)return`${d}m ago`;if(d<1440)return`${Math.floor(d/60)}h ago`;return`${Math.floor(d/1440)}d ago`;};
 
-  return <div style={{background:`linear-gradient(135deg, ${goldLight}, #FFF8E8)`,border:`1px solid ${goldBorder}`,borderRadius:16,padding:"20px 24px",marginBottom:24}}>
+  return <div style={{marginBottom:28}}>
+    {/* ── Founder Card ── */}
+    <div style={{background:cardBg,border:`1.5px solid ${gold}`,borderRadius:16,padding:"20px 28px",marginBottom:20,display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:16}}>
+      <div>
+        <div style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:22,color:"#1E4040",fontWeight:500,letterSpacing:"-0.01em"}}>✦ Founder Account</div>
+        <div style={{fontSize:13,color:"#608080",fontStyle:"italic",marginTop:3}}>Lifetime access · Practice · Co-Founder</div>
+      </div>
+      <div style={{display:"flex",alignItems:"center",gap:0}}>
+        {[{n:daysLive,l:"days live"},{n:supCount,l:"supervisees"},{n:grpCount,l:"groups"}].map((s,i)=><div key={s.l} style={{display:"flex",alignItems:"center",gap:0}}>
+          {i>0&&<div style={{width:1,height:32,background:"#C8D8D4",margin:"0 20px"}}/>}
+          <div style={{textAlign:"center"}}>
+            <div style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:26,color:"#1E4040",fontWeight:600,lineHeight:"1.1"}}>{s.n}</div>
+            <div style={{fontSize:10,color:labelColor,fontFamily:"'DM Mono',monospace",letterSpacing:"0.12em",textTransform:"uppercase"}}>{s.l}</div>
+          </div>
+        </div>)}
+      </div>
+    </div>
+
+    {/* ── Platform Overview Header ── */}
     <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
       <div style={{display:"flex",alignItems:"center",gap:10}}>
-        <span style={{color:gold,fontSize:16}}>✦</span>
-        <span style={{fontSize:14,fontWeight:600,color:"#8A7A50",fontFamily:"'DM Mono',monospace",letterSpacing:1}}>PLATFORM OVERVIEW</span>
+        <span style={{color:gold,fontSize:14}}>✦</span>
+        <span style={{fontSize:12,fontWeight:600,color:labelColor,fontFamily:"'DM Mono',monospace",letterSpacing:"0.12em",textTransform:"uppercase"}}>PLATFORM OVERVIEW</span>
+        <span style={{fontSize:12,fontFamily:"'DM Mono',monospace",color:labelColor,letterSpacing:"0.06em"}}>·</span>
+        <span style={{fontSize:12,fontFamily:"'DM Mono',monospace",color:labelColor,letterSpacing:"0.06em"}}>LIVE</span>
+        <span style={{width:7,height:7,borderRadius:"50%",background:"#2E7A4E",display:"inline-block",marginLeft:2,boxShadow:"0 0 6px #2E7A4E80"}}/>
       </div>
-      <button onClick={()=>onNavigate("admin")} style={{background:gold,color:"#fff",border:"none",borderRadius:8,padding:"5px 14px",cursor:"pointer",fontSize:11,fontFamily:"'DM Mono',monospace",fontWeight:500}}>Admin Panel →</button>
+      <button onClick={()=>onNavigate("admin")} style={{background:gold,color:"#fff",border:"none",borderRadius:8,padding:"6px 16px",cursor:"pointer",fontSize:11,fontFamily:"'DM Mono',monospace",fontWeight:600,letterSpacing:"0.04em"}}>Admin Panel →</button>
     </div>
-    <div style={{display:"flex",flexWrap:"wrap",gap:10}}>
+
+    {/* ── Stats Grid ── */}
+    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:20}}>
       {items.map(it=>(
-        <div key={it.key} onClick={()=>drillInto(it.key)}
-          style={{flex:"1 1 120px",background:drill===it.key?"#fff":"rgba(255,255,255,0.7)",border:`1px solid ${drill===it.key?gold:goldBorder}`,borderRadius:12,padding:"14px 14px 12px",cursor:"pointer",transition:"all 0.15s",minWidth:120}}>
-          <div style={{fontSize:10,color:"#8A7A50",fontFamily:"'DM Mono',monospace",marginBottom:6}}>{it.icon} {it.label}</div>
-          <div style={{fontSize:24,fontWeight:700,color:it.key==="recentErrors"&&it.value>0?"#A04040":"#1E4040",fontFamily:"'Fraunces',Georgia,serif"}}>{it.value}</div>
+        <div key={it.label} onClick={()=>drillInto(it.key==="Supervisors"?"supervisors":it.key==="New Today"?"newToday":it.key==="This Week"?"newWeek":it.key==="This Month"?"newMonth":it.key==="Interns"?"totalInterns":it.key==="Open Tickets"?"openTickets":it.key==="Errors 24H"?"recentErrors":null)}
+          style={{height:90,background:cardBg,border:`1px solid ${cardBorder}`,borderRadius:14,padding:"14px 16px",cursor:"pointer",display:"flex",flexDirection:"column",justifyContent:"space-between",transition:"border-color 0.15s"}}
+          onMouseEnter={e=>e.currentTarget.style.borderColor=gold} onMouseLeave={e=>e.currentTarget.style.borderColor=cardBorder}>
+          <div style={{fontSize:11,color:labelColor,fontFamily:"'DM Mono',monospace",letterSpacing:"0.12em",textTransform:"uppercase",fontWeight:500}}>{it.label}</div>
+          <div style={{fontFamily:"'Fraunces',Georgia,serif",fontSize:32,color:it.color,fontWeight:600,lineHeight:"1"}}>{it.value}</div>
         </div>
       ))}
     </div>
-    {drill&&<div style={{background:"#fff",border:`1px solid ${goldBorder}`,borderRadius:12,padding:16,marginTop:12}}>
+
+    {/* ── Drill-down ── */}
+    {drill&&<div style={{background:"#fff",border:`1px solid ${cardBorder}`,borderRadius:14,padding:16,marginBottom:20}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-        <span style={{fontSize:13,fontWeight:600,color:t.text}}>{items.find(i=>i.key===drill)?.label} — Detail</span>
+        <span style={{fontSize:13,fontWeight:600,color:t.text}}>{drill} — Detail</span>
         <button onClick={()=>setDrill(null)} style={{background:"none",border:"none",cursor:"pointer",fontSize:16,color:t.muted}}>×</button>
       </div>
       {drillLoading?<div style={{textAlign:"center",padding:16,color:t.muted,fontSize:13}}>Loading...</div>:
@@ -3197,6 +3273,19 @@ function PlatformOverview({T,session,onNavigate}) {
            </tr>)}</tbody>
          </table>
        </div>}
+    </div>}
+
+    {/* ── Live Activity Feed ── */}
+    {activity.length>0&&<div style={{background:cardBg,border:`1px solid ${cardBorder}`,borderRadius:14,padding:"16px 20px"}}>
+      <div style={{fontSize:11,color:labelColor,fontFamily:"'DM Mono',monospace",letterSpacing:"0.12em",textTransform:"uppercase",fontWeight:500,marginBottom:12}}>LIVE ACTIVITY</div>
+      {activity.map((ev,i)=><div key={i}>
+        {i>0&&<div style={{height:1,background:"#E8EDE8",margin:"0"}}/>}
+        <div style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0"}}>
+          <span style={{width:8,height:8,borderRadius:"50%",background:actDotColor[ev.type]||"#999",flexShrink:0}}/>
+          <span style={{flex:1,fontSize:13,color:"#1E4040"}}>{ev.desc}</span>
+          <span style={{fontSize:11,color:"#9A9A8A",fontFamily:"'DM Mono',monospace",flexShrink:0}}>{relTime(ev.time)}</span>
+        </div>
+      </div>)}
     </div>}
   </div>;
 }
@@ -3240,12 +3329,16 @@ function Dashboard({interns,groups,lists,colleagues,onSelectIntern,onNavigate,on
     return ()=>clearInterval(id);
   },[]);
 
-  // Random uplifting greeting — picked once per session
+  // Time-based greeting for founder/admin; random casual for others
   const GREETINGS = [
     "Hey there,","Howdy,","Hey,","Hi there,","Hello there,","Well hey,",
     "Oh hey,","Good to see you,","Hi,","Hello,",
   ];
-  const [greeting] = useState(()=>GREETINGS[Math.floor(Math.random()*GREETINGS.length)]);
+  const [randomGreeting] = useState(()=>GREETINGS[Math.floor(Math.random()*GREETINGS.length)]);
+  const isFounder=!!sp?.lifetime_free;
+  const hour=now.getHours();
+  const founderGreeting=hour>=5&&hour<12?"Good morning,":hour>=12&&hour<17?"Good afternoon,":hour>=17&&hour<23?"Good evening,":"Still at it,";
+  const greeting=isFounder?founderGreeting:randomGreeting;
 
   const firstName = supervisorName ? (supervisorName.includes("@")?supervisorName.split("@")[0]:supervisorName.split(" ")[0]) : "there";
   const dateStr = now.toLocaleDateString("en-US",{weekday:"long",year:"numeric",month:"long",day:"numeric"});
@@ -3276,13 +3369,18 @@ function Dashboard({interns,groups,lists,colleagues,onSelectIntern,onNavigate,on
   const onDrop=(i)=>{if(dragIdx===null||dragIdx===i)return;setSections(p=>{const n=[...p];const[m]=n.splice(dragIdx,1);n.splice(i,0,m);return n;});setDragIdx(null);setDragOver(null);};
   const sharedInterns=interns.filter(i=>i.sharedWith?.length>0);
 
+  const goldAccent="#C4A040";
   return <div>
     <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:16}}>
       <div style={{display:"flex",alignItems:"center",gap:14}}>
-        <Avatar initials={supervisorInitials||"??"} size={46} T={t} photo={supervisorPhoto}/>
+        <div style={{cursor:"pointer",borderRadius:"50%",border:isFounder?`2.5px solid ${goldAccent}`:"2.5px solid transparent",padding:2,flexShrink:0}} onClick={()=>onNavigate&&onNavigate("profile")}>
+          <Avatar initials={supervisorInitials||"??"} size={isFounder?64:46} T={t} photo={supervisorPhoto}/>
+        </div>
         <div>
-          <h1 style={{fontFamily:"inherit",fontSize:30,fontWeight:400,color:t.text,margin:"0 0 4px",letterSpacing:"-0.02em"}}>{greeting} {firstName}</h1>
-          <p style={{color:t.muted,fontSize:14,margin:0}}>{dateStr} · <span style={{fontFamily:"'DM Mono',monospace",fontSize:13}}>{timeStr}</span></p>
+          <h1 style={{fontFamily:"inherit",fontSize:30,fontWeight:400,color:t.text,margin:"0 0 4px",letterSpacing:"-0.02em"}}>{greeting} {firstName}{isFounder?" ✦":""}</h1>
+          {isFounder
+            ?<p style={{color:t.muted,fontSize:14,margin:0,fontStyle:"italic"}}>Here's your empire. <span style={{fontStyle:"normal",fontFamily:"'DM Mono',monospace",fontSize:13}}>{dateStr} · {timeStr}</span></p>
+            :<p style={{color:t.muted,fontSize:14,margin:0}}>{dateStr} · <span style={{fontFamily:"'DM Mono',monospace",fontSize:13}}>{timeStr}</span></p>}
         </div>
       </div>
       <div style={{display:"flex",gap:6,alignItems:"center"}}>
@@ -3300,7 +3398,7 @@ function Dashboard({interns,groups,lists,colleagues,onSelectIntern,onNavigate,on
     </div>
 
     {/* ── Platform Overview (Founder only) ── */}
-    {sp?.lifetime_free&&<PlatformOverview T={t} session={session} onNavigate={onNavigate}/>}
+    {sp?.lifetime_free&&<PlatformOverview T={t} session={session} onNavigate={onNavigate} interns={interns} groups={groups} sp={sp}/>}
 
     {customizing&&<div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:14,padding:"20px 24px",marginBottom:24,boxShadow:"0 2px 8px rgba(0,0,0,0.05)"}}>
       <div style={{fontSize:14,fontWeight:500,color:t.text,marginBottom:12}}>Stat cards</div>
