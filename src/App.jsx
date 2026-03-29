@@ -1803,6 +1803,30 @@ function HoursBreakdown({intern,onUpdateIntern,T}) {
         </div>
       </div>
 
+      {/* Manual hour entries — editable */}
+      {supLog.length>0&&<div style={{marginTop:16}}>
+        <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:10}}>Manually logged hours</div>
+        <div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:12,overflow:"hidden"}}>
+          {supLog.map((entry,i)=>(
+            <div key={entry.category+i} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 16px",borderTop:i>0?`1px solid ${t.borderLight}`:"none"}}>
+              <div style={{width:8,height:8,borderRadius:"50%",background:entry.type==="direct"?t.accent:S.purple,flexShrink:0}}/>
+              <div style={{flex:1}}>
+                <div style={{fontSize:13,color:t.text}}>{entry.label||entry.category}</div>
+                <div style={{fontSize:10,color:t.faint,fontFamily:"'DM Mono',monospace"}}>{entry.type}</div>
+              </div>
+              <div style={{fontSize:15,color:t.accent,fontFamily:"'DM Mono',monospace",fontWeight:700,minWidth:50,textAlign:"right"}}>{entry.hours} hrs</div>
+              <button onClick={()=>{
+                const newLog=supLog.filter((_,idx)=>idx!==i);
+                const newTotal=Math.round(newLog.reduce((s,e)=>s+e.hours,0)*10)/10;
+                onUpdateIntern({...intern,hourLog:newLog,hoursCompleted:newTotal});
+              }} title="Remove entry"
+                style={{background:"none",border:"none",cursor:"pointer",fontSize:13,color:t.faint,padding:"2px 6px",opacity:0.4,transition:"opacity 0.1s"}}
+                onMouseEnter={e=>e.currentTarget.style.opacity=1} onMouseLeave={e=>e.currentTarget.style.opacity=0.4}>✕</button>
+            </div>
+          ))}
+        </div>
+      </div>}
+
       {/* Six-month period history — clickable */}
       {intern.supervisorHoursLog?.length>0&&<div style={{marginTop:16}}>
         <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:10}}>
