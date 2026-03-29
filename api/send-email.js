@@ -109,6 +109,17 @@ const TEMPLATES = {
     subject: "You're in. Let's make supervision feel different. ✦",
     html: welcomeEmail(name || 'there', trialEndDate || ''),
   }),
+  INTERN_PORTAL_INVITE: ({ supervisorName, internName, inviteLink }) => ({
+    subject: `${supervisorName || 'Your supervisor'} invited you to your SupTrack portal`,
+    html: wrap(`
+      <h2 style="color:#1E4040;font-family:'Georgia',serif;margin:0 0 16px">You're invited</h2>
+      <p style="font-size:15px;color:#102828;line-height:1.7;margin:0 0 12px">Hi ${internName || 'there'},</p>
+      <p style="font-size:15px;color:#3A5A4A;line-height:1.7;margin:0 0 12px"><strong>${supervisorName || 'Your supervisor'}</strong> has invited you to access your supervision portal on SupTrack.</p>
+      <p style="font-size:15px;color:#3A5A4A;line-height:1.7;margin:0 0 24px">Your portal lets you track your supervision hours, view session notes, access your agreements, and communicate with your supervisor.</p>
+      ${btn('Create Your Account', inviteLink || APP_URL)}
+      <p style="font-size:13px;color:#8A9A8A;margin:20px 0 0;text-align:center;font-style:italic">This link expires in 7 days.</p>
+    `),
+  }),
   CUSTOM: ({ subject, body }) => ({
     subject: subject || 'Message from SupTrack',
     html: wrap(`

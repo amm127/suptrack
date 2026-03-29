@@ -47,10 +47,25 @@ export default async function handler(req, res) {
       // Don't fail — the portal_enabled flag is already set
     }
 
-    // In production, send an email here via SendGrid/Resend/etc.
-    // For now, return the invite link for the supervisor to share manually
     const appUrl = req.headers.origin || process.env.APP_URL || 'https://app.suptrack.io';
     const inviteLink = `${appUrl}?invite=${token}&type=intern`;
+
+    // Send invite email via Resend
+    try {
+      const emailRes = await fetch(`${appUrl}/api/send-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: internEmail,
+          type: 'INTERN_PORTAL_INVITE',
+          data: { supervisorName: supervisorName || 'Your supervisor', internName: req.body.internName || '', inviteLink },
+        }),
+      });
+      if (!emailRes.ok) console.error('Invite email send failed:', await emailRes.text());
+    } catch (emailErr) {
+      console.error('Invite email error:', emailErr.message);
+      // Don't fail the invite if email fails — supervisor can still share the link
+    }
 
     res.status(200).json({
       success: true,

@@ -2992,25 +2992,80 @@ function InternProfile({intern,groups,lists,setLists,colleagues,setColleagues,on
 
       {/* Portal access */}
       <div style={{background:t.surface,border:`1px solid ${t.border}`,borderRadius:12,padding:"16px 18px",boxShadow:"0 1px 3px rgba(0,0,0,0.04)"}}>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:intern.portal_enabled?10:0}}>
-          <div>
-            <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:4}}>Intern Portal Access</div>
-            {intern.portal_enabled
-              ? <div style={{display:"flex",alignItems:"center",gap:8}}>
-                  <Badge color="#2E7A4E" bg="#E8F5EE">Portal enabled</Badge>
-                  <span style={{fontSize:12,color:t.muted}}>{intern.portal_email}</span>
-                  {intern.portal_user_id&&<Badge color={t.accentText} bg={t.accentLight}>Account created</Badge>}
-                </div>
-              : <div style={{fontSize:13,color:t.muted}}>Give {dn(intern)} read-only access to their hours, session notes, and documents</div>}
+        <div style={{fontSize:11,color:t.muted,fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:10}}>Intern Portal Access</div>
+
+        {/* Status: Active — has account */}
+        {intern.portal_enabled&&intern.portal_user_id&&<div>
+          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+            <span style={{width:8,height:8,borderRadius:"50%",background:"#2E7A4E"}}/>
+            <span style={{fontSize:14,fontWeight:500,color:t.text}}>Portal: Active</span>
+            <span style={{fontSize:12,color:t.muted}}>— {intern.portal_email}</span>
           </div>
-          {!intern.portal_enabled&&<div style={{display:"flex",gap:8,alignItems:"center"}}>
+          <div style={{fontSize:12,color:t.muted,lineHeight:1.6,marginBottom:10}}>
+            {dn(intern)} has created their portal account and can sign in to view their supervision data.
+          </div>
+          <button onClick={async()=>{
+            if(!confirm(`Revoke portal access for ${dn(intern)}? They will no longer be able to sign in.`))return;
+            setPortalLoading(true);
+            await supabase.from("interns").update({portal_enabled:false,portal_user_id:null,portal_invite_token:null}).eq("id",intern.id);
+            onUpdateIntern({...intern,portal_enabled:false,portal_user_id:null,portal_invite_token:null});
+            setPortalLoading(false);
+          }} disabled={portalLoading}
+            style={{background:"#FAE8E8",color:"#A04040",border:"1px solid #E0C0C0",borderRadius:8,padding:"7px 16px",cursor:"pointer",fontSize:12,fontFamily:"'DM Mono',monospace",fontWeight:500}}>
+            {portalLoading?"...":"Revoke Access"}
+          </button>
+        </div>}
+
+        {/* Status: Invite sent — no account yet */}
+        {intern.portal_enabled&&!intern.portal_user_id&&<div>
+          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+            <span style={{width:8,height:8,borderRadius:"50%",background:"#C4A040"}}/>
+            <span style={{fontSize:14,fontWeight:500,color:t.text}}>Portal: Invite sent</span>
+            <span style={{fontSize:12,color:t.muted}}>— {intern.portal_email}</span>
+          </div>
+          <div style={{fontSize:12,color:t.muted,lineHeight:1.6,marginBottom:10}}>
+            Waiting for {dn(intern)} to create their account.
+          </div>
+          <div style={{display:"flex",gap:8}}>
+            <Btn T={t} small disabled={portalLoading} onClick={async()=>{
+              setPortalLoading(true);
+              try{
+                const res=await fetch("/api/invite-intern",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({internId:intern.id,internEmail:intern.portal_email||portalEmail.trim(),internName:dn(intern),supervisorId:authSession.user.id,supervisorName:authSession.user.user_metadata?.full_name||""})});
+                const data=await res.json();
+                if(data.success) setPortalInviteLink(data.inviteLink);
+              }catch{}
+              setPortalLoading(false);
+            }}>{portalLoading?"Sending...":"Resend Invite"}</Btn>
+            <button onClick={async()=>{
+              if(!confirm(`Cancel portal invite for ${dn(intern)}?`))return;
+              setPortalLoading(true);
+              await supabase.from("interns").update({portal_enabled:false,portal_invite_token:null}).eq("id",intern.id);
+              onUpdateIntern({...intern,portal_enabled:false,portal_invite_token:null});
+              setPortalLoading(false);
+            }} disabled={portalLoading}
+              style={{background:"none",color:t.muted,border:`1px solid ${t.border}`,borderRadius:8,padding:"6px 14px",cursor:"pointer",fontSize:12,fontFamily:"'DM Mono',monospace"}}>
+              Cancel Invite
+            </button>
+          </div>
+        </div>}
+
+        {/* Status: Not invited */}
+        {!intern.portal_enabled&&<div>
+          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+            <span style={{width:8,height:8,borderRadius:"50%",background:t.faint}}/>
+            <span style={{fontSize:14,fontWeight:500,color:t.text}}>Portal: Not invited</span>
+          </div>
+          <div style={{fontSize:12,color:t.muted,lineHeight:1.6,marginBottom:10}}>
+            Give {dn(intern)} read-only access to their hours, session notes, and documents.
+          </div>
+          <div style={{display:"flex",gap:8,alignItems:"center"}}>
             <input value={portalEmail} onChange={e=>setPortalEmail(e.target.value)} placeholder="intern@email.com"
               style={{border:`1px solid ${t.border}`,borderRadius:8,padding:"7px 12px",fontSize:13,width:220,fontFamily:"inherit",color:t.text,background:t.bg,outline:"none"}}/>
             <Btn T={t} small disabled={portalLoading||!portalEmail.trim()} onClick={async()=>{
               if(!portalEmail.trim()||!authSession?.user)return;
               setPortalLoading(true);
               try{
-                const res=await fetch("/api/invite-intern",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({internId:intern.id,internEmail:portalEmail.trim(),supervisorId:authSession.user.id})});
+                const res=await fetch("/api/invite-intern",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({internId:intern.id,internEmail:portalEmail.trim(),internName:dn(intern),supervisorId:authSession.user.id,supervisorName:authSession.user.user_metadata?.full_name||""})});
                 const data=await res.json();
                 if(data.success){
                   setPortalInviteLink(data.inviteLink);
@@ -3018,21 +3073,18 @@ function InternProfile({intern,groups,lists,setLists,colleagues,setColleagues,on
                 } else { alert(data.error||"Failed to enable portal"); }
               }catch{ alert("Failed to connect"); }
               setPortalLoading(false);
-            }}>{portalLoading?"Enabling...":"Enable & Send Invite"}</Btn>
-          </div>}
-        </div>
+            }}>{portalLoading?"Sending...":"Invite to Portal"}</Btn>
+          </div>
+        </div>}
+
+        {/* Invite link display */}
         {portalInviteLink&&<div style={{background:t.accentLight,border:`1px solid ${t.accentMid}`,borderRadius:8,padding:"10px 14px",marginTop:10}}>
-          <div style={{fontSize:12,color:t.accentText,fontWeight:500,marginBottom:6}}>Invite link created — share with {dn(intern)}:</div>
+          <div style={{fontSize:12,color:t.accentText,fontWeight:500,marginBottom:6}}>Invite link — share with {dn(intern)}:</div>
           <div style={{display:"flex",gap:8}}>
             <input readOnly value={portalInviteLink} style={{flex:1,border:`1px solid ${t.border}`,borderRadius:6,padding:"6px 10px",fontSize:12,fontFamily:"'DM Mono',monospace",color:t.text,background:t.surface,outline:"none"}}/>
             <button onClick={()=>{navigator.clipboard?.writeText(portalInviteLink);}} style={{background:t.accent,color:"#fff",border:"none",borderRadius:6,padding:"6px 14px",cursor:"pointer",fontSize:12,fontFamily:"'DM Mono',monospace"}}>Copy</button>
           </div>
-          <div style={{fontSize:11,color:t.muted,marginTop:6}}>They'll create an account and see their own hours, notes, and documents.</div>
-        </div>}
-        {intern.portal_enabled&&!portalInviteLink&&<div style={{fontSize:12,color:t.muted,lineHeight:1.6}}>
-          {intern.portal_user_id
-            ? `${dn(intern)} has created their portal account and can sign in to view their supervision data.`
-            : `Invite sent to ${intern.portal_email}. They haven't created their account yet.`}
+          <div style={{fontSize:11,color:t.muted,marginTop:6}}>Email sent to {intern.portal_email}. They can also use this link directly.</div>
         </div>}
       </div>
     </div>}
