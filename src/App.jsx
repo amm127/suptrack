@@ -6221,6 +6221,33 @@ function PublicProfilePage({supervisorPhoto,setSupervisorPhoto,supervisorName:su
             <input {...inp("licenseGoal")} placeholder="e.g. AAMFT Approved Supervisor"/>
           </div>}
           {!editing&&profile.licenseGoal&&<div style={{marginTop:8}}>{fieldLabel("License goal")}{fieldValue(profile.licenseGoal)}</div>}
+
+          {/* License expiration & CE hours */}
+          {editing&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14,marginTop:14,paddingTop:14,borderTop:`1px solid ${t.border}`}}>
+            <div>
+              {fieldLabel("License Expiration Date")}
+              <input type="date" value={sp?.license_expiration_date||""} onChange={e=>{if(onSaveProfile)onSaveProfile({license_expiration_date:e.target.value||null});}}
+                style={{width:"100%",border:`1px solid ${t.border}`,borderRadius:8,padding:"8px 12px",fontSize:13,fontFamily:"inherit",color:t.text,background:t.bg,outline:"none",boxSizing:"border-box"}}/>
+              <div style={{fontSize:11,color:t.faint,marginTop:4}}>Used to track CE renewal deadlines</div>
+            </div>
+            <div>
+              {fieldLabel("CE Hours Required")}
+              <input type="number" value={sp?.ce_hours_required||""} onChange={e=>{if(onSaveProfile)onSaveProfile({ce_hours_required:parseInt(e.target.value)||0});}} placeholder="e.g. 40"
+                style={{width:"100%",border:`1px solid ${t.border}`,borderRadius:8,padding:"8px 12px",fontSize:13,fontFamily:"inherit",color:t.text,background:t.bg,outline:"none",boxSizing:"border-box"}}/>
+              <div style={{fontSize:11,color:t.faint,marginTop:4}}>Check your state board for requirements</div>
+            </div>
+            <div>
+              {fieldLabel("CE Hours Completed")}
+              <input type="number" value={sp?.ce_hours_completed||""} onChange={e=>{if(onSaveProfile)onSaveProfile({ce_hours_completed:parseInt(e.target.value)||0});}} placeholder="0"
+                style={{width:"100%",border:`1px solid ${t.border}`,borderRadius:8,padding:"8px 12px",fontSize:13,fontFamily:"inherit",color:t.text,background:t.bg,outline:"none",boxSizing:"border-box"}}/>
+              <div style={{fontSize:11,color:t.faint,marginTop:4}}>Since your last license renewal</div>
+            </div>
+          </div>}
+          {!editing&&(sp?.license_expiration_date||sp?.ce_hours_required)&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14,marginTop:14,paddingTop:14,borderTop:`1px solid ${t.border}`}}>
+            {sp?.license_expiration_date&&<div>{fieldLabel("License Expiration")}{fieldValue(new Date(sp.license_expiration_date+"T00:00:00").toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"}))}</div>}
+            {sp?.ce_hours_required>0&&<div>{fieldLabel("CE Hours Required")}{fieldValue(sp.ce_hours_required)}</div>}
+            {sp?.ce_hours_completed>=0&&sp?.ce_hours_required>0&&<div>{fieldLabel("CE Hours Completed")}{fieldValue(`${sp.ce_hours_completed||0} / ${sp.ce_hours_required}`)}</div>}
+          </div>}
         </div>
 
         {/* Specialties card */}
@@ -12824,7 +12851,7 @@ useEffect(() => {
 
     // Build a clean row with only known Supabase columns
     const row = {};
-    const VALID_COLS = ["name","email","phone","credential","photo","plan","trial_ends_at","stripe_customer_id","billing_cycle","seat_count","lifetime_free","profile_data","bio","license_goal","boards"];
+    const VALID_COLS = ["name","email","phone","credential","photo","plan","trial_ends_at","stripe_customer_id","billing_cycle","seat_count","lifetime_free","profile_data","bio","license_goal","boards","license_expiration_date","ce_hours_required","ce_hours_completed"];
     for(const key of VALID_COLS){
       if(key in updates) row[key] = updates[key];
     }
